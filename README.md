@@ -1,5 +1,7 @@
 # Overmax
 
+[한국어](README.md) | [English](README.en.md)
+
 DJMAX RESPECT V 선곡 화면에서 V-Archive 기반 비공식 난이도 정보를 실시간으로 보여주는 오버레이 도구입니다.
 
 > **🚀 Rust 네이티브 앱**: Overmax는 Rust 네이티브 기반으로 제작되어 가볍고 빠른 성능을 제공합니다.
