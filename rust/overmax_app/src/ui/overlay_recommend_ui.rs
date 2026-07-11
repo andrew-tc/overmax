@@ -1,3 +1,4 @@
+use crate::ui::i18n::t;
 use crate::ui::overlay_theme::Theme;
 use crate::ui::overlay_ui::diff_color;
 use eframe::egui::{
@@ -67,7 +68,7 @@ pub fn avg_rate_text(result: &RecommendResult) -> String {
 }
 
 pub fn pattern_count_text(result: &RecommendResult) -> String {
-    format!("{}/{}개 패턴", result.has_record_count, result.total_count)
+    format!("{}/{}{}", result.has_record_count, result.total_count, t("개 패턴"))
 }
 
 fn draw_diff_tab(
@@ -107,9 +108,9 @@ fn draw_recommend_content(
     scale: f32,
 ) {
     if state.context.is_none() {
-        draw_empty_recommend(ui, "패턴을 감지하는 중...", scale);
+        draw_empty_recommend(ui, t("패턴을 감지하는 중..."), scale);
     } else if recommendations.entries.is_empty() {
-        draw_empty_recommend(ui, "추천 결과 없음", scale);
+        draw_empty_recommend(ui, t("추천 결과 없음"), scale);
     } else {
         ui.spacing_mut().item_spacing.y = RECOMMEND_ROW_GAP * scale;
         for entry in recommendations.entries.iter().take(6) {

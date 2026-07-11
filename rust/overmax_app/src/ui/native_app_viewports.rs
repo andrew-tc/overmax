@@ -7,6 +7,7 @@ use std::sync::atomic::Ordering;
 
 use crate::system::native_helpers;
 use crate::ui::debug_ui;
+use crate::ui::i18n::t;
 use crate::ui::native_app::NativeApp;
 use crate::ui::overlay_theme::Theme;
 #[cfg(target_os = "windows")]
@@ -240,7 +241,7 @@ impl NativeApp {
         };
         ctx.show_viewport_deferred(
             native_helpers::vp_settings(),
-            Self::auxiliary_viewport("Overmax 설정", [520.0, 560.0]),
+            Self::auxiliary_viewport(t("Overmax 설정"), [520.0, 560.0]),
             move |ui, class| {
                 ui.ctx().set_pixels_per_point(1.0);
                 #[cfg(debug_assertions)]
@@ -264,7 +265,7 @@ impl NativeApp {
                                 egui::Layout::right_to_left(egui::Align::Center),
                                 |ui| {
                                     let close_btn = egui::Button::new(
-                                        RichText::new("닫기").size(Theme::FONT_BODY),
+                                        RichText::new(t("닫기")).size(Theme::FONT_BODY),
                                     )
                                     .min_size(egui::vec2(80.0, Theme::CONTROL_HEIGHT))
                                     .fill(Theme::SECONDARY)
@@ -278,7 +279,7 @@ impl NativeApp {
                                     ui.add_space(8.0);
 
                                     let save_btn = egui::Button::new(
-                                        RichText::new("저장").size(Theme::FONT_BODY).strong(),
+                                        RichText::new(t("저장")).size(Theme::FONT_BODY).strong(),
                                     )
                                     .min_size(egui::vec2(100.0, Theme::CONTROL_HEIGHT))
                                     .fill(Theme::PRIMARY)
@@ -294,6 +295,7 @@ impl NativeApp {
                                             &mut local_draft,
                                             &mut merged_g,
                                         );
+                                        crate::ui::i18n::set_locale_from_settings(&merged_g);
                                         if let Ok(mut m) = merged.lock() {
                                             *m = merged_g;
                                         }
@@ -305,7 +307,7 @@ impl NativeApp {
                 settings_ui::render_settings_deferred(
                     ui,
                     class,
-                    "설정",
+                    t("설정"),
                     &mut local_draft,
                     &settings_ctx,
                 );
@@ -333,7 +335,7 @@ impl NativeApp {
 
         ctx.show_viewport_deferred(
             native_helpers::vp_sync(),
-            Self::auxiliary_viewport("V-Archive 동기화", [560.0, 720.0]),
+            Self::auxiliary_viewport(t("V-Archive 동기화"), [560.0, 720.0]),
             move |ui, class| {
                 ui.ctx().set_pixels_per_point(1.0);
                 #[cfg(debug_assertions)]

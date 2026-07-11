@@ -1,4 +1,5 @@
 use crate::ui::debug_ui;
+use crate::ui::i18n::t;
 use crate::ui::native_app::NativeApp;
 use crate::ui::overlay_recommend_ui::PatternTabInfo;
 use overmax_core::{Difficulty, GameSessionState};
@@ -89,7 +90,7 @@ impl NativeApp {
 
     pub(crate) fn current_song_label(&self) -> String {
         let Some(ctx) = &self.session.context else {
-            return "곡을 선택하세요".into();
+            return t("곡을 선택하세요").into();
         };
         let Some(song) = self.varchive_db.search_by_id(ctx.song_id) else {
             return format!("Song #{}", ctx.song_id);

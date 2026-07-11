@@ -1,5 +1,6 @@
 //! V-Archive sync window: list candidates and trigger scan / upload.
 
+use crate::ui::i18n::t;
 use crate::ui::overlay_theme::{apply_secondary_window_style, Theme};
 use eframe::egui::{self, Color32, CornerRadius, Frame, Margin, RichText, Stroke, ViewportClass};
 use overmax_data::{matches_filter, RecordKey, SyncCandidate, SyncFilterSettings, LEVEL_LABELS};
@@ -46,7 +47,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                     .strong(),
             );
             ui.label(
-                RichText::new("동기화")
+                RichText::new(t("동기화"))
                     .color(Theme::TEXT_PRIMARY)
                     .size(Theme::FONT_HEADING)
                     .strong(),
@@ -55,7 +56,7 @@ pub fn render_sync<F1, F2, F3, F4>(
 
         ui.add_space(4.0);
         ui.label(
-            RichText::new("Steam 계정 기준으로 업로드 후보를 확인합니다.")
+            RichText::new(t("Steam 계정 기준으로 업로드 후보를 확인합니다."))
                 .color(Theme::TEXT_SECONDARY)
                 .size(Theme::FONT_BODY),
         );
@@ -90,7 +91,7 @@ pub fn render_sync<F1, F2, F3, F4>(
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let scan_btn = egui::Button::new(
-                            RichText::new("스캔").size(Theme::FONT_BODY).strong(),
+                            RichText::new(t("스캔")).size(Theme::FONT_BODY).strong(),
                         )
                         .min_size(egui::vec2(80.0, Theme::CONTROL_HEIGHT))
                         .fill(Theme::PRIMARY)
@@ -368,7 +369,7 @@ pub fn render_sync<F1, F2, F3, F4>(
 
         ui.horizontal(|ui| {
             ui.label(
-                RichText::new("업로드 후보")
+                RichText::new(t("업로드 후보"))
                     .color(Theme::TEXT_PRIMARY)
                     .size(Theme::FONT_BODY)
                     .strong(),
@@ -387,7 +388,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                 } else {
                     Theme::SECONDARY
                 };
-                let diff_btn = egui::Button::new(RichText::new("변경순").size(Theme::FONT_SMALL))
+                let diff_btn = egui::Button::new(RichText::new(t("변경순")).size(Theme::FONT_SMALL))
                     .fill(diff_btn_fill)
                     .corner_radius(CornerRadius::same(Theme::R_SM));
                 if ui.add(diff_btn).clicked() {
@@ -402,7 +403,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                 } else {
                     Theme::SECONDARY
                 };
-                let title_btn = egui::Button::new(RichText::new("제목순").size(Theme::FONT_SMALL))
+                let title_btn = egui::Button::new(RichText::new(t("제목순")).size(Theme::FONT_SMALL))
                     .fill(title_btn_fill)
                     .corner_radius(CornerRadius::same(Theme::R_SM));
                 if ui.add(title_btn).clicked() {
@@ -453,7 +454,7 @@ pub fn render_sync<F1, F2, F3, F4>(
     };
 
     if class == ViewportClass::EmbeddedWindow {
-        egui::Window::new("V-Archive 동기화").show(ui.ctx(), |ui| body(ui));
+        egui::Window::new(t("V-Archive 동기화")).show(ui.ctx(), |ui| body(ui));
     } else {
         egui::CentralPanel::default()
             .frame(
@@ -698,7 +699,7 @@ fn candidate_row<F: Fn(RecordKey), D: Fn(RecordKey)>(
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let upload_btn =
-                        egui::Button::new(RichText::new("등록").size(Theme::FONT_SMALL).strong())
+                        egui::Button::new(RichText::new(t("등록")).size(Theme::FONT_SMALL).strong())
                             .min_size(egui::vec2(60.0, Theme::CONTROL_HEIGHT))
                             .fill(Theme::PRIMARY)
                             .stroke(Stroke::new(1.0_f32, Theme::STROKE))
@@ -711,7 +712,7 @@ fn candidate_row<F: Fn(RecordKey), D: Fn(RecordKey)>(
 
                     ui.add_space(4.0);
 
-                    let del_btn = egui::Button::new(RichText::new("삭제").size(Theme::FONT_SMALL))
+                    let del_btn = egui::Button::new(RichText::new(t("삭제")).size(Theme::FONT_SMALL))
                         .min_size(egui::vec2(60.0, Theme::CONTROL_HEIGHT))
                         .fill(egui::Color32::TRANSPARENT)
                         .stroke(Stroke::new(1.0_f32, Theme::STROKE))
