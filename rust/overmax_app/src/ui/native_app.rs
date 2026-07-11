@@ -284,7 +284,7 @@ impl NativeApp {
         )));
         let mut merged = load_merged_settings(root.as_ref(), (*defaults).clone());
         normalize_settings(&mut merged);
-        crate::i18n::set_locale_from_settings(&merged);
+        crate::ui::i18n::set_locale_from_settings(&merged);
 
         let (log_tx, log_rx) = mpsc::channel();
         crate::ui::native_app_viewports::set_global_log_tx(log_tx.clone());
