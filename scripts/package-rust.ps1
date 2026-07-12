@@ -37,6 +37,9 @@ try {
     Write-Host "Creating overmax.zip..."
     Compress-Archive -Path "$distDir\*" -DestinationPath $zipPath -Force
 
+    # Requires cmd.exe or Windows PowerShell 5.1 as the entry point (see build.bat).
+    # Launching build.bat from a pwsh 7 terminal breaks Get-FileHash's module autoload here,
+    # because pwsh's own module paths leak into the inherited PSModulePath. See CLAUDE.md.
     $zipSha256 = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLower()
     
     # Extract version from workspace Cargo.toml
