@@ -123,6 +123,17 @@ fn translate_en(ko: &'static str) -> &'static str {
         // native_app_recommend.rs
         "곡을 선택하세요" => "Please select a song",
 
+        // native_app.rs
+        "스캔 중…" => "Scanning…",
+        "account.txt 경로 없음" => "account.txt path not set",
+        "account.txt 파싱 실패" => "Failed to parse account.txt",
+        "갱신 완료" => "Updated",
+        "등록 완료" => "Registered",
+        "업로드 OK, 캐시 갱신 실패: " => "Upload OK, cache update failed: ",
+
+        // community/sync.rs (SyncCandidate::reason_label, translated via injected fn)
+        "미등록" => "Not Registered",
+
         _ => ko,
     }
 }

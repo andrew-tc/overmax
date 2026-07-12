@@ -22,6 +22,7 @@ use crate::system::steam_session;
 use crate::system::updater::{self, AppUpdateConfig};
 use crate::system::varchive_upload;
 use crate::ui::debug_ui;
+use crate::ui::i18n::t;
 use crate::ui::overlay_ui;
 use crate::ui::platform;
 use crate::ui::ui_command::UiCommand;
@@ -541,7 +542,7 @@ impl NativeApp {
     pub(crate) fn poll_scan_requests(&mut self, ctx: &egui::Context) {
         if self.ui_state.scan_pending.swap(false, Ordering::Relaxed) {
             if let Ok(mut s) = self.sync_state.status.lock() {
-                *s = "스캔 중…".into();
+                *s = t("스캔 중…").into();
             }
             self.spawn_scan(ctx.clone());
         }
@@ -570,7 +571,11 @@ impl NativeApp {
                         *g = list;
                     }
                     if let Ok(mut s) = self.sync_state.status.lock() {
-                        *s = format!("후보 {n}건");
+                        *s = if crate::ui::i18n::current_locale() == crate::ui::i18n::Locale::En {
+                            format!("{n} candidates")
+                        } else {
+                            format!("후보 {n}건")
+                        };
                     }
                 }
                 Err(msg) => {
@@ -706,7 +711,7 @@ impl NativeApp {
                     key,
                     is_quick_upload,
                     "error".into(),
-                    "account.txt 경로 없음".into(),
+                    t("account.txt 경로 없음").into(),
                 ));
                 ctx.request_repaint();
                 return;
@@ -716,7 +721,7 @@ impl NativeApp {
                     key,
                     is_quick_upload,
                     "error".into(),
-                    "account.txt 파싱 실패".into(),
+                    t("account.txt 파싱 실패").into(),
                 ));
                 ctx.request_repaint();
                 return;
@@ -732,9 +737,9 @@ impl NativeApp {
             );
             if res.success {
                 let success_message = if res.updated {
-                    "갱신 완료"
+                    t("갱신 완료")
                 } else {
-                    "등록 완료"
+                    t("등록 완료")
                 };
                 let btn = button_num(candidate.button_mode.as_str());
 

@@ -691,7 +691,7 @@ fn candidate_row<F: Fn(RecordKey), D: Fn(RecordKey)>(
                         );
                         ui.add_space(4.0);
                         ui.label(
-                            RichText::new(c.reason_label())
+                            RichText::new(c.reason_label(t))
                                 .size(Theme::FONT_SMALL)
                                 .color(Theme::TEXT_MUTED),
                         );
