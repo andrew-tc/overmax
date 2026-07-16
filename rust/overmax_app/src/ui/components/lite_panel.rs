@@ -1,4 +1,5 @@
 use crate::ui::components::{FadeClippedLabel, ModeBadge, OverlayHeaderDetail, StatusLamp};
+use crate::ui::i18n::t;
 use crate::ui::overlay_theme::Theme;
 use crate::ui::overlay_ui::{diff_color, OverlayActions, OverlayProps, Px, LITE_BASE_HEIGHT};
 use crate::ui::ui_command::UiCommand;
@@ -95,7 +96,7 @@ impl LitePanel {
                                 Vec2::splat(18.0 * props.scale),
                                 btn.sense(Sense::click()),
                             )
-                            .on_hover_text("설정");
+                            .on_hover_text(t("설정"));
                         if response.clicked() {
                             props.settings_open.store(true, Ordering::Relaxed);
                             actions.command = Some(UiCommand::OpenSettings);
@@ -125,9 +126,9 @@ impl LitePanel {
                             let response_upload =
                                 ui.add_sized(btn_size, upload_btn.sense(Sense::click()));
                             let response_upload = if props.varchive_account_configured {
-                                response_upload.on_hover_text("V-Archive 업로드 필요 (클릭하여 즉시 업로드)")
+                                response_upload.on_hover_text(t("V-Archive 업로드 필요 (클릭하여 즉시 업로드)"))
                             } else {
-                                response_upload.on_hover_text("V-Archive 계정 연동 필요 (설정에서 account.txt 경로를 지정해주세요)")
+                                response_upload.on_hover_text(t("V-Archive 계정 연동 필요 (설정에서 account.txt 경로를 지정해주세요)"))
                             };
 
                             if response_upload.clicked() && props.varchive_account_configured {

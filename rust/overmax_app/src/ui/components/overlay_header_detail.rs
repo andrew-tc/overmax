@@ -1,3 +1,4 @@
+use crate::ui::i18n::t;
 use crate::ui::overlay_recommend_ui::PatternTabInfo;
 use crate::ui::overlay_theme::Theme;
 use eframe::egui::{self, Color32, FontId, Rect, Vec2};
@@ -171,13 +172,13 @@ impl<'a> OverlayHeaderDetail<'a> {
         };
 
         if !pattern.gold.is_empty() {
-            meta_list.push(format!("황배:{}", pattern.gold));
+            meta_list.push(format!("{}{}", t("황배:"), pattern.gold));
         }
         if !pattern.assist_key.is_empty() {
-            meta_list.push(format!("보조:{}", pattern.assist_key));
+            meta_list.push(format!("{}{}", t("보조:"), pattern.assist_key));
         }
         if pattern.keypart {
-            meta_list.push("키파트 위주 패턴".to_string());
+            meta_list.push(t("키파트 위주 패턴").to_string());
         }
         if !pattern.note.is_empty() {
             meta_list.push(pattern.note.clone());
