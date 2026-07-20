@@ -301,7 +301,7 @@ impl<'a> egui::Widget for OverlayHeaderDetail<'a> {
                 // [가드레일] 결과가 존재하지 않으면 "기록 없음" 이라고 Theme::OK로 표시
                 if record_segments.is_empty() {
                     record_segments.push(TextSegment {
-                        text: "기록 없음".to_string(),
+                        text: t("기록 없음").to_string(),
                         color: Theme::OK,
                     });
                 }

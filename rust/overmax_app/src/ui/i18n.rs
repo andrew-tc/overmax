@@ -108,6 +108,7 @@ fn translate_en(ko: &'static str) -> &'static str {
         "키파트 위주 패턴" => "Key-part Focused Pattern",
         "황배:" => "Gold:",
         "보조:" => "Assist:",
+        "기록 없음" => "No Record",
 
         // overlay_recommend_ui.rs
         "패턴을 감지하는 중..." => "Detecting pattern...",
@@ -129,7 +130,12 @@ fn translate_en(ko: &'static str) -> &'static str {
         "account.txt 파싱 실패" => "Failed to parse account.txt",
         "갱신 완료" => "Updated",
         "등록 완료" => "Registered",
-        "업로드 OK, 캐시 갱신 실패: " => "Upload OK, cache update failed: ",
+        "V-Archive 실패: " => "V-Archive Failed: ",
+        "API 조회 OK, 캐시 병합 실패: " => "API fetch OK, cache merge failed: ",
+        "API 실패 (" => "API failed (",
+        "), 폴백 캐시 갱신 실패: " => "), fallback cache update failed: ",
+        "위 달성!)" => " achieved!)",
+        "업로드 OK, 캐시 갱신 오류: " => "Upload OK, cache update error: ",
 
         // community/sync.rs (SyncCandidate::reason_label, translated via injected fn)
         "미등록" => "Not Registered",
