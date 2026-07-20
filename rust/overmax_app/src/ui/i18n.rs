@@ -64,6 +64,9 @@ pub fn t_gold(meta: GoldMeta) -> &'static str {
         (Locale::En, GoldMeta::HalfRandom) => "Half Random",
         (Locale::En, GoldMeta::MaxRandom) => "Max Random",
         (Locale::En, GoldMeta::Random) => "Random",
+        (Locale::Ja, GoldMeta::HalfRandom) => "HALFランダム",
+        (Locale::Ja, GoldMeta::MaxRandom) => "MAXランダム",
+        (Locale::Ja, GoldMeta::Random) => "ランダム",
     }
 }
 
@@ -76,6 +79,9 @@ pub fn t_assist(meta: AssistMeta) -> &'static str {
         (Locale::En, AssistMeta::Used) => "Used",
         (Locale::En, AssistMeta::Caution) => "Caution",
         (Locale::En, AssistMeta::NotUsed) => "Not Used",
+        (Locale::Ja, AssistMeta::Used) => "使用",
+        (Locale::Ja, AssistMeta::Caution) => "注意",
+        (Locale::Ja, AssistMeta::NotUsed) => "未使用",
     }
 }
 
@@ -279,8 +285,8 @@ fn translate_ja(ko: &'static str) -> &'static str {
         }
         "유사 구간 평균" => "類似区間平均",
         "키파트 위주 패턴" => "キーパート中心パターン",
-        "황배:" => "ゴールド:",
-        "보조:" => "アシスト:",
+        "황배:" => "おすすめ:",
+        "보조:" => "アシストキー:",
         "기록 없음" => "記録なし",
 
         // overlay_recommend_ui.rs
