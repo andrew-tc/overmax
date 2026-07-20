@@ -281,6 +281,7 @@ fn translate_ja(ko: &'static str) -> &'static str {
         "키파트 위주 패턴" => "キーパート中心パターン",
         "황배:" => "ゴールド:",
         "보조:" => "アシスト:",
+        "기록 없음" => "記録なし",
 
         // overlay_recommend_ui.rs
         "패턴을 감지하는 중..." => "パターンを検出中...",
@@ -302,7 +303,12 @@ fn translate_ja(ko: &'static str) -> &'static str {
         "account.txt 파싱 실패" => "account.txtの解析に失敗しました",
         "갱신 완료" => "更新完了",
         "등록 완료" => "登録完了",
-        "업로드 OK, 캐시 갱신 실패: " => "アップロードOK、キャッシュ更新失敗: ",
+        "V-Archive 실패: " => "V-Archive失敗: ",
+        "API 조회 OK, 캐시 병합 실패: " => "API取得OK、キャッシュ統合失敗: ",
+        "API 실패 (" => "API失敗 (",
+        "), 폴백 캐시 갱신 실패: " => "), フォールバックキャッシュ更新失敗: ",
+        "위 달성!)" => "位達成!)",
+        "업로드 OK, 캐시 갱신 오류: " => "アップロードOK、キャッシュ更新エラー: ",
 
         // community/sync.rs (SyncCandidate::reason_label, translated via injected fn)
         "미등록" => "未登録",
