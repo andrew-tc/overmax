@@ -95,7 +95,7 @@ pub fn normalize_settings(settings: &mut Value) {
     let Value::Object(map) = settings else { return };
 
     if let Some(lang) = map.get("language").and_then(|v| v.as_str()) {
-        if lang != "ko" && lang != "en" {
+        if lang != "ko" && lang != "en" && lang != "ja" {
             map.insert("language".to_string(), json!("ko"));
         }
     }
@@ -373,6 +373,13 @@ mod tests {
         let mut settings = json!({"language": "en"});
         normalize_settings(&mut settings);
         assert_eq!(settings["language"], json!("en"));
+    }
+
+    #[test]
+    fn test_normalize_settings_keeps_japanese_language() {
+        let mut settings = json!({"language": "ja"});
+        normalize_settings(&mut settings);
+        assert_eq!(settings["language"], json!("ja"));
     }
 }
 

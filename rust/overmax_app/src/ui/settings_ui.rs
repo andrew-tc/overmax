@@ -580,7 +580,7 @@ fn general_section(ui: &mut egui::Ui, draft: &mut Value) {
         ui.horizontal(|ui| {
             ui.style_mut().spacing.item_spacing.x = 4.0;
             ui.spacing_mut().button_padding = egui::vec2(4.0, 4.0);
-            for (label, val) in [("한국어", "ko"), ("English", "en")] {
+            for (label, val) in [("한국어", "ko"), ("English", "en"), ("日本語", "ja")] {
                 let is_active = current_lang == val;
                 let btn = egui::Button::new(RichText::new(label).size(Theme::FONT_SMALL).strong())
                     .fill(if is_active {

@@ -10,6 +10,7 @@ pub enum Locale {
     #[default]
     Ko,
     En,
+    Ja,
 }
 
 static CURRENT_LOCALE: AtomicU8 = AtomicU8::new(0);
@@ -18,6 +19,7 @@ pub fn set_locale(locale: Locale) {
     let code = match locale {
         Locale::Ko => 0,
         Locale::En => 1,
+        Locale::Ja => 2,
     };
     CURRENT_LOCALE.store(code, Ordering::Relaxed);
 }
@@ -25,26 +27,29 @@ pub fn set_locale(locale: Locale) {
 pub fn current_locale() -> Locale {
     match CURRENT_LOCALE.load(Ordering::Relaxed) {
         1 => Locale::En,
+        2 => Locale::Ja,
         _ => Locale::Ko,
     }
 }
 
-/// Reads the top-level `"language"` key (`"ko"`/`"en"`) from merged settings JSON.
+/// Reads the top-level `"language"` key (`"ko"`/`"en"`/`"ja"`) from merged settings JSON.
 pub fn set_locale_from_settings(settings: &Value) {
     let locale = match settings.get("language").and_then(Value::as_str) {
         Some("en") => Locale::En,
+        Some("ja") => Locale::Ja,
         _ => Locale::Ko,
     };
     set_locale(locale);
 }
 
 /// Looks up `ko` (the source string, also the key) in the current locale.
-/// Returns `ko` unchanged for `Locale::Ko`, or if no English mapping exists.
+/// Returns `ko` unchanged for `Locale::Ko`, or if no mapping exists for the active locale.
 pub fn t(ko: &'static str) -> &'static str {
-    if current_locale() == Locale::Ko {
-        return ko;
+    match current_locale() {
+        Locale::Ko => ko,
+        Locale::En => translate_en(ko),
+        Locale::Ja => translate_ja(ko),
     }
-    translate_en(ko)
 }
 
 /// Localizes a `GoldMeta` value for display. Kept separate from `t()`'s flat
@@ -209,6 +214,98 @@ fn translate_en(ko: &'static str) -> &'static str {
         "현재 버전" => "Current version",
         "최신 버전" => "Latest version",
         "지금 업데이트를 진행할까요?" => "Update now?",
+
+        _ => ko,
+    }
+}
+
+fn translate_ja(ko: &'static str) -> &'static str {
+    match ko {
+        // settings_ui.rs
+        "설정" => "設定",
+        "오버레이 설정" => "オーバーレイ設定",
+        "크기" => "サイズ",
+        "투명도" => "透明度",
+        "라이트모드" => "ライトモード",
+        "활성화" => "有効化",
+        "추천 숨기기 및 레이아웃 축소" => "おすすめを非表示にしてレイアウトを縮小",
+        "오버레이 고정 위치" => "オーバーレイ固定位置",
+        "좌상단" => "左上",
+        "우상단" => "右上",
+        "좌하단" => "左下",
+        "우하단" => "右下",
+        "수동" => "手動",
+        "V-Archive 계정" => "V-Archiveアカウント",
+        "연동 상태" => "連携状態",
+        "자동화" => "自動化",
+        "시작 시 자동 갱신" => "起動時に自動更新",
+        "데이터 동기화" => "データ同期",
+        "찾기" => "参照",
+        "🔍 동기화 후보 찾기" => "🔍 同期候補を探す",
+        "업데이트 설정" => "アップデート設定",
+        "자동 업데이트" => "自動アップデート",
+        "사용" => "使用する",
+        "버전 정보" => "バージョン情報",
+        "발견된 Steam 계정이 없습니다." => "Steamアカウントが見つかりません。",
+        "일반" => "一般",
+        "언어" => "言語",
+        "현재 Steam: " => "現在のSteam: ",
+        "현재 Steam: -" => "現在のSteam: -",
+
+        // sync_ui.rs
+        "동기화" => "同期",
+        "Steam 계정 기준으로 업로드 후보를 확인합니다." => "現在のSteamアカウントを基準にアップロード候補を確認します。",
+        "스캔" => "スキャン",
+        "업로드 후보" => "アップロード候補",
+        "변경순" => "変更順",
+        "제목순" => "タイトル順",
+        "V-Archive 동기화" => "V-Archive同期",
+        "등록" => "登録",
+        "삭제" => "削除",
+
+        // native_app_viewports.rs
+        "Overmax 설정" => "Overmax設定",
+        "닫기" => "閉じる",
+        "저장" => "保存",
+
+        // tray_icon.rs
+        "디버그 로그" => "デバッグログ",
+        "종료" => "終了",
+
+        // overlay_ui.rs
+        "V-Archive 업로드 필요 (클릭하여 즉시 업로드)" => "V-Archiveアップロードが必要です(クリックして今すぐアップロード)",
+        "V-Archive 계정 연동 필요 (설정에서 account.txt 경로를 지정해주세요)" => {
+            "V-Archiveアカウント連携が必要です(設定でaccount.txtのパスを指定してください)"
+        }
+        "유사 구간 평균" => "類似区間平均",
+        "키파트 위주 패턴" => "キーパート中心パターン",
+        "황배:" => "ゴールド:",
+        "보조:" => "アシスト:",
+
+        // overlay_recommend_ui.rs
+        "패턴을 감지하는 중..." => "パターンを検出中...",
+        "추천 결과 없음" => "おすすめなし",
+        "개 패턴" => " パターン",
+
+        // debug_ui.rs
+        "▶ 재개" => "▶ 再開",
+        "⏸ 일시정지" => "⏸ 一時停止",
+        "🗑 지우기" => "🗑 クリア",
+        "필터:" => "フィルター:",
+
+        // native_app_recommend.rs
+        "곡을 선택하세요" => "曲を選択してください",
+
+        // native_app.rs
+        "스캔 중…" => "スキャン中…",
+        "account.txt 경로 없음" => "account.txtのパスが未設定です",
+        "account.txt 파싱 실패" => "account.txtの解析に失敗しました",
+        "갱신 완료" => "更新完了",
+        "등록 완료" => "登録完了",
+        "업로드 OK, 캐시 갱신 실패: " => "アップロードOK、キャッシュ更新失敗: ",
+
+        // community/sync.rs (SyncCandidate::reason_label, translated via injected fn)
+        "미등록" => "未登録",
 
         _ => ko,
     }
