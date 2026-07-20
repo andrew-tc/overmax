@@ -306,9 +306,9 @@ mod tests {
             diff: overmax_core::Difficulty::SC,
             level: Some(12),
             floor_name: Some("12.3".into()),
-            gold: "O".into(),
+            gold: overmax_data::community::sheet_meta::GoldMeta::Random,
             note: "개인차".into(),
-            assist_key: "Y".into(),
+            assist_key: overmax_data::community::sheet_meta::AssistMeta::Used,
             keypart: false,
         }];
 

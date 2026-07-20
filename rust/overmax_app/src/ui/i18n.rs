@@ -1,6 +1,7 @@
 //! Minimal hand-rolled i18n: Korean is the source-of-truth string and also the
 //! lookup key, so call sites just wrap the existing literal in `t(...)`.
 
+use overmax_data::community::sheet_meta::{AssistMeta, GoldMeta};
 use serde_json::Value;
 use std::sync::atomic::{AtomicU8, Ordering};
 
@@ -44,6 +45,33 @@ pub fn t(ko: &'static str) -> &'static str {
         return ko;
     }
     translate_en(ko)
+}
+
+/// Localizes a `GoldMeta` value for display. Kept separate from `t()`'s flat
+/// Korean-string keyspace because `GoldMeta`/`AssistMeta` values are also used
+/// as the community sheet's canonical wire format (matched by `as_str()`
+/// elsewhere), and matching on the enum variant avoids key collisions with
+/// unrelated `t()` entries that happen to share the same Korean text.
+pub fn t_gold(meta: GoldMeta) -> &'static str {
+    match (current_locale(), meta) {
+        (_, GoldMeta::None) => "",
+        (Locale::Ko, _) => meta.as_str(),
+        (Locale::En, GoldMeta::HalfRandom) => "Half Random",
+        (Locale::En, GoldMeta::MaxRandom) => "Max Random",
+        (Locale::En, GoldMeta::Random) => "Random",
+    }
+}
+
+/// Localizes an `AssistMeta` value for display. See `t_gold` for why this
+/// isn't routed through the flat `t()` keyspace.
+pub fn t_assist(meta: AssistMeta) -> &'static str {
+    match (current_locale(), meta) {
+        (_, AssistMeta::None) => "",
+        (Locale::Ko, _) => meta.as_str(),
+        (Locale::En, AssistMeta::Used) => "Used",
+        (Locale::En, AssistMeta::Caution) => "Caution",
+        (Locale::En, AssistMeta::NotUsed) => "Not Used",
+    }
 }
 
 fn translate_en(ko: &'static str) -> &'static str {
@@ -106,8 +134,8 @@ fn translate_en(ko: &'static str) -> &'static str {
         }
         "유사 구간 평균" => "Similar Section Average",
         "키파트 위주 패턴" => "Key-part Focused Pattern",
-        "황배:" => "Gold:",
-        "보조:" => "Assist:",
+        "황배:" => "Recommendation:",
+        "보조:" => "Assist Key:",
         "기록 없음" => "No Record",
 
         // overlay_recommend_ui.rs

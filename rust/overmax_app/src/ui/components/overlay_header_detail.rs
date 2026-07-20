@@ -1,4 +1,4 @@
-use crate::ui::i18n::t;
+use crate::ui::i18n::{t, t_assist, t_gold};
 use crate::ui::overlay_recommend_ui::PatternTabInfo;
 use crate::ui::overlay_theme::Theme;
 use eframe::egui::{self, Color32, FontId, Rect, Vec2};
@@ -171,11 +171,11 @@ impl<'a> OverlayHeaderDetail<'a> {
             return meta_list;
         };
 
-        if !pattern.gold.is_empty() {
-            meta_list.push(format!("{}{}", t("황배:"), pattern.gold));
+        if !pattern.gold.is_none() {
+            meta_list.push(format!("{}{}", t("황배:"), t_gold(pattern.gold)));
         }
-        if !pattern.assist_key.is_empty() {
-            meta_list.push(format!("{}{}", t("보조:"), pattern.assist_key));
+        if !pattern.assist_key.is_none() {
+            meta_list.push(format!("{}{}", t("보조:"), t_assist(pattern.assist_key)));
         }
         if pattern.keypart {
             meta_list.push(t("키파트 위주 패턴").to_string());
@@ -349,15 +349,15 @@ mod tests {
             diff: overmax_core::Difficulty::SC,
             level: Some(12),
             floor_name: Some("12.3".into()),
-            gold: "O".into(),
+            gold: overmax_data::community::sheet_meta::GoldMeta::Random,
             note: "개인차".into(),
-            assist_key: "Y".into(),
+            assist_key: overmax_data::community::sheet_meta::AssistMeta::Used,
             keypart: false,
         }];
 
         let sub = OverlayHeaderDetail::new(&state, &patterns);
         let meta = sub.collect_pattern_meta();
 
-        assert_eq!(meta, vec!["황배:O", "보조:Y", "개인차"]);
+        assert_eq!(meta, vec!["황배:랜덤", "보조:사용", "개인차"]);
     }
 }

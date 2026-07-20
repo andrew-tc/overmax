@@ -205,9 +205,9 @@ impl NativeApp {
                     diff: d,
                     level: pattern.level,
                     floor_name: pattern.floor_name.as_ref().map(|s| s.to_string()),
-                    gold: meta.gold.as_str().to_string(),
+                    gold: meta.gold,
                     note: meta.note,
-                    assist_key: meta.assist_key.as_str().to_string(),
+                    assist_key: meta.assist_key,
                     keypart: meta.keypart,
                 })
             })

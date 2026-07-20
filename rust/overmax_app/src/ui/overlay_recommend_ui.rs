@@ -5,6 +5,7 @@ use eframe::egui::{
     self, Align, Color32, CornerRadius, FontId, Frame, Label, Layout, Margin, Rect, RichText, Vec2,
 };
 use overmax_core::GameSessionState;
+use overmax_data::community::sheet_meta::{AssistMeta, GoldMeta};
 use overmax_data::{RecommendEntry, RecommendResult};
 
 const TAB_WIDTH: f32 = 52.0;
@@ -26,9 +27,9 @@ pub struct PatternTabInfo {
     pub diff: overmax_core::Difficulty,
     pub level: Option<u32>,
     pub floor_name: Option<String>,
-    pub gold: String,
+    pub gold: GoldMeta,
     pub note: String,
-    pub assist_key: String,
+    pub assist_key: AssistMeta,
     pub keypart: bool,
 }
 
@@ -327,8 +328,8 @@ fn centered_badge_rect(cell: Rect, width: f32, scale: f32) -> Rect {
 #[cfg(test)]
 mod tests {
     use super::{
-        centered_badge_rect, pattern_label, recommend_row_inner_width, PatternTabInfo,
-        BADGE_HEIGHT, RECOMMEND_ROW_HEIGHT,
+        centered_badge_rect, pattern_label, recommend_row_inner_width, AssistMeta, GoldMeta,
+        PatternTabInfo, BADGE_HEIGHT, RECOMMEND_ROW_HEIGHT,
     };
     use eframe::egui::{Pos2, Rect, Vec2};
 
@@ -338,9 +339,9 @@ mod tests {
             diff: overmax_core::Difficulty::SC,
             level: Some(12),
             floor_name: Some("12.3".into()),
-            gold: String::new(),
+            gold: GoldMeta::default(),
             note: String::new(),
-            assist_key: String::new(),
+            assist_key: AssistMeta::default(),
             keypart: false,
         };
 
