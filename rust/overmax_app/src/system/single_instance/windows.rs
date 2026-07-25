@@ -48,7 +48,10 @@ fn show_already_running() {
     const TITLE: &str = "Overmax";
     const MSG: &str = "이미 Overmax가 실행 중입니다. 기존 인스턴스를 종료한 뒤 다시 실행하세요.";
     let title: Vec<u16> = OsStr::new(TITLE).encode_wide().chain(Some(0)).collect();
-    let msg: Vec<u16> = OsStr::new(MSG).encode_wide().chain(Some(0)).collect();
+    let msg: Vec<u16> = OsStr::new(crate::ui::i18n::t(MSG))
+        .encode_wide()
+        .chain(Some(0))
+        .collect();
     unsafe {
         MessageBoxW(
             std::ptr::null_mut(),

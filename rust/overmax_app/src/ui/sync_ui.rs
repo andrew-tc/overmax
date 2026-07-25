@@ -141,7 +141,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                 ui.horizontal(|ui| {
                     let icon = if filter.open { "▼" } else { "▶" };
                     let toggle_btn = egui::Button::new(
-                        RichText::new(format!("{} 🔍 필터", icon))
+                        RichText::new(format!("{} 🔍 {}", icon, t("필터")))
                             .color(Theme::TEXT_ACCENT)
                             .size(Theme::FONT_BODY)
                             .strong(),
@@ -156,7 +156,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                     if filter.open {
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             let reset_btn = egui::Button::new(
-                                RichText::new("초기화 ↺").size(Theme::FONT_SMALL),
+                                RichText::new(t("초기화 ↺")).size(Theme::FONT_SMALL),
                             )
                             .fill(Theme::SECONDARY)
                             .corner_radius(CornerRadius::same(Theme::R_SM));
@@ -180,7 +180,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                             ui.add_sized(
                                 [170.0, 20.0],
                                 egui::Label::new(
-                                    RichText::new("모드")
+                                    RichText::new(t("모드"))
                                         .color(Theme::TEXT_SECONDARY)
                                         .size(Theme::FONT_SMALL)
                                         .strong(),
@@ -226,7 +226,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                             ui.add_sized(
                                 [170.0, 20.0],
                                 egui::Label::new(
-                                    RichText::new("난이도")
+                                    RichText::new(t("난이도"))
                                         .color(Theme::TEXT_SECONDARY)
                                         .size(Theme::FONT_SMALL)
                                         .strong(),
@@ -266,7 +266,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                             ui.add_sized(
                                 [170.0, 20.0],
                                 egui::Label::new(
-                                    RichText::new(format!("레벨 ({} ~ {})", min_lbl, max_lbl))
+                                    RichText::new(format!("{} ({} ~ {})", t("레벨"), min_lbl, max_lbl))
                                         .color(Theme::TEXT_SECONDARY)
                                         .size(Theme::FONT_SMALL)
                                         .strong(),
@@ -319,7 +319,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                                 if ui
                                     .checkbox(
                                         &mut filter.require_mc_not_on_varchive,
-                                        RichText::new("맥스콤보 달성만")
+                                        RichText::new(t("맥스콤보 달성만"))
                                             .size(Theme::FONT_SMALL)
                                             .color(Theme::TEXT_PRIMARY),
                                     )
@@ -333,7 +333,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                                 if ui
                                     .checkbox(
                                         &mut filter.exclude_unuploaded,
-                                        RichText::new("미업로드 제외")
+                                        RichText::new(t("미업로드 제외"))
                                             .size(Theme::FONT_SMALL)
                                             .color(Theme::TEXT_PRIMARY),
                                     )

@@ -38,10 +38,6 @@ pub fn run_native_app() -> eframe::Result<()> {
         ))));
     }
 
-    let Some(_single) = SingleInstanceGuard::try_acquire() else {
-        std::process::exit(0);
-    };
-
     let root = std::env::current_dir().unwrap_or_else(|e| {
         eprintln!("cwd: {e}");
         std::process::exit(1);
@@ -53,6 +49,12 @@ pub fn run_native_app() -> eframe::Result<()> {
     .unwrap_or_else(|_| Value::Object(serde_json::Map::new()));
     let mut merged = load_merged_settings(root.as_path(), defaults);
     normalize_settings(&mut merged);
+    crate::ui::i18n::set_locale_from_settings(&merged);
+
+    let Some(_single) = SingleInstanceGuard::try_acquire() else {
+        std::process::exit(0);
+    };
+
     let app_settings: overmax_data::Settings =
         serde_json::from_value(merged.clone()).unwrap_or_default();
     let upd_cfg = AppUpdateConfig::from_settings(&app_settings);
@@ -571,11 +573,7 @@ impl NativeApp {
                         *g = list;
                     }
                     if let Ok(mut s) = self.sync_state.status.lock() {
-                        *s = if crate::ui::i18n::current_locale() == crate::ui::i18n::Locale::En {
-                            format!("{n} candidates")
-                        } else {
-                            format!("후보 {n}건")
-                        };
+                        *s = t("후보 {n}건").replacen("{n}", &n.to_string(), 1);
                     }
                 }
                 Err(msg) => {
