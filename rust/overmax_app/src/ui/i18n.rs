@@ -319,6 +319,29 @@ fn translate_ja(ko: &'static str) -> &'static str {
         // community/sync.rs (SyncCandidate::reason_label, translated via injected fn)
         "미등록" => "未登録",
 
+        // sync_ui.rs (filter panel)
+        "필터" => "フィルター",
+        "초기화 ↺" => "リセット ↺",
+        "모드" => "モード",
+        "난이도" => "難易度",
+        "레벨" => "レベル",
+        "맥스콤보 달성만" => "マックスコンボ達成のみ",
+        "미업로드 제외" => "未アップロードを除外",
+
+        // native_app.rs (sync scan status)
+        "후보 {n}건" => "候補 {n}件",
+
+        // system/single_instance/windows.rs (MessageBoxW)
+        "이미 Overmax가 실행 중입니다. 기존 인스턴스를 종료한 뒤 다시 실행하세요." => {
+            "Overmaxは既に起動しています。既存のインスタンスを終了してから再度実行してください。"
+        }
+
+        // system/updater/windows.rs (MessageBoxW)
+        "자동 패치가 완료되지 않았습니다.\n\n사유: " => "自動パッチが完了しませんでした。\n\n理由: ",
+        "새 앱 업데이트가 있습니다.\n\n현재 버전: " => "新しいアップデートがあります。\n\n現在のバージョン: ",
+        "\n최신 버전: " => "\n最新バージョン: ",
+        "\n\n지금 업데이트를 진행할까요?" => "\n\n今すぐアップデートしますか?",
+
         _ => ko,
     }
 }
