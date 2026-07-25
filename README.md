@@ -1,6 +1,6 @@
 # Overmax
 
-[한국어](README.md) | [English](README.en.md)
+[한국어](README.md) | [English](README.en.md) | [日本語](README.ja.md)
 
 DJMAX RESPECT V 선곡 화면에서 V-Archive 기반 비공식 난이도 정보를 실시간으로 보여주는 오버레이 도구입니다.
 

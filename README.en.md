@@ -1,6 +1,6 @@
 # Overmax
 
-[한국어](README.md) | [English](README.en.md)
+[한국어](README.md) | [English](README.en.md) | [日本語](README.ja.md)
 
 An overlay tool that shows unofficial V-Archive-based difficulty ratings in real time on the DJMAX RESPECT V song-select screen.
 
@@ -54,7 +54,7 @@ For supported environments, how to check compatibility, current implementation s
 > * **Borderless fullscreen (windowed fullscreen) is recommended**: to have the overlay window display correctly on top of the game while playing, set the game's display option to **"Borderless Fullscreen"**.
 > * **If using exclusive fullscreen**: running the game in regular **"Fullscreen"** mode causes the overlay to render behind the game instead of on top of it, due to Windows OS and the game's anti-cheat (XIGNCODE3) restrictions. If you must use exclusive fullscreen, drag the overlay window onto a **secondary monitor** in a dual-monitor setup and use it there instead.
 
-> **Note**: the overlay UI is written with Korean as the base language.
+> **Note**: the overlay UI language can be switched to English or Japanese from Settings (Korean is the default).
 
 ### Settings
 
