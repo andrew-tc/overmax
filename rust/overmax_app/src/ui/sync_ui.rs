@@ -698,7 +698,9 @@ fn candidate_row<F: Fn(RecordKey), D: Fn(RecordKey)>(
                             .stroke(Stroke::new(1.0_f32, Theme::STROKE))
                             .corner_radius(CornerRadius::same(Theme::R_SM));
                     if ui.add(upload_btn).clicked() {
-                        on_upload(c.key());
+                        if let Some(key) = c.key() {
+                            on_upload(key);
+                        }
                     }
 
                     ui.add_space(4.0);
@@ -709,7 +711,9 @@ fn candidate_row<F: Fn(RecordKey), D: Fn(RecordKey)>(
                         .stroke(Stroke::new(1.0_f32, Theme::STROKE))
                         .corner_radius(CornerRadius::same(Theme::R_SM));
                     if ui.add(del_btn).clicked() {
-                        on_delete(c.key());
+                        if let Some(key) = c.key() {
+                            on_delete(key);
+                        }
                     }
                 });
             });

@@ -91,12 +91,10 @@ pub fn matches_filter(
 }
 
 impl SyncCandidate {
-    pub fn key(&self) -> RecordKey {
-        (
-            self.song_id,
-            overmax_core::as_static_mode(&self.button_mode),
-            overmax_core::as_static_diff(&self.difficulty),
-        )
+    pub fn key(&self) -> Option<RecordKey> {
+        let m = overmax_core::parse_static_mode(&self.button_mode)?;
+        let d = overmax_core::parse_static_diff(&self.difficulty)?;
+        Some((self.song_id, m, d))
     }
 
     pub fn key_ref(&self) -> (i32, &str, &str) {

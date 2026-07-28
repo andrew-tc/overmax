@@ -681,7 +681,9 @@ impl NativeApp {
     }
 
     fn spawn_upload(&self, candidate: SyncCandidate, is_quick_upload: bool, ctx: egui::Context) {
-        let key = candidate.key();
+        let Some(key) = candidate.key() else {
+            return;
+        };
         let settings = self.settings.get_merged();
         let steam = self
             .sync_state

@@ -4,23 +4,23 @@ use std::fmt;
 pub type RecordKey = (i32, &'static str, &'static str);
 pub type RecordValue = (f32, bool);
 
-pub fn as_static_mode(s: &str) -> &'static str {
-    match s {
-        "4B" | "4b" => "4B",
-        "5B" | "5b" => "5B",
-        "6B" | "6b" => "6B",
-        "8B" | "8b" => "8B",
-        _ => "4B",
+pub fn parse_static_mode(s: &str) -> Option<&'static str> {
+    match s.trim() {
+        "4B" | "4b" => Some("4B"),
+        "5B" | "5b" => Some("5B"),
+        "6B" | "6b" => Some("6B"),
+        "8B" | "8b" => Some("8B"),
+        _ => None,
     }
 }
 
-pub fn as_static_diff(s: &str) -> &'static str {
-    match s {
-        "NM" | "nm" | "NORMAL" => "NM",
-        "HD" | "hd" | "HARD" => "HD",
-        "MX" | "mx" | "MAXIMUM" => "MX",
-        "SC" | "sc" => "SC",
-        _ => "NM",
+pub fn parse_static_diff(s: &str) -> Option<&'static str> {
+    match s.trim().to_uppercase().as_str() {
+        "NM" | "NORMAL" => Some("NM"),
+        "HD" | "HARD" => Some("HD"),
+        "MX" | "MAXIMUM" => Some("MX"),
+        "SC" => Some("SC"),
+        _ => None,
     }
 }
 

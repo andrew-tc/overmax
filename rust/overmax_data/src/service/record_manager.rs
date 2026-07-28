@@ -1,5 +1,5 @@
 use crate::store::record_db::RecordDB;
-use overmax_core::{as_static_diff, as_static_mode, RecordKey, RecordValue};
+use overmax_core::{parse_static_diff, parse_static_mode, RecordKey, RecordValue};
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -79,12 +79,13 @@ impl RecordManager {
             is_max_combo,
             only_if_improved,
         ) {
-            if let Ok(mut guard) = self.dirty_record_keys.lock() {
-                guard.insert((
-                    song_id,
-                    as_static_mode(button_mode),
-                    as_static_diff(difficulty),
-                ));
+            if let (Some(m), Some(d)) = (
+                parse_static_mode(button_mode),
+                parse_static_diff(difficulty),
+            ) {
+                if let Ok(mut guard) = self.dirty_record_keys.lock() {
+                    guard.insert((song_id, m, d));
+                }
             }
             self.data_revision.fetch_add(1, Ordering::SeqCst);
             return true;
@@ -94,16 +95,17 @@ impl RecordManager {
 
     pub fn delete(&self, song_id: i32, button_mode: &str, difficulty: &str) -> bool {
         if self.record_db.delete(song_id, button_mode, difficulty) {
-            let key = (
-                song_id,
-                as_static_mode(button_mode),
-                as_static_diff(difficulty),
-            );
-            if let Ok(mut guard) = self.varchive_cache.lock() {
-                guard.remove(&key);
-            }
-            if let Ok(mut guard) = self.dirty_record_keys.lock() {
-                guard.insert(key);
+            if let (Some(m), Some(d)) = (
+                parse_static_mode(button_mode),
+                parse_static_diff(difficulty),
+            ) {
+                let key = (song_id, m, d);
+                if let Ok(mut guard) = self.varchive_cache.lock() {
+                    guard.remove(&key);
+                }
+                if let Ok(mut guard) = self.dirty_record_keys.lock() {
+                    guard.insert(key);
+                }
             }
             self.data_revision.fetch_add(1, Ordering::SeqCst);
             return true;
@@ -139,14 +141,12 @@ impl RecordManager {
         button_mode: &str,
         difficulty: &str,
     ) -> Option<RecordValue> {
+        let (m, d) = (
+            parse_static_mode(button_mode)?,
+            parse_static_diff(difficulty)?,
+        );
         let guard = overmax_core::lock_or_recover(&self.varchive_cache);
-        guard
-            .get(&(
-                song_id,
-                as_static_mode(button_mode),
-                as_static_diff(difficulty),
-            ))
-            .copied()
+        guard.get(&(song_id, m, d)).copied()
     }
 
     fn merge_varchive_cache(&self, result: &mut HashMap<RecordKey, RecordValue>, song_ids: &[i32]) {
