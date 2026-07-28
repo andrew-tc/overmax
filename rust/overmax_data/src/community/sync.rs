@@ -156,7 +156,7 @@ pub fn build_candidates(
         let (song_name, composer, dlc, pattern_level) = match varchive_db.search_by_id(row.song_id)
         {
             Some(s) => (
-                s.name.clone(),
+                s.name.to_string(),
                 s.composer.to_string(),
                 s.dlc_code.to_string(),
                 s.get_pattern(&row.button_mode, &row.difficulty)

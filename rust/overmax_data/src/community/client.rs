@@ -85,7 +85,7 @@ pub struct PatternInfo {
     pub level: Option<u32>,
     pub floor: Option<f64>,
     #[serde(rename = "floorName")]
-    pub floor_name: Option<String>,
+    pub floor_name: Option<Arc<str>>,
     pub rating: Option<u32>,
 }
 
@@ -101,7 +101,7 @@ pub struct Dlc {
 pub struct Song {
     #[serde(deserialize_with = "deserialize_string_id")]
     pub title: String, // Actually song_id
-    pub name: String,
+    pub name: Arc<str>,
     pub composer: Arc<str>,
     #[serde(default, rename = "dlcCode")]
     pub dlc_code: Arc<str>,
@@ -508,7 +508,7 @@ mod tests {
     fn create_mock_song(title: &str, name: &str, composer: &str) -> Song {
         Song {
             title: title.to_string(),
-            name: name.to_string(),
+            name: Arc::from(name),
             composer: Arc::from(composer),
             dlc_code: Arc::from(""),
             patterns: Default::default(),
@@ -523,7 +523,7 @@ mod tests {
 
         let song = db.find_exact("kamui", "");
         assert!(song.is_some());
-        assert_eq!(song.unwrap().name, "Kamui");
+        assert_eq!(song.unwrap().name.as_ref(), "Kamui");
     }
 
     #[test]
@@ -535,7 +535,7 @@ mod tests {
         // typo "oblvion"
         let song = db.find_fuzzy("oblvion", "", 80);
         assert!(song.is_some());
-        assert_eq!(song.unwrap().name, "OBLIVION");
+        assert_eq!(song.unwrap().name.as_ref(), "OBLIVION");
     }
 
     #[test]
@@ -570,7 +570,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(song.title, "0");
-        assert_eq!(song.name, "비상 ~Stay With Me~");
+        assert_eq!(song.name.as_ref(), "비상 ~Stay With Me~");
     }
 
     #[test]

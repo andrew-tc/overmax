@@ -119,7 +119,7 @@ struct RawCandidate<'a> {
     difficulty: &'static str,
     level: Option<u32>,
     floor: f64,
-    floor_name: Option<String>,
+    floor_name: Option<Arc<str>>,
     rate: Option<f64>,
     is_max_combo: bool,
 }
@@ -132,13 +132,13 @@ impl<'a> RawCandidate<'a> {
     fn into_entry(self) -> RecommendEntry {
         RecommendEntry {
             song_id: self.song_id,
-            song_name: self.song.name.clone(),
+            song_name: self.song.name.to_string(),
             composer: self.song.composer.to_string(),
             button_mode: self.button_mode.to_string(),
             difficulty: self.difficulty.to_string(),
             level: self.level,
             floor: Some(self.floor),
-            floor_name: self.floor_name,
+            floor_name: self.floor_name.map(|s| s.to_string()),
             rate: self.rate,
             is_max_combo: self.is_max_combo,
         }
@@ -158,7 +158,7 @@ impl Recommender {
         }
     }
 
-    fn parse_floor_value(floor_name: Option<&String>) -> Option<f64> {
+    fn parse_floor_value(floor_name: Option<&Arc<str>>) -> Option<f64> {
         floor_name.and_then(|s| s.parse::<f64>().ok())
     }
 
@@ -338,11 +338,9 @@ impl Recommender {
         let rate_map = self.rdb.get_rate_map(&unique_ids);
 
         for entry in candidates.iter_mut() {
-            if let Some(&(rate, is_max_combo)) = rate_map.get(&(
-                entry.song_id,
-                entry.button_mode,
-                entry.difficulty,
-            )) {
+            if let Some(&(rate, is_max_combo)) =
+                rate_map.get(&(entry.song_id, entry.button_mode, entry.difficulty))
+            {
                 entry.rate = Some(rate as f64);
                 entry.is_max_combo = is_max_combo;
             }

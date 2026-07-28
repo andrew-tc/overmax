@@ -105,7 +105,7 @@ impl NativeApp {
         let Some(song) = self.varchive_db.search_by_id(ctx.song_id) else {
             return format!("Song #{}", ctx.song_id);
         };
-        song.name
+        song.name.to_string()
     }
 
     pub(crate) fn refresh_overlay_data(&mut self) {
@@ -142,7 +142,7 @@ impl NativeApp {
                 Some(PatternTabInfo {
                     diff: (*diff).to_string(),
                     level: pattern.level,
-                    floor_name: pattern.floor_name.clone(),
+                    floor_name: pattern.floor_name.as_ref().map(|s| s.to_string()),
                     gold: meta.gold.as_str().to_string(),
                     note: meta.note,
                     assist_key: meta.assist_key.as_str().to_string(),

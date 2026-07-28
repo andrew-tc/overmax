@@ -317,7 +317,11 @@ impl RecordDB {
                         ) {
                             if let Ok(sid) = song_id_str.parse::<i32>() {
                                 map.insert(
-                                    (sid, as_static_mode(&button_mode), as_static_diff(&difficulty)),
+                                    (
+                                        sid,
+                                        as_static_mode(&button_mode),
+                                        as_static_diff(&difficulty),
+                                    ),
                                     (rate as f32, is_max_combo_int != 0),
                                 );
                             }
@@ -366,7 +370,11 @@ impl RecordDB {
             let rate: f64 = row.get(3).unwrap_or(0.0);
             let is_max_combo: i32 = row.get(4).unwrap_or(0);
             map.insert(
-                (sid, as_static_mode(&button_mode), as_static_diff(&difficulty)),
+                (
+                    sid,
+                    as_static_mode(&button_mode),
+                    as_static_diff(&difficulty),
+                ),
                 (rate, is_max_combo != 0),
             );
         }
@@ -397,7 +405,11 @@ impl RecordDB {
             let max_combo = max_combo_int != 0;
 
             map.insert(
-                (song_id, as_static_mode(&button_mode), as_static_diff(&difficulty)),
+                (
+                    song_id,
+                    as_static_mode(&button_mode),
+                    as_static_diff(&difficulty),
+                ),
                 (score as f32, max_combo),
             );
         }

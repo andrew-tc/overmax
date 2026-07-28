@@ -896,7 +896,7 @@ impl NativeApp {
 
         let candidate = overmax_data::SyncCandidate {
             song_id,
-            song_name: song.name.clone(),
+            song_name: song.name.to_string(),
             composer: song.composer.to_string(),
             dlc: song.dlc_code.to_string(),
             button_mode: mode.clone(),
