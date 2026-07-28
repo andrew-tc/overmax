@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::ui::overlay_theme::{apply_secondary_window_style, Theme};
-use overmax_engine::detector::ocr_engine::OcrTelemetry;
+use overmax_engine::detector::RateTelemetry;
 
 pub fn push_log(lines: &Arc<Mutex<VecDeque<Arc<str>>>>, max_lines: usize, line: impl AsRef<str>) {
     let Ok(mut g) = lines.lock() else {
@@ -27,7 +27,7 @@ pub fn render_debug(
     lines: &Arc<Mutex<VecDeque<Arc<str>>>>,
     paused: &Arc<AtomicBool>,
     filters: &Arc<Mutex<std::collections::HashMap<String, bool>>>,
-    rate_ocr: &Arc<Mutex<Option<OcrTelemetry>>>,
+    rate_ocr: &Arc<Mutex<Option<RateTelemetry>>>,
     rate_ocr_texture: &Arc<Mutex<Option<egui::TextureHandle>>>,
 ) {
     apply_secondary_window_style(ctx);
@@ -83,7 +83,7 @@ pub fn render_debug(
 
 fn update_ocr_texture(
     ctx: &egui::Context,
-    info: &OcrTelemetry,
+    info: &RateTelemetry,
     texture_guard: &mut Option<egui::TextureHandle>,
 ) {
     let should_update = match texture_guard.as_ref() {
@@ -128,7 +128,7 @@ fn update_ocr_texture(
 
 fn render_ocr_telemetry(
     ui: &mut egui::Ui,
-    rate_ocr: &Arc<Mutex<Option<OcrTelemetry>>>,
+    rate_ocr: &Arc<Mutex<Option<RateTelemetry>>>,
     rate_ocr_texture: &Arc<Mutex<Option<egui::TextureHandle>>>,
 ) {
     let ocr_info = if let Ok(g) = rate_ocr.lock() {

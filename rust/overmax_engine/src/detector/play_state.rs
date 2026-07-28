@@ -1,7 +1,7 @@
 use crate::capture::frame::CapturedFrame;
 use crate::capture::frame_utils::region_mean_bgr;
-use crate::detector::ocr_engine::{OcrDetector, OcrTelemetry};
 use crate::detector::roi::RoiManager;
+use crate::detector::templates::{self, RateTelemetry};
 use overmax_core::{Changed, GameSessionState, PlayContext};
 use std::collections::VecDeque;
 
@@ -20,9 +20,6 @@ struct RawPlayState {
 }
 
 /// 결과창 mode·diff 인식 결과 캐시.
-///
-/// - `result_*`: 결과창에서 인식 시도한 값. 채워져 있으면 우선 사용되어
-///   결과창 진입 후 프레임 간 흔들림 없이 유지된다.
 struct ModeDiffCache {
     result_mode: Changed<Option<String>>,
     result_diff: Changed<Option<String>>,
@@ -48,46 +45,42 @@ pub struct PlayStateDetector {
     history: VecDeque<Option<RawPlayState>>,
     last_stable_state: Option<GameSessionState>,
     last_rate_checksum: Option<u64>,
-    last_rate_result: (Option<f32>, String, Option<OcrTelemetry>),
-    last_rate_ocr_ts: f64,
+    last_rate_result: (Option<f32>, String, Option<RateTelemetry>),
+    last_rate_detection_ts: f64,
     cache: ModeDiffCache,
     last_song_id: Changed<Option<i32>>,
     result_rate_window: VecDeque<f32>,
 }
 
 impl PlayStateDetector {
-    fn should_run_rate_ocr(&self, now: f64) -> bool {
-        // 결과창과 선곡창 모두에서 캐싱 없이 실시간 수치 변경을 실시간 감지하기 위해 항상 OCR을 시도합니다.
-        // 다만 불필요한 매 프레임 연산을 막기 위해 최소 200ms 간격 제한만 수행합니다.
-        now - self.last_rate_ocr_ts >= 0.20
+    fn should_run_rate_detection(&self, now: f64) -> bool {
+        now - self.last_rate_detection_ts >= 0.20
     }
 
-    fn process_rate_ocr(
+    fn process_rate_detection(
         &mut self,
         frame: &CapturedFrame,
         rois: &RoiManager,
-        ocr: &OcrDetector,
         scene: overmax_core::SceneType,
         is_result: bool,
         now: f64,
-    ) -> (f32, Option<OcrTelemetry>) {
-        if self.should_run_rate_ocr(now) {
+    ) -> (f32, Option<RateTelemetry>) {
+        if self.should_run_rate_detection(now) {
             if let Some(rate_res) = rois.and_then_roi(frame, "rate", |rate_img| {
-                let mut rate_res = ocr.detect_rate(rate_img);
-                rate_res.0 = Self::cross_validate_rate_with_score(
-                    ocr, frame, rois, scene, is_result, rate_res.0,
-                );
+                let mut rate_res = templates::detect_rate(rate_img);
+                rate_res.0 =
+                    Self::cross_validate_rate_with_score(frame, rois, scene, is_result, rate_res.0);
                 Some(rate_res)
             }) {
-                self.last_rate_ocr_ts = now;
+                self.last_rate_detection_ts = now;
 
                 debug_println!(
-                    "    [detect] rate OCR run. rate={:?}, text='{}'",
+                    "    [detect] rate run. rate={:?}, text='{}'",
                     rate_res.0,
                     rate_res.1
                 );
 
-                self.apply_rate_ocr_result(is_result, rate_res);
+                self.apply_rate_detection_result(is_result, rate_res);
             }
         }
 
@@ -96,10 +89,10 @@ impl PlayStateDetector {
         (rate, telemetry)
     }
 
-    fn apply_rate_ocr_result(
+    fn apply_rate_detection_result(
         &mut self,
         is_result: bool,
-        mut res: (Option<f32>, String, Option<OcrTelemetry>),
+        mut res: (Option<f32>, String, Option<RateTelemetry>),
     ) {
         if is_result {
             if let Some(new_r) = res.0 {
@@ -132,7 +125,7 @@ impl PlayStateDetector {
             last_stable_state: None,
             last_rate_checksum: None,
             last_rate_result: (None, String::new(), None),
-            last_rate_ocr_ts: 0.0,
+            last_rate_detection_ts: 0.0,
             cache: ModeDiffCache::new(),
             last_song_id: Changed::new(None),
             result_rate_window: VecDeque::new(),
@@ -144,7 +137,7 @@ impl PlayStateDetector {
         self.last_stable_state = None;
         self.last_rate_checksum = None;
         self.last_rate_result = (None, String::new(), None);
-        self.last_rate_ocr_ts = 0.0;
+        self.last_rate_detection_ts = 0.0;
         // 결과창 진입 시 복구용(result_mode/diff) 캐시는 reset 시에도 보존합니다.
         self.last_song_id.update(None);
         self.result_rate_window.clear();
@@ -170,7 +163,6 @@ impl PlayStateDetector {
         scene: overmax_core::SceneType,
         frame: &CapturedFrame,
         rois: &RoiManager,
-        ocr: &OcrDetector,
     ) -> (Option<String>, Option<String>) {
         let mut detected_mode = None;
         let mut detected_diff = None;
@@ -178,15 +170,17 @@ impl PlayStateDetector {
         // 1. 결과창 실시간 템플릿 매칭 우선 시도
         match scene {
             overmax_core::SceneType::ResultFreestyle => {
-                detected_mode =
-                    rois.and_then_roi(frame, "mode_digit", |img| ocr.detect_freestyle_mode(img));
-                detected_diff =
-                    rois.and_then_roi(frame, "diff_panel", |img| ocr.detect_result_difficulty(img));
+                detected_mode = rois.and_then_roi(frame, "mode_digit", |img| {
+                    templates::detect_freestyle_mode(img)
+                });
+                detected_diff = rois.and_then_roi(frame, "diff_panel", |img| {
+                    templates::detect_result_difficulty(img)
+                });
             }
             overmax_core::SceneType::ResultOpen3 | overmax_core::SceneType::ResultOpen2 => {
                 detected_mode = detect_button_mode_from_roi(frame, rois, "openmatch_mode");
                 detected_diff = rois.and_then_roi(frame, "openmatch_diff", |img| {
-                    ocr.detect_openmatch_result_difficulty(img)
+                    templates::detect_openmatch_result_difficulty(img)
                 });
             }
             _ => {}
@@ -208,7 +202,6 @@ impl PlayStateDetector {
     }
 
     fn cross_validate_rate_with_score(
-        ocr: &OcrDetector,
         frame: &CapturedFrame,
         rois: &RoiManager,
         scene: overmax_core::SceneType,
@@ -223,15 +216,15 @@ impl PlayStateDetector {
             return detected_rate;
         }
 
-        let score_val = rois.and_then_roi(frame, "score", |img| ocr.detect_score(img));
+        let score_val = rois.and_then_roi(frame, "score", |img| templates::detect_score(img));
         let Some(score_val) = score_val else {
             return detected_rate;
         };
 
-        debug_println!("    [detect] score OCR run. score={}", score_val);
+        debug_println!("    [detect] score run. score={}", score_val);
         let calc_rate = score_val as f32 / 10000.0;
 
-        // 선곡창인 경우 스코어 OCR 오인식에 대비하여 엄격한 가드 적용
+        // 선곡창인 경우 스코어 템플릿 매칭 오인식에 대비하여 엄격한 가드 적용
         let is_valid_range = if is_song_select {
             (MIN_VALID_RATE..=100.0).contains(&calc_rate)
         } else {
@@ -253,9 +246,8 @@ impl PlayStateDetector {
         frame: &CapturedFrame,
         rois: &RoiManager,
         song_id: Option<i32>,
-        ocr: &OcrDetector,
         now: f64,
-    ) -> (GameSessionState, Option<OcrTelemetry>) {
+    ) -> (GameSessionState, Option<RateTelemetry>) {
         let scene = rois.current_scene();
         let is_result = scene.is_result();
 
@@ -266,7 +258,7 @@ impl PlayStateDetector {
 
         if is_result {
             is_max_combo = detect_max_combo_result(frame, rois);
-            let (m, d) = self.resolve_result_mode_diff(scene, frame, rois, ocr);
+            let (m, d) = self.resolve_result_mode_diff(scene, frame, rois);
             mode = m;
             diff = d;
         } else {
@@ -290,37 +282,29 @@ impl PlayStateDetector {
             diff,
             confident
         );
-        let context = if let (Some(sid), Some(m_str), Some(d_str)) = (song_id, mode, diff) {
-            if let (Some(m), Some(d)) = (
-                overmax_core::Mode::from_str(&m_str),
-                overmax_core::Difficulty::from_str(&d_str),
-            ) {
-                if confident {
-                    let (rate, tel) =
-                        self.process_rate_ocr(frame, rois, ocr, scene, is_result, now);
-                    telemetry = tel;
+        let context = if let (Some(sid), Some(m), Some(d)) = (song_id, mode, diff) {
+            if confident {
+                let (rate, tel) = self.process_rate_detection(frame, rois, scene, is_result, now);
+                telemetry = tel;
 
-                    let rate_valid = !is_result
-                        || self
-                            .last_rate_result
-                            .0
-                            .map(|r| r >= MIN_VALID_RATE)
-                            .unwrap_or(false);
+                let rate_valid = !is_result
+                    || self
+                        .last_rate_result
+                        .0
+                        .map(|r| r >= MIN_VALID_RATE)
+                        .unwrap_or(false);
 
-                    Some(PlayContext {
-                        song_id: sid,
-                        mode: m,
-                        diff: d,
-                        rate: if rate_valid { rate } else { 0.0 },
-                        is_max_combo: if rate_valid && rate > 0.0 {
-                            is_max_combo
-                        } else {
-                            false
-                        },
-                    })
-                } else {
-                    None
-                }
+                Some(PlayContext {
+                    song_id: sid,
+                    mode: m,
+                    diff: d,
+                    rate: if rate_valid { rate } else { 0.0 },
+                    is_max_combo: if rate_valid && rate > 0.0 {
+                        is_max_combo
+                    } else {
+                        false
+                    },
+                })
             } else {
                 None
             }
@@ -592,25 +576,9 @@ mod tests {
         let mut rois = RoiManager::new(1920, 1080);
         rois.set_scene(SceneType::Freestyle);
 
-        let ocr = crate::detector::ocr_engine::OcrDetector::new();
-        assert!(
-            !detector
-                .detect(&frame, &rois, Some(7), &ocr, 1.0)
-                .0
-                .is_stable
-        );
-        assert!(
-            !detector
-                .detect(&frame, &rois, Some(7), &ocr, 2.0)
-                .0
-                .is_stable
-        );
-        assert!(
-            detector
-                .detect(&frame, &rois, Some(7), &ocr, 3.0)
-                .0
-                .is_stable
-        );
+        assert!(!detector.detect(&frame, &rois, Some(7), 1.0).0.is_stable);
+        assert!(!detector.detect(&frame, &rois, Some(7), 2.0).0.is_stable);
+        assert!(detector.detect(&frame, &rois, Some(7), 3.0).0.is_stable);
     }
 
     #[test]
@@ -621,10 +589,9 @@ mod tests {
         let frame = blank_frame();
         let mut rois = RoiManager::new(1920, 1080);
         rois.set_scene(SceneType::ResultFreestyle);
-        let ocr = crate::detector::ocr_engine::OcrDetector::new();
 
         // 결과창에서 mode_digit/diff_panel ROI가 없어 인식에 실패하면 None이어야 함
-        let (state, _) = detector.detect(&frame, &rois, Some(7), &ocr, 1.0);
+        let (state, _) = detector.detect(&frame, &rois, Some(7), 1.0);
         assert!(state.context.is_none());
     }
 
