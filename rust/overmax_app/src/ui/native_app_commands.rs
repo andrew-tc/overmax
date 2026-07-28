@@ -102,7 +102,7 @@ impl NativeApp {
         debug_ui::push_log(
             &self.debug_state.log_lines,
             self.max_log_lines(),
-            "[UI] open settings".into(),
+            "[UI] open settings",
         );
     }
 
@@ -122,7 +122,7 @@ impl NativeApp {
         debug_ui::push_log(
             &self.debug_state.log_lines,
             self.max_log_lines(),
-            "[UI] open debug".into(),
+            "[UI] open debug",
         );
     }
 
@@ -142,7 +142,7 @@ impl NativeApp {
         debug_ui::push_log(
             &self.debug_state.log_lines,
             self.max_log_lines(),
-            "[UI] open sync".into(),
+            "[UI] open sync",
         );
     }
 }

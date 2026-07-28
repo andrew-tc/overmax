@@ -10,21 +10,21 @@ use std::sync::{Arc, Mutex};
 use crate::ui::overlay_theme::{apply_secondary_window_style, Theme};
 use overmax_engine::detector::ocr_engine::OcrTelemetry;
 
-pub fn push_log(lines: &Arc<Mutex<VecDeque<String>>>, max_lines: usize, line: String) {
+pub fn push_log(lines: &Arc<Mutex<VecDeque<Arc<str>>>>, max_lines: usize, line: impl AsRef<str>) {
     let Ok(mut g) = lines.lock() else {
         return;
     };
     if g.len() >= max_lines {
         g.pop_front();
     }
-    g.push_back(line);
+    g.push_back(Arc::from(line.as_ref()));
 }
 
 pub fn render_debug(
     ctx: &egui::Context,
     class: ViewportClass,
     title: &str,
-    lines: &Arc<Mutex<VecDeque<String>>>,
+    lines: &Arc<Mutex<VecDeque<Arc<str>>>>,
     paused: &Arc<AtomicBool>,
     filters: &Arc<Mutex<std::collections::HashMap<String, bool>>>,
     rate_ocr: &Arc<Mutex<Option<OcrTelemetry>>>,
@@ -195,7 +195,7 @@ fn render_ocr_telemetry(
 
 fn render_controls(
     ui: &mut egui::Ui,
-    lines: &Arc<Mutex<VecDeque<String>>>,
+    lines: &Arc<Mutex<VecDeque<Arc<str>>>>,
     paused: &Arc<AtomicBool>,
     filters: &Arc<Mutex<std::collections::HashMap<String, bool>>>,
 ) {
@@ -273,15 +273,18 @@ fn render_controls(
 
 fn log_scroll(
     ui: &mut egui::Ui,
-    lines: &Arc<Mutex<VecDeque<String>>>,
+    lines: &Arc<Mutex<VecDeque<Arc<str>>>>,
     filters: &Arc<Mutex<std::collections::HashMap<String, bool>>>,
 ) {
-    let Ok(lines_guard) = lines.lock() else {
-        return;
+    // 락 보유 시간을 최소화하기 위해 Arc<str> 참조만 극속 채취 후 즉시 락 해제
+    let snapshot: Vec<Arc<str>> = {
+        let Ok(lines_guard) = lines.lock() else {
+            return;
+        };
+        lines_guard.iter().cloned().collect()
     };
-    let Ok(filters_lock) = filters.lock() else {
-        return;
-    };
+
+    let filters_lock = filters.lock().unwrap();
 
     let tags = [
         "[ScreenCapture]",
@@ -292,9 +295,8 @@ fn log_scroll(
         "[UI]",
     ];
 
-    let filtered_lines: Vec<&str> = lines_guard
+    let filtered_lines: Vec<&Arc<str>> = snapshot
         .iter()
-        .map(|s| s.as_str())
         .filter(|line| {
             for tag in &tags {
                 if line.contains(tag) {
@@ -321,7 +323,7 @@ fn log_scroll(
                         let line = filtered_lines[idx];
                         let color = get_line_color(line);
                         ui.label(
-                            RichText::new(line)
+                            RichText::new(line.as_ref())
                                 .color(color)
                                 .monospace()
                                 .size(Theme::FONT_TINY),

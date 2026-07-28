@@ -167,7 +167,7 @@ pub struct SharedUiState {
 }
 
 pub struct SharedDebugState {
-    pub log_lines: Arc<Mutex<VecDeque<String>>>,
+    pub log_lines: Arc<Mutex<VecDeque<Arc<str>>>>,
     pub paused: Arc<AtomicBool>,
     pub filters: Arc<Mutex<std::collections::HashMap<String, bool>>>,
     pub rate_ocr: Arc<Mutex<Option<OcrTelemetry>>>,
