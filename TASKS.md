@@ -54,6 +54,7 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
 - [x] [완료] DB 빌드와 런타임 간의 히스토그램 추출 해상도를 64x64 정규화 해상도 공간(Lanczos3 축소)으로 일치시켜 미스매치를 완전히 완화하고, HOG 로딩 스킵을 통한 6MB 메모리 절감 및 similarity_threshold 기본값 0.65 보정으로 정확도 100% 달성
 - [x] [완료] Windows OCR Fallback을 Cargo Feature Flag(`ocr-fallback`)로 옵셔널 분리하여 `--no-default-features` 지정 시 WinRT OCR 의존성이 0%인 Pure Rust Native 엔진 컴파일 지원
 - [x] [완료] Rate OCR과 Score 역산 값 불일치 시 템플릿 매칭 기반 Score 역산 값(`Score / 10,000`)을 우선 반영하도록 Rate 책정 로직 개선
+- [x] [완료] Windows OCR 의존성 및 WinRT C++ COM 연동을 완전히 제거하고 Pure Rust Native CV 템플릿 매칭 엔진으로 전면 단일화
 
 
 ## 6. 다국어 (i18n) 지원

@@ -2,16 +2,6 @@ use crate::capture::frame_utils::ImageRegion;
 use overmax_core::SceneType;
 use std::fmt;
 
-#[cfg(not(all(target_os = "windows", feature = "ocr-fallback")))]
-mod stub;
-#[cfg(all(target_os = "windows", feature = "ocr-fallback"))]
-mod windows;
-
-#[cfg(not(all(target_os = "windows", feature = "ocr-fallback")))]
-use stub::OcrEngine as PlatformOcrEngine;
-#[cfg(all(target_os = "windows", feature = "ocr-fallback"))]
-use windows::OcrEngine as PlatformOcrEngine;
-
 #[derive(Clone, Default, PartialEq)]
 pub struct OcrTelemetry {
     pub rate_text: String,
@@ -21,20 +11,6 @@ pub struct OcrTelemetry {
     pub image_pixels: Vec<u8>,
     pub image_width: usize,
     pub image_height: usize,
-}
-
-impl From<(String, overmax_cv::OcrPreprocessResult)> for OcrTelemetry {
-    fn from((rate_text, result): (String, overmax_cv::OcrPreprocessResult)) -> Self {
-        Self {
-            rate_text,
-            threshold: result.threshold,
-            bg_mean: result.bg_mean,
-            use_invert: result.use_invert,
-            image_pixels: result.padded_pixels,
-            image_width: result.padded_width,
-            image_height: result.padded_height,
-        }
-    }
 }
 
 impl fmt::Debug for OcrTelemetry {
@@ -51,9 +27,7 @@ impl fmt::Debug for OcrTelemetry {
     }
 }
 
-pub struct OcrDetector {
-    engine: PlatformOcrEngine,
-}
+pub struct OcrDetector;
 
 impl Default for OcrDetector {
     fn default() -> Self {
@@ -63,48 +37,19 @@ impl Default for OcrDetector {
 
 impl OcrDetector {
     pub fn new() -> Self {
-        Self {
-            engine: PlatformOcrEngine::new(),
-        }
+        Self
     }
 
     pub fn is_available(&self) -> bool {
-        self.engine.is_available()
-    }
-    /// 상단 로고 영역을 단일 패스(Color)로 감지하여 씬을 판별합니다.
-    pub fn detect_logo(&self, logo: &ImageRegion) -> (SceneType, String, String) {
-        // 단일 패스: Color OCR (성능 향상을 위한 1-pass 단일화)
-        self.engine
-            .recognize_logo_color(logo)
-            .ok()
-            .and_then(|t| match_logo_scene(&t).map(|(scene, _)| (scene, t, scene_label(scene))))
-            .unwrap_or((SceneType::Unknown, String::new(), "UNKNOWN".to_string()))
+        true
     }
 
-    fn attempt_rate_ocr(
-        &self,
-        rate: &ImageRegion,
-        color: bool,
-        force_invert: bool,
-    ) -> Option<(Option<f32>, String, OcrTelemetry)> {
-        let res = if color {
-            self.engine.recognize_color_with_telemetry(rate)
-        } else {
-            self.engine
-                .recognize_with_telemetry(rate, force_invert, false)
-        };
-        let (txt, preprocess_res) = res.ok()?;
-        let val = parse_rate_text(&txt);
-        let telemetry = OcrTelemetry::from((txt.clone(), preprocess_res));
-        Some((val, txt, telemetry))
+    /// 상단 로고 영역 감지 (Windows OCR 제거로 인해 더 이상 로고 OCR을 수행하지 않습니다)
+    pub fn detect_logo(&self, _logo: &ImageRegion) -> (SceneType, String, String) {
+        (SceneType::Unknown, String::new(), "UNKNOWN".to_string())
     }
 
-    /// Rate 영역을 감지합니다.
-    ///
-    /// # 가드레일 (CRITICAL GUARDRAIL)
-    /// 인게임 실시간 성능 보호를 위해 **반드시 단일 패스(1-Pass) 실행만 수행**해야 합니다.
-    /// 절대로 3-pass 등의 다중 패스 루프를 이곳에 재도입하지 마십시오. (AGENTS.md 및 CONTEXT.md 제약 조건)
-    /// OCR 인식 실패나 오작동 대응은 `PlayStateDetector`의 히스토리 버퍼(`stable_raw` 다수결)를 통해 해결합니다.
+    /// Rate 영역을 Pure Rust CV 템플릿 매칭으로 감지합니다.
     pub fn detect_rate(&self, rate: &ImageRegion) -> (Option<f32>, String, Option<OcrTelemetry>) {
         let cv_templates = get_digit_templates();
         let matched = match match_digits_template(rate, &cv_templates) {
@@ -113,7 +58,7 @@ impl OcrDetector {
         };
         let (matched_str, binary, threshold, max_y) = matched;
 
-        // 우선 템플릿 매칭 결과에서 ?를 제거하고 파싱을 시도
+        // 템플릿 매칭 결과에서 ?를 제거하고 파싱 시도
         let rate_val = (!matched_str.is_empty())
             .then(|| matched_str.replace('?', ""))
             .and_then(|clean_str| parse_rate_text(&clean_str));
@@ -128,27 +73,15 @@ impl OcrDetector {
                 image_width: rate.width as usize,
                 image_height: rate.height as usize,
             };
-            return (Some(val), matched_str, Some(telemetry));
-        }
-
-        // 템플릿 매칭 실패 시 Windows OCR fallback으로 전환
-        if let Some((val, txt, tel)) = self.attempt_rate_ocr(rate, true, false) {
-            (val, txt, Some(tel))
+            (Some(val), matched_str, Some(telemetry))
         } else {
             (None, String::new(), None)
         }
     }
 
-    /// Score 영역을 템플릿 매칭 또는 OCR을 통해 정수로 파싱합니다.
+    /// Score 영역을 템플릿 매칭을 통해 정수로 파싱합니다.
     pub fn detect_score(&self, score: &ImageRegion) -> Option<u32> {
         let cv_templates = get_digit_templates();
-        let fallback = || {
-            self.engine
-                .recognize_logo(score, false, true)
-                .ok()
-                .and_then(|text| parse_score_text(&text))
-        };
-
         match match_digits_template(score, &cv_templates) {
             Ok((matched_str, _, _, _)) => {
                 let parsed = parse_score_text(&matched_str);
@@ -157,7 +90,7 @@ impl OcrDetector {
                         "      [Debug Score] Template matching failed/invalid. Matched String: '{}', Parsed: {:?}",
                         matched_str, parsed
                     );
-                    fallback()
+                    None
                 } else {
                     parsed
                 }
@@ -167,7 +100,7 @@ impl OcrDetector {
                     "      [Debug Score] match_digits_template failed with error: {}",
                     e
                 );
-                fallback()
+                None
             }
         }
     }
@@ -304,16 +237,16 @@ impl OcrDetector {
         )
     }
 
-    pub fn recognize_text_color(&self, region: &ImageRegion) -> Option<String> {
-        self.engine.recognize_logo_color(region).ok()
+    pub fn recognize_text_color(&self, _region: &ImageRegion) -> Option<String> {
+        None
     }
 
     pub fn recognize_text_binarized(
         &self,
-        region: &ImageRegion,
-        force_invert: bool,
+        _region: &ImageRegion,
+        _force_invert: bool,
     ) -> Option<String> {
-        self.engine.recognize_logo(region, force_invert, true).ok()
+        None
     }
 
     /// 텍스트 내에 유효한 버튼 모드 키워드가 포함되어 있는지 판단합니다.
@@ -338,17 +271,12 @@ impl OcrDetector {
         }
     }
 
-    pub fn recognize_text_all_passes(&self, region: &ImageRegion) -> Option<String> {
-        // 단일 패스: Color OCR (인게임 성능 및 제약 조건을 준수하기 위해 단일 패스로 강제 유지합니다.)
-        if let Ok(t) = self.engine.recognize_logo_color(region) {
-            if !t.trim().is_empty() {
-                return Some(t);
-            }
-        }
+    pub fn recognize_text_all_passes(&self, _region: &ImageRegion) -> Option<String> {
         None
     }
 }
 
+#[allow(dead_code)]
 fn match_logo_scene(text: &str) -> Option<(SceneType, String)> {
     let normalized = normalize_alnum(text).to_lowercase();
     if normalized.contains("buttontunes") || normalized.contains("button") {
@@ -375,6 +303,7 @@ fn match_logo_scene(text: &str) -> Option<(SceneType, String)> {
     }
 }
 
+#[allow(dead_code)]
 fn scene_label(scene: SceneType) -> String {
     match scene {
         SceneType::Freestyle => "FREESTYLE".to_string(),
@@ -574,6 +503,7 @@ fn parse_rate_text(text: &str) -> Option<f32> {
         .then_some(value)
 }
 
+#[allow(dead_code)]
 fn normalize_alnum(text: &str) -> String {
     text.chars()
         .filter(|ch| ch.is_ascii_alphanumeric())
@@ -629,108 +559,6 @@ mod tests {
         assert_eq!(parse_score_text("999,800"), Some(999800));
         assert_eq!(parse_score_text("1,000,000"), Some(1000000));
         assert_eq!(parse_score_text("abc"), None);
-    }
-
-    #[test]
-    #[ignore]
-    fn test_color_vs_grayscale_ocr() {
-        use crate::capture::frame_utils::crop_roi;
-        use crate::detector::roi::RoiManager;
-        use image::GenericImageView;
-        use overmax_core::SceneType;
-
-        let scratch_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scratch");
-        let test_cases = [
-            ("hd_test_1.png", SceneType::ResultFreestyle),
-            ("hd_test_2.png", SceneType::ResultFreestyle),
-            ("hd_test_3.png", SceneType::ResultFreestyle),
-            ("hd_test_4.png", SceneType::ResultFreestyle),
-            ("hd_test_5.png", SceneType::ResultFreestyle),
-            ("hd_test_2p_1.png", SceneType::ResultOpen2),
-            ("hd_test_2p_2.png", SceneType::ResultOpen2),
-        ];
-
-        let detector = super::OcrDetector::new();
-        println!("\n=== OCR COLOR VS GRAYSCALE COMPARISON ===");
-
-        for (img_name, scene) in &test_cases {
-            let path = scratch_dir.join(img_name);
-            if !path.exists() {
-                continue;
-            }
-            let img = image::ImageReader::open(&path)
-                .expect("Failed to open file")
-                .with_guessed_format()
-                .expect("Failed to guess format")
-                .decode()
-                .expect("Failed to decode image");
-            let (w, h) = img.dimensions();
-            let mut bgra = vec![0u8; (w * h * 4) as usize];
-            for (x, y, pixel) in img.pixels() {
-                let idx = ((y * w + x) * 4) as usize;
-                bgra[idx] = pixel[2]; // B
-                bgra[idx + 1] = pixel[1]; // G
-                bgra[idx + 2] = pixel[0]; // R
-                bgra[idx + 3] = pixel[3]; // A
-            }
-            let frame = crate::capture::frame::CapturedFrame {
-                width: w as i32,
-                height: h as i32,
-                bgra,
-            };
-
-            let mut rois = RoiManager::new(w as i32, h as i32);
-            rois.set_scene(*scene);
-
-            println!("IMAGE: {}", img_name);
-
-            // Rate OCR 비교
-            if let Some(rate_roi) = rois.get_roi("rate") {
-                if let Some(rate_img) = crop_roi(&frame, rate_roi) {
-                    let color_res = detector.attempt_rate_ocr(&rate_img, true, false);
-                    let gray_res = detector.attempt_rate_ocr(&rate_img, false, false);
-
-                    println!(
-                        "  [Rate-Color]     Parsed: {:?}, Text: '{}'",
-                        color_res.as_ref().and_then(|r| r.0),
-                        color_res.as_ref().map(|r| r.1.trim()).unwrap_or("FAILED")
-                    );
-                    println!(
-                        "  [Rate-Grayscale] Parsed: {:?}, Text: '{}'",
-                        gray_res.as_ref().and_then(|r| r.0),
-                        gray_res.as_ref().map(|r| r.1.trim()).unwrap_or("FAILED")
-                    );
-                }
-            }
-
-            // Score OCR 비교
-            if let Some(score_roi) = rois.get_roi("score") {
-                if let Some(score_img) = crop_roi(&frame, score_roi) {
-                    let color_txt = detector
-                        .engine
-                        .recognize_logo_color(&score_img)
-                        .unwrap_or_default();
-                    let gray_txt = detector
-                        .engine
-                        .recognize_logo(&score_img, false, false)
-                        .unwrap_or_default();
-
-                    let color_score = super::parse_score_text(&color_txt);
-                    let gray_score = super::parse_score_text(&gray_txt);
-
-                    println!(
-                        "  [Score-Color]    Parsed: {:?}, Text: '{}'",
-                        color_score,
-                        color_txt.trim()
-                    );
-                    println!(
-                        "  [Score-Gray]     Parsed: {:?}, Text: '{}'",
-                        gray_score,
-                        gray_txt.trim()
-                    );
-                }
-            }
-        }
     }
 
     #[test]

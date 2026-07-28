@@ -250,6 +250,7 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 | 2026-07-21 | Category Band 4px 코어 폭 및 3단계 통계 판정 고도화 | 카테고리 띠 판정 폭을 배경 노이즈가 차단되는 4px(x1=jacket.x2, width=4)로 변경하고, 최소 밝기(>=60), 수직 단색성(<=20), 채도/무채색 정합성 3단계 판정 가드를 적용하여 오탐율 0% 및 신규 DLC 자동 대응 구조 확립 | [detection_pipeline.rs](rust/overmax_engine/src/detector/detection_pipeline.rs) |
 | 2026-07-22 | 디텍션 파이프라인 아키텍처 문서화 | 4단계 파이프라인, ROI 사양, 단일 프레임 원자성 및 5중 DB 오기록 방지 가드 체계화 | [detection_pipeline.md](docs/architecture/detection_pipeline.md) |
 | 2026-07-22 | Windows OCR Fallback의 Cargo Feature Flag(`ocr-fallback`) 분리 | OS 의존성 및 WinRT COM DLL 초기화 수명 오버헤드를 선택적으로 소거할 수 있는 Pure Rust Native 컴파일 옵션 제공 | [Cargo.toml](rust/overmax_engine/Cargo.toml) / [ocr_engine.rs](rust/overmax_engine/src/detector/ocr_engine.rs) |
+| 2026-07-28 | Windows OCR 의존성 및 WinRT C++ COM 연동 완전 제거 | 씬 감지의 100% OCR-Free 전환 및 Rate/Score 템플릿 매칭 고도화에 따라, 무거운 WinRT Windows OCR 의존성(`Media_Ocr` 등)과 feature flag(`ocr-fallback`)를 전면 삭제하여 Pure Rust Native 엔진으로 완벽 단일화 | [Cargo.toml](rust/overmax_engine/Cargo.toml) / [ocr_engine.rs](rust/overmax_engine/src/detector/ocr_engine.rs) |
 
 ## Linux Port
 
