@@ -4,7 +4,6 @@ pub mod sync;
 
 pub use changed::Changed;
 pub use game_state::{
-    parse_static_diff, parse_static_mode, GameSessionState, PlayContext, RecordKey, RecordValue,
-    SceneType,
+    Difficulty, GameSessionState, Mode, PlayContext, RecordKey, RecordValue, SceneType,
 };
 pub use sync::{lock_clone_or_default, lock_or_recover};

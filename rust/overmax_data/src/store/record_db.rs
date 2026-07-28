@@ -1,4 +1,4 @@
-use overmax_core::{parse_static_diff, parse_static_mode, RecordKey, RecordValue};
+use overmax_core::{Difficulty, Mode, RecordKey, RecordValue};
 use rusqlite::{params, Connection, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -317,8 +317,8 @@ impl RecordDB {
                         ) {
                             if let Ok(sid) = song_id_str.parse::<i32>() {
                                 if let (Some(m), Some(d)) = (
-                                    parse_static_mode(&button_mode),
-                                    parse_static_diff(&difficulty),
+                                    Mode::from_str(&button_mode),
+                                    Difficulty::from_str(&difficulty),
                                 ) {
                                     map.insert((sid, m, d), (rate as f32, is_max_combo_int != 0));
                                 }
@@ -368,8 +368,8 @@ impl RecordDB {
             let rate: f64 = row.get(3).unwrap_or(0.0);
             let is_max_combo: i32 = row.get(4).unwrap_or(0);
             if let (Some(m), Some(d)) = (
-                parse_static_mode(&button_mode),
-                parse_static_diff(&difficulty),
+                Mode::from_str(&button_mode),
+                Difficulty::from_str(&difficulty),
             ) {
                 map.insert((sid, m, d), (rate, is_max_combo != 0));
             }
@@ -401,8 +401,8 @@ impl RecordDB {
             let max_combo = max_combo_int != 0;
 
             if let (Some(m), Some(d)) = (
-                parse_static_mode(&button_mode),
-                parse_static_diff(&difficulty),
+                Mode::from_str(&button_mode),
+                Difficulty::from_str(&difficulty),
             ) {
                 map.insert((song_id, m, d), (score as f32, max_combo));
             }

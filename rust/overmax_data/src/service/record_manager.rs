@@ -1,5 +1,5 @@
 use crate::store::record_db::RecordDB;
-use overmax_core::{parse_static_diff, parse_static_mode, RecordKey, RecordValue};
+use overmax_core::{Difficulty, Mode, RecordKey, RecordValue};
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -80,8 +80,8 @@ impl RecordManager {
             only_if_improved,
         ) {
             if let (Some(m), Some(d)) = (
-                parse_static_mode(button_mode),
-                parse_static_diff(difficulty),
+                Mode::from_str(button_mode),
+                Difficulty::from_str(difficulty),
             ) {
                 if let Ok(mut guard) = self.dirty_record_keys.lock() {
                     guard.insert((song_id, m, d));
@@ -96,8 +96,8 @@ impl RecordManager {
     pub fn delete(&self, song_id: i32, button_mode: &str, difficulty: &str) -> bool {
         if self.record_db.delete(song_id, button_mode, difficulty) {
             if let (Some(m), Some(d)) = (
-                parse_static_mode(button_mode),
-                parse_static_diff(difficulty),
+                Mode::from_str(button_mode),
+                Difficulty::from_str(difficulty),
             ) {
                 let key = (song_id, m, d);
                 if let Ok(mut guard) = self.varchive_cache.lock() {
@@ -142,8 +142,8 @@ impl RecordManager {
         difficulty: &str,
     ) -> Option<RecordValue> {
         let (m, d) = (
-            parse_static_mode(button_mode)?,
-            parse_static_diff(difficulty)?,
+            Mode::from_str(button_mode)?,
+            Difficulty::from_str(difficulty)?,
         );
         let guard = overmax_core::lock_or_recover(&self.varchive_cache);
         guard.get(&(song_id, m, d)).copied()
@@ -216,8 +216,14 @@ mod tests {
 
         let map = manager.get_rate_map(&[42, 99]);
 
-        assert_eq!(map.get(&(42, "4B", "MX")), Some(&(99.5, true)));
-        assert_eq!(map.get(&(99, "4B", "SC")), Some(&(97.0, false)));
+        assert_eq!(
+            map.get(&(42, overmax_core::Mode::B4, overmax_core::Difficulty::MX)),
+            Some(&(99.5, true))
+        );
+        assert_eq!(
+            map.get(&(99, overmax_core::Mode::B4, overmax_core::Difficulty::SC)),
+            Some(&(97.0, false))
+        );
 
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -361,7 +367,10 @@ mod tests {
         assert_eq!(manager.get_varchive_cache_record(50, "6B", "MX"), None);
 
         // Perform O(1) incremental update
-        manager.upsert_varchive_record((50, "6B", "MX"), (99.85, true));
+        manager.upsert_varchive_record(
+            (50, overmax_core::Mode::B6, overmax_core::Difficulty::MX),
+            (99.85, true),
+        );
 
         assert_eq!(
             manager.get_varchive_cache_record(50, "6B", "MX"),

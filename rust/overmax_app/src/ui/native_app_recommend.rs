@@ -28,8 +28,8 @@ impl NativeApp {
                         let song_id = ctx_val.song_id;
                         let rate_map = self.record_manager.get_rate_map(&[song_id]);
                         if let (Some(m), Some(d)) = (
-                            overmax_core::parse_static_mode(&ctx_val.mode),
-                            overmax_core::parse_static_diff(&ctx_val.diff),
+                            overmax_core::Mode::from_str(&ctx_val.mode),
+                            overmax_core::Difficulty::from_str(&ctx_val.diff),
                         ) {
                             if let Some(&(r, mc)) = rate_map.get(&(song_id, m, d)) {
                                 self.session_initial_record = Some((r, mc));
@@ -53,8 +53,8 @@ impl NativeApp {
                 if let Some(ctx_val) = &output.state.context {
                     if ctx_val.rate >= overmax_engine::detector::play_state::MIN_VALID_RATE {
                         if let (Some(m), Some(d)) = (
-                            overmax_core::parse_static_mode(&ctx_val.mode),
-                            overmax_core::parse_static_diff(&ctx_val.diff),
+                            overmax_core::Mode::from_str(&ctx_val.mode),
+                            overmax_core::Difficulty::from_str(&ctx_val.diff),
                         ) {
                             let key = (ctx_val.song_id, m, d);
                             let should_upsert = if let Some(&(prev_rate, prev_mc)) =
@@ -77,8 +77,8 @@ impl NativeApp {
                                 let is_result = output.is_result;
                                 if self.record_manager.upsert(
                                     key.0,
-                                    key.1,
-                                    key.2,
+                                    key.1.as_str(),
+                                    key.2.as_str(),
                                     ctx_val.rate,
                                     ctx_val.is_max_combo,
                                     is_result,

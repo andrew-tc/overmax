@@ -117,6 +117,8 @@ struct RawCandidate<'a> {
     song: &'a crate::community::client::Song,
     button_mode: &'static str,
     difficulty: &'static str,
+    mode: overmax_core::Mode,
+    diff: overmax_core::Difficulty,
     level: Option<u32>,
     floor: f64,
     floor_name: Option<Arc<str>>,
@@ -304,11 +306,15 @@ impl Recommender {
                                 continue;
                             }
 
+                            let mode_enum = overmax_core::Mode::from_str(mode).unwrap();
+                            let diff_enum = overmax_core::Difficulty::from_str(diff).unwrap();
                             candidates.push(RawCandidate {
                                 song_id: sid,
                                 song,
                                 button_mode: mode,
                                 difficulty: diff,
+                                mode: mode_enum,
+                                diff: diff_enum,
                                 level: p.level,
                                 floor: final_cand_floor,
                                 floor_name: p.floor_name.clone(),
@@ -339,7 +345,7 @@ impl Recommender {
 
         for entry in candidates.iter_mut() {
             if let Some(&(rate, is_max_combo)) =
-                rate_map.get(&(entry.song_id, entry.button_mode, entry.difficulty))
+                rate_map.get(&(entry.song_id, entry.mode, entry.diff))
             {
                 entry.rate = Some(rate as f64);
                 entry.is_max_combo = is_max_combo;
@@ -389,7 +395,9 @@ impl Recommender {
                             scale_type,
                             floor_millis: Self::floor_to_millis(floor_val),
                         };
-                        let record_key = (song_id, mode, diff);
+                        let m_enum = overmax_core::Mode::from_str(mode).unwrap();
+                        let d_enum = overmax_core::Difficulty::from_str(diff).unwrap();
+                        let record_key = (song_id, m_enum, d_enum);
                         floor_patterns
                             .entry(key.clone())
                             .or_insert_with(Vec::new)

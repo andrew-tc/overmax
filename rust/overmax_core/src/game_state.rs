@@ -1,28 +1,95 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-pub type RecordKey = (i32, &'static str, &'static str);
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum Mode {
+    #[serde(rename = "4B")]
+    B4 = 0,
+    #[serde(rename = "5B")]
+    B5 = 1,
+    #[serde(rename = "6B")]
+    B6 = 2,
+    #[serde(rename = "8B")]
+    B8 = 3,
+}
+
+impl Mode {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.trim() {
+            "4B" | "4b" => Some(Self::B4),
+            "5B" | "5b" => Some(Self::B5),
+            "6B" | "6b" => Some(Self::B6),
+            "8B" | "8b" => Some(Self::B8),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::B4 => "4B",
+            Self::B5 => "5B",
+            Self::B6 => "6B",
+            Self::B8 => "8B",
+        }
+    }
+
+    pub fn button_count(&self) -> i32 {
+        match self {
+            Self::B4 => 4,
+            Self::B5 => 5,
+            Self::B6 => 6,
+            Self::B8 => 8,
+        }
+    }
+}
+
+impl fmt::Display for Mode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum Difficulty {
+    #[serde(rename = "NM")]
+    NM = 0,
+    #[serde(rename = "HD")]
+    HD = 1,
+    #[serde(rename = "MX")]
+    MX = 2,
+    #[serde(rename = "SC")]
+    SC = 3,
+}
+
+impl Difficulty {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.trim().to_uppercase().as_str() {
+            "NM" | "NORMAL" => Some(Self::NM),
+            "HD" | "HARD" => Some(Self::HD),
+            "MX" | "MAXIMUM" => Some(Self::MX),
+            "SC" => Some(Self::SC),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::NM => "NM",
+            Self::HD => "HD",
+            Self::MX => "MX",
+            Self::SC => "SC",
+        }
+    }
+}
+
+impl fmt::Display for Difficulty {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+pub type RecordKey = (i32, Mode, Difficulty);
 pub type RecordValue = (f32, bool);
-
-pub fn parse_static_mode(s: &str) -> Option<&'static str> {
-    match s.trim() {
-        "4B" | "4b" => Some("4B"),
-        "5B" | "5b" => Some("5B"),
-        "6B" | "6b" => Some("6B"),
-        "8B" | "8b" => Some("8B"),
-        _ => None,
-    }
-}
-
-pub fn parse_static_diff(s: &str) -> Option<&'static str> {
-    match s.trim().to_uppercase().as_str() {
-        "NM" | "NORMAL" => Some("NM"),
-        "HD" | "HARD" => Some("HD"),
-        "MX" | "MAXIMUM" => Some("MX"),
-        "SC" => Some("SC"),
-        _ => None,
-    }
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SceneType {

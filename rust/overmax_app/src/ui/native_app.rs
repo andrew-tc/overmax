@@ -605,7 +605,10 @@ impl NativeApp {
                 });
             }
             if success {
-                if let Some(val) = self.record_manager.get_local_record(key.0, &key.1, &key.2) {
+                if let Some(val) =
+                    self.record_manager
+                        .get_local_record(key.0, key.1.as_str(), key.2.as_str())
+                {
                     self.record_manager.upsert_varchive_record(key, val);
                 } else {
                     self.record_manager.refresh();

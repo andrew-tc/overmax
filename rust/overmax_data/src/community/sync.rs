@@ -92,8 +92,8 @@ pub fn matches_filter(
 
 impl SyncCandidate {
     pub fn key(&self) -> Option<RecordKey> {
-        let m = overmax_core::parse_static_mode(&self.button_mode)?;
-        let d = overmax_core::parse_static_diff(&self.difficulty)?;
+        let m = overmax_core::Mode::from_str(&self.button_mode)?;
+        let d = overmax_core::Difficulty::from_str(&self.difficulty)?;
         Some((self.song_id, m, d))
     }
 
@@ -102,7 +102,9 @@ impl SyncCandidate {
     }
 
     pub fn matches_key(&self, key: &RecordKey) -> bool {
-        self.song_id == key.0 && self.button_mode == key.1 && self.difficulty == key.2
+        self.song_id == key.0
+            && self.button_mode == key.1.as_str()
+            && self.difficulty == key.2.as_str()
     }
 
     pub fn reason_label(&self) -> String {
