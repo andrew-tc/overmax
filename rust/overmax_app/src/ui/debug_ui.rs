@@ -276,24 +276,26 @@ fn log_scroll(
     lines: &Arc<Mutex<VecDeque<String>>>,
     filters: &Arc<Mutex<std::collections::HashMap<String, bool>>>,
 ) {
-    let snapshot: Vec<String> = lines
-        .lock()
-        .map(|g| g.iter().cloned().collect())
-        .unwrap_or_default();
+    let Ok(lines_guard) = lines.lock() else {
+        return;
+    };
+    let Ok(filters_lock) = filters.lock() else {
+        return;
+    };
 
-    let filters_lock = filters.lock().unwrap();
+    let tags = [
+        "[ScreenCapture]",
+        "[Overlay]",
+        "[VArchive]",
+        "[WindowTracker]",
+        "[Main]",
+        "[UI]",
+    ];
 
-    let filtered_lines: Vec<String> = snapshot
-        .into_iter()
+    let filtered_lines: Vec<&str> = lines_guard
+        .iter()
+        .map(|s| s.as_str())
         .filter(|line| {
-            let tags = [
-                "[ScreenCapture]",
-                "[Overlay]",
-                "[VArchive]",
-                "[WindowTracker]",
-                "[Main]",
-                "[UI]",
-            ];
             for tag in &tags {
                 if line.contains(tag) {
                     let lookup_tag = if *tag == "[UI]" { "[Main]" } else { *tag };
@@ -316,7 +318,7 @@ fn log_scroll(
                 .auto_shrink([false, false])
                 .show_rows(ui, row_height, filtered_lines.len(), |ui, range| {
                     for idx in range {
-                        let line = &filtered_lines[idx];
+                        let line = filtered_lines[idx];
                         let color = get_line_color(line);
                         ui.label(
                             RichText::new(line)
