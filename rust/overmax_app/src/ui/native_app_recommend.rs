@@ -68,8 +68,8 @@ impl NativeApp {
                             let is_result = output.is_result;
                             if self.record_manager.upsert(
                                 key.0,
-                                key.1.as_str(),
-                                key.2.as_str(),
+                                key.1,
+                                key.2,
                                 ctx_val.rate,
                                 ctx_val.is_max_combo,
                                 is_result,
@@ -112,8 +112,8 @@ impl NativeApp {
         };
         self.recommender.recommend(
             ctx.song_id,
-            ctx.mode.as_str(),
-            ctx.diff.as_str(),
+            ctx.mode,
+            ctx.diff,
             0.0,
             6,
             true,

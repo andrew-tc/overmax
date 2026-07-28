@@ -33,6 +33,8 @@ impl Mode {
         }
     }
 
+    pub const ALL: [Self; 4] = [Self::B4, Self::B5, Self::B6, Self::B8];
+
     pub fn button_count(&self) -> i32 {
         match self {
             Self::B4 => 4,
@@ -85,6 +87,15 @@ impl Difficulty {
 impl fmt::Display for Difficulty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+impl Difficulty {
+    pub const ALL: [Self; 4] = [Self::NM, Self::HD, Self::MX, Self::SC];
+
+    /// SC 계열 여부
+    pub fn is_sc(&self) -> bool {
+        matches!(self, Self::SC)
     }
 }
 

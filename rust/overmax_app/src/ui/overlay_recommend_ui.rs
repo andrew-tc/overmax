@@ -41,8 +41,8 @@ pub fn draw_diff_tabs(
     ui.vertical(|ui| {
         ui.add_space(TAB_PAD_Y * scale);
         ui.spacing_mut().item_spacing.y = TAB_GAP * scale;
-        for diff in ["NM", "HD", "MX", "SC"] {
-            draw_diff_tab(ui, diff, active, patterns, scale);
+        for diff in overmax_core::Difficulty::ALL {
+            draw_diff_tab(ui, diff.as_str(), active, patterns, scale);
         }
         ui.add_space(TAB_PAD_Y * scale);
     });

@@ -487,8 +487,8 @@ impl NativeApp {
             if let Some(c) = cand {
                 if self.record_manager.delete(
                     c.song_id,
-                    c.button_mode.as_str(),
-                    c.difficulty.as_str(),
+                    c.button_mode,
+                    c.difficulty,
                 ) {
                     debug_ui::push_log(
                         &self.debug_state.log_lines,
@@ -608,7 +608,7 @@ impl NativeApp {
             if success {
                 if let Some(val) =
                     self.record_manager
-                        .get_local_record(key.0, key.1.as_str(), key.2.as_str())
+                        .get_local_record(key.0, key.1, key.2)
                 {
                     self.record_manager.upsert_varchive_record(key, val);
                 } else {
@@ -807,9 +807,9 @@ impl NativeApp {
                         let mut msg = success_message.to_string();
                         if let Ok(Some(rank)) = record_db.get_varchive_top50_rank(
                             &steam,
-                            candidate.button_mode.as_str(),
+                            candidate.button_mode,
                             &candidate.song_id.to_string(),
-                            candidate.difficulty.as_str(),
+                            candidate.difficulty,
                         ) {
                             msg =
                                 format!("{} ({} TOP {}위 달성!)", msg, candidate.button_mode, rank);
@@ -859,8 +859,8 @@ impl NativeApp {
             return false;
         };
         let song_id = ctx.song_id;
-        let mode = ctx.mode.as_str();
-        let diff = ctx.diff.as_str();
+        let mode = ctx.mode;
+        let diff = ctx.diff;
 
         let local = self.record_manager.get_local_record(song_id, mode, diff);
         let varchive = self
@@ -881,8 +881,8 @@ impl NativeApp {
             return;
         };
         let song_id = session_ctx.song_id;
-        let mode = session_ctx.mode.as_str();
-        let diff = session_ctx.diff.as_str();
+        let mode = session_ctx.mode;
+        let diff = session_ctx.diff;
 
         let Some(song) = self.varchive_db.search_by_id(song_id) else {
             return;

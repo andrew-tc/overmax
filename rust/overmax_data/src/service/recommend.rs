@@ -5,11 +5,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Mutex};
 
-const DIFFICULTIES: &[&str] = &["NM", "HD", "MX", "SC"];
-const SC_GROUP: &[&str] = &["SC"];
-const MODES: &[&str] = &["4B", "5B", "6B", "8B"];
-
-use overmax_core::RecordKey;
+use overmax_core::{Difficulty, Mode, RecordKey};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RecommendEntry {
@@ -91,25 +87,15 @@ pub struct Recommender {
     cache_index_ready: AtomicBool,
 }
 
-struct CandidateSearchParams<'a> {
+struct CandidateSearchParams {
     target_song_id: i32,
-    target_mode: &'a str,
-    target_diff: &'a str,
+    target_mode: Mode,
+    target_diff: Difficulty,
     ref_floor: f64,
     use_official: bool,
-    ref_diff_grp: &'a str,
+    ref_diff_grp: &'static str,
     floor_range: f64,
     same_mode_only: bool,
-}
-
-fn as_static_mode(s: &str) -> &'static str {
-    match s {
-        "4B" => "4B",
-        "5B" => "5B",
-        "6B" => "6B",
-        "8B" => "8B",
-        _ => "4B",
-    }
 }
 
 struct RawCandidate<'a> {
@@ -166,8 +152,8 @@ impl Recommender {
         (floor * 1000.0).round() as i64
     }
 
-    fn diff_group(diff: &str) -> &'static str {
-        if SC_GROUP.contains(&diff) {
+    fn diff_group(diff: Difficulty) -> &'static str {
+        if diff.is_sc() {
             "SC"
         } else {
             "NHM"
@@ -177,8 +163,8 @@ impl Recommender {
     pub fn recommend(
         &self,
         song_id: i32,
-        button_mode: &str,
-        difficulty: &str,
+        button_mode: Mode,
+        difficulty: Difficulty,
         floor_range: f64,
         max_results: usize,
         same_mode_only: bool,
@@ -188,9 +174,7 @@ impl Recommender {
             None => return RecommendResult::empty(),
         };
 
-        let current_pattern = crate::community::client::Mode::from_str(button_mode)
-            .zip(crate::community::client::Difficulty::from_str(difficulty))
-            .and_then(|(m, d)| current_song.patterns[m as usize][d as usize].as_ref());
+        let current_pattern = current_song.patterns[button_mode as usize][difficulty as usize].as_ref();
 
         let p = match current_pattern {
             Some(p) => p,
@@ -255,10 +239,11 @@ impl Recommender {
     }
 
     fn get_candidates<'a>(&'a self, params: CandidateSearchParams) -> Vec<RawCandidate<'a>> {
-        let modes_to_check: Vec<&'static str> = if params.same_mode_only {
-            vec![as_static_mode(params.target_mode)]
+        let modes_to_check: &[Mode] = if params.same_mode_only {
+            // 스택에 임시 슬라이스 — copy enum은 이 방식이 깔끔
+            std::slice::from_ref(&params.target_mode)
         } else {
-            MODES.to_vec()
+            &Mode::ALL
         };
 
         let mut candidates = Vec::new();
@@ -269,55 +254,49 @@ impl Recommender {
                 Err(_) => continue,
             };
 
-            for &mode in &modes_to_check {
-                if let Some(m) = crate::community::client::Mode::from_str(mode) {
-                    for &diff in DIFFICULTIES {
-                        if let Some(p) = crate::community::client::Difficulty::from_str(diff)
-                            .and_then(|d| song.patterns[m as usize][d as usize].as_ref())
-                        {
-                            let cand_floor_val = Self::parse_floor_value(p.floor_name.as_ref());
+            for &mode in modes_to_check {
+                for diff in Difficulty::ALL {
+                    if let Some(p) = song.patterns[mode as usize][diff as usize].as_ref() {
+                        let cand_floor_val = Self::parse_floor_value(p.floor_name.as_ref());
 
-                            let final_cand_floor = if params.use_official {
-                                if cand_floor_val.is_some()
-                                    || Self::diff_group(diff) != params.ref_diff_grp
-                                {
-                                    None
-                                } else {
-                                    Some(p.level.unwrap_or(0) as f64)
-                                }
-                            } else {
-                                cand_floor_val
-                            };
-
-                            let Some(final_cand_floor) = final_cand_floor else {
-                                continue;
-                            };
-
-                            if (final_cand_floor - params.ref_floor).abs() > params.floor_range {
-                                continue;
-                            }
-
-                            if sid == params.target_song_id
-                                && mode == params.target_mode
-                                && diff == params.target_diff
+                        let final_cand_floor = if params.use_official {
+                            if cand_floor_val.is_some()
+                                || Self::diff_group(diff) != params.ref_diff_grp
                             {
-                                continue;
+                                None
+                            } else {
+                                Some(p.level.unwrap_or(0) as f64)
                             }
+                        } else {
+                            cand_floor_val
+                        };
 
-                            let mode_enum = overmax_core::Mode::from_str(mode).unwrap();
-                            let diff_enum = overmax_core::Difficulty::from_str(diff).unwrap();
-                            candidates.push(RawCandidate {
-                                song_id: sid,
-                                song,
-                                mode: mode_enum,
-                                diff: diff_enum,
-                                level: p.level,
-                                floor: final_cand_floor,
-                                floor_name: p.floor_name.clone(),
-                                rate: None,
-                                is_max_combo: false,
-                            });
+                        let Some(final_cand_floor) = final_cand_floor else {
+                            continue;
+                        };
+
+                        if (final_cand_floor - params.ref_floor).abs() > params.floor_range {
+                            continue;
                         }
+
+                        if sid == params.target_song_id
+                            && mode == params.target_mode
+                            && diff == params.target_diff
+                        {
+                            continue;
+                        }
+
+                        candidates.push(RawCandidate {
+                            song_id: sid,
+                            song,
+                            mode,
+                            diff,
+                            level: p.level,
+                            floor: final_cand_floor,
+                            floor_name: p.floor_name.clone(),
+                            rate: None,
+                            is_max_combo: false,
+                        });
                     }
                 }
             }
@@ -358,16 +337,9 @@ impl Recommender {
                 Ok(id) => id,
                 Err(_) => continue,
             };
-            for (m_idx, &mode) in MODES.iter().enumerate() {
-                for d_idx in 0..4 {
-                    let diff = match d_idx {
-                        0 => "NM",
-                        1 => "HD",
-                        2 => "MX",
-                        3 => "SC",
-                        _ => unreachable!(),
-                    };
-                    if let Some(p) = &song.patterns[m_idx][d_idx] {
+            for mode in Mode::ALL {
+                for diff in Difficulty::ALL {
+                    if let Some(p) = &song.patterns[mode as usize][diff as usize] {
                         let floor_val;
                         let scale_type;
                         if let Some(f) = Self::parse_floor_value(p.floor_name.as_ref()) {
@@ -379,26 +351,23 @@ impl Recommender {
                             } else {
                                 continue;
                             }
-                            scale_type = if SC_GROUP.contains(&diff) {
+                            scale_type = if diff.is_sc() {
                                 "OFFICIAL_SC".to_string()
                             } else {
                                 "OFFICIAL_NHM".to_string()
                             };
                         }
 
-                        let m_enum = overmax_core::Mode::from_str(mode).unwrap();
-                        let d_enum = overmax_core::Difficulty::from_str(diff).unwrap();
-
                         let key = FloorCacheKey {
-                            button_mode: m_enum,
+                            button_mode: mode,
                             scale_type,
                             floor_millis: Self::floor_to_millis(floor_val),
                         };
-                        let record_key = (song_id, m_enum, d_enum);
+                        let record_key = (song_id, mode, diff);
                         floor_patterns
                             .entry(key.clone())
                             .or_insert_with(Vec::new)
-                            .push(record_key.clone());
+                            .push(record_key);
                         record_to_floor_key.insert(record_key, key);
                     }
                 }
@@ -493,8 +462,8 @@ impl Recommender {
 
     fn get_summary_from_cache(
         &self,
-        button_mode: &str,
-        difficulty: &str,
+        button_mode: Mode,
+        difficulty: Difficulty,
         ref_floor: f64,
         use_official: bool,
         floor_range: f64,
@@ -503,7 +472,7 @@ impl Recommender {
         self.ensure_floor_rate_cache();
 
         let scale_type = if use_official {
-            if SC_GROUP.contains(&difficulty) {
+            if difficulty.is_sc() {
                 "OFFICIAL_SC"
             } else {
                 "OFFICIAL_NHM"
@@ -512,19 +481,13 @@ impl Recommender {
             "UNOFFICIAL"
         };
 
-        let modes = if same_mode_only {
-            vec![button_mode]
-        } else {
-            MODES.to_vec()
-        };
-
         let mut total = 0;
         let mut has_record = 0;
         let mut rate_sum = 0.0;
 
         let cache_guard = overmax_core::lock_or_recover(&self.floor_rate_cache);
         for (key, summary) in cache_guard.iter() {
-            if !modes.contains(&key.button_mode.as_str()) {
+            if same_mode_only && key.button_mode != button_mode {
                 continue;
             }
             if key.scale_type != scale_type {

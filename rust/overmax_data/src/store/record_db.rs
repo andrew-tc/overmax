@@ -7,8 +7,8 @@ use std::sync::Mutex;
 #[derive(Debug, Clone)]
 pub struct RawSyncCandidateRow {
     pub song_id: i32,
-    pub button_mode: String,
-    pub difficulty: String,
+    pub button_mode: Mode,
+    pub difficulty: Difficulty,
     pub local_rate: f64,
     pub local_mc: bool,
     pub varchive_rate: Option<f64>,
@@ -157,12 +157,14 @@ impl RecordDB {
     pub fn upsert(
         &self,
         song_id: i32,
-        button_mode: &str,
-        difficulty: &str,
+        button_mode: Mode,
+        difficulty: Difficulty,
         rate: f64,
         is_max_combo: bool,
         only_if_improved: bool,
     ) -> bool {
+        let button_mode = button_mode.as_str();
+        let difficulty = difficulty.as_str();
         if !self.is_ready {
             return false;
         }
@@ -231,7 +233,9 @@ impl RecordDB {
         false
     }
 
-    pub fn delete(&self, song_id: i32, button_mode: &str, difficulty: &str) -> bool {
+    pub fn delete(&self, song_id: i32, button_mode: Mode, difficulty: Difficulty) -> bool {
+        let button_mode = button_mode.as_str();
+        let difficulty = difficulty.as_str();
         if !self.is_ready {
             return false;
         }
@@ -249,7 +253,9 @@ impl RecordDB {
         false
     }
 
-    pub fn get(&self, song_id: i32, button_mode: &str, difficulty: &str) -> Option<RecordValue> {
+    pub fn get(&self, song_id: i32, button_mode: Mode, difficulty: Difficulty) -> Option<RecordValue> {
+        let button_mode = button_mode.as_str();
+        let difficulty = difficulty.as_str();
         if !self.is_ready {
             return None;
         }
@@ -459,22 +465,27 @@ impl RecordDB {
             let Ok(song_id) = song_id_str.parse::<i32>() else {
                 continue;
             };
-            let button_mode: String = row.get(1).unwrap_or_default();
-            let difficulty: String = row.get(2).unwrap_or_default();
+            let bm_str: String = row.get(1).unwrap_or_default();
+            let diff_str: String = row.get(2).unwrap_or_default();
             let local_rate: f64 = row.get(3).unwrap_or(0.0);
             let local_mc: i32 = row.get(4).unwrap_or(0);
             let v_score: Option<f64> = row.get(5).ok();
             let v_mc_int: Option<i32> = row.get(6).ok();
 
-            list.push(RawSyncCandidateRow {
-                song_id,
-                button_mode,
-                difficulty,
-                local_rate,
-                local_mc: local_mc != 0,
-                varchive_rate: v_score,
-                varchive_mc: v_mc_int.map(|m| m != 0),
-            });
+            if let (Some(bm), Some(d)) = (
+                Mode::from_str(&bm_str),
+                Difficulty::from_str(&diff_str),
+            ) {
+                list.push(RawSyncCandidateRow {
+                    song_id,
+                    button_mode: bm,
+                    difficulty: d,
+                    local_rate,
+                    local_mc: local_mc != 0,
+                    varchive_rate: v_score,
+                    varchive_mc: v_mc_int.map(|m| m != 0),
+                });
+            }
         }
 
         list
@@ -493,13 +504,14 @@ impl RecordDB {
         let mut conn = Connection::open(&self.db_path).map_err(|e| e.to_string())?;
         let tx = conn.transaction().map_err(|e| e.to_string())?;
 
-        let button_mode = match button {
-            4 => "4B",
-            5 => "5B",
-            6 => "6B",
-            8 => "8B",
+        let mode = match button {
+            4 => Mode::B4,
+            5 => Mode::B5,
+            6 => Mode::B6,
+            8 => Mode::B8,
             _ => return Err(format!("invalid button: {button}")),
         };
+        let button_mode = mode.as_str();
 
         if clear_first {
             tx.execute(
@@ -550,13 +562,14 @@ impl RecordDB {
         if !self.is_ready {
             return None;
         }
-        let button_mode = match button {
-            4 => "4B",
-            5 => "5B",
-            6 => "6B",
-            8 => "8B",
+        let mode = match button {
+            4 => Mode::B4,
+            5 => Mode::B5,
+            6 => Mode::B6,
+            8 => Mode::B8,
             _ => return None,
         };
+        let button_mode = mode.as_str();
         let conn = Connection::open(&self.db_path).ok()?;
         let mut stmt = conn
             .prepare(
@@ -605,10 +618,12 @@ impl RecordDB {
     pub fn get_varchive_top50_rank(
         &self,
         steam_id: &str,
-        button_mode: &str,
+        mode: Mode,
         song_id: &str,
-        difficulty: &str,
+        difficulty: Difficulty,
     ) -> Result<Option<usize>, String> {
+        let button_mode = mode.as_str();
+        let difficulty = difficulty.as_str();
         if !self.is_ready {
             return Err("DB is not ready".to_string());
         }

@@ -151,20 +151,13 @@ pub fn build_candidates(
     let mut candidates = Vec::with_capacity(raw_rows.len());
 
     for row in raw_rows {
-        let Some(button_mode) = overmax_core::Mode::from_str(&row.button_mode) else {
-            continue;
-        };
-        let Some(difficulty) = overmax_core::Difficulty::from_str(&row.difficulty) else {
-            continue;
-        };
-
         let (song_name, composer, dlc, pattern_level) = match varchive_db.search_by_id(row.song_id)
         {
             Some(s) => (
                 s.name.to_string(),
                 s.composer.to_string(),
                 s.dlc_code.to_string(),
-                s.get_pattern(button_mode, difficulty).and_then(|p| p.level),
+                s.get_pattern(row.button_mode, row.difficulty).and_then(|p| p.level),
             ),
             None => (row.song_id.to_string(), String::new(), String::new(), None),
         };
@@ -174,8 +167,8 @@ pub fn build_candidates(
             song_name,
             composer,
             dlc,
-            button_mode,
-            difficulty,
+            button_mode: row.button_mode,
+            difficulty: row.difficulty,
             pattern_level,
             overmax_rate: row.local_rate,
             overmax_mc: row.local_mc,
@@ -209,9 +202,9 @@ mod tests {
         assert!(rdb.initialize());
 
         // 1. Insert local records into record.db
-        rdb.upsert(1, "4B", "MX", 99.5, true, false); // Already synced identical score
-        rdb.upsert(2, "4B", "MX", 98.0, false, false); // Local is 98.0%, V-Archive has 95.0% (Improved!)
-        rdb.upsert(3, "4B", "MX", 99.0, false, false); // Unregistered on V-Archive
+        rdb.upsert(1, overmax_core::Mode::B4, overmax_core::Difficulty::MX, 99.5, true, false); // Already synced identical score
+        rdb.upsert(2, overmax_core::Mode::B4, overmax_core::Difficulty::MX, 98.0, false, false); // Local is 98.0%, V-Archive has 95.0% (Improved!)
+        rdb.upsert(3, overmax_core::Mode::B4, overmax_core::Difficulty::MX, 99.0, false, false); // Unregistered on V-Archive
 
         // 2. Insert V-Archive records into SQLite table
         let v_payload = json!({

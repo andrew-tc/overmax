@@ -929,8 +929,8 @@ mod tests {
                 || final_scene == SceneType::OpenMatch
                 || final_scene == SceneType::LadderMatch
             {
-                for diff in ["NM", "HD", "MX", "SC"] {
-                    roi_names.push(format!("diff_panel_{}", diff));
+                for diff in overmax_core::Difficulty::ALL {
+                    roi_names.push(format!("diff_panel_{}", diff.as_str()));
                 }
             }
 
