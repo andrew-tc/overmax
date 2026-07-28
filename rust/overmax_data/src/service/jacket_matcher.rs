@@ -31,9 +31,9 @@ impl JacketMatcher {
     /// 95% 이상의 완전 불일치 곡 후보군들은 POPCNT 3번으로 즉시 탈락(Early Exit)됩니다.
     const HAMMING_EARLY_EXIT_THRESHOLD: u32 = 42;
 
-    pub fn new(entries: Vec<ImageEntry>, config: JacketMatcherConfig) -> Self {
+    pub fn new(entries: Arc<Vec<ImageEntry>>, config: JacketMatcherConfig) -> Self {
         Self {
-            entries: Arc::new(entries),
+            entries,
             config,
             cache: std::sync::Mutex::new(MatchCache {
                 recent_indices: Vec::new(),
@@ -164,26 +164,22 @@ impl JacketMatcher {
 mod tests {
     use super::*;
 
-    fn dummy_entry(image_id: &str, phash: u64, hog_val: f32) -> ImageEntry {
-        let hog = vec![hog_val; 1764];
-        let hog_norm = (1764.0 * hog_val * hog_val).sqrt().max(1.0);
+    fn dummy_entry(image_id: &str, phash: u64) -> ImageEntry {
         ImageEntry {
             image_id: image_id.to_string(),
             phash,
             dhash: phash,
             ahash: phash,
-            hog,
-            hog_norm,
             grid_hist: None,
         }
     }
 
     #[test]
     fn test_jacket_matcher_basic_match() {
-        let entries = vec![
-            dummy_entry("song-a", 0x0000_0000_0000_0000, 0.1),
-            dummy_entry("song-b", 0xFFFF_FFFF_FFFF_FFFF, 0.2),
-        ];
+        let entries = Arc::new(vec![
+            dummy_entry("song-a", 0x0000_0000_0000_0000),
+            dummy_entry("song-b", 0xFFFF_FFFF_FFFF_FFFF),
+        ]);
         let config = JacketMatcherConfig {
             similarity_threshold: 0.75,
             margin_threshold: 3.0,
