@@ -1,4 +1,4 @@
-use overmax_core::{RecordKey, RecordValue};
+use overmax_core::{as_static_diff, as_static_mode, RecordKey, RecordValue};
 use rusqlite::{params, Connection, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -317,7 +317,7 @@ impl RecordDB {
                         ) {
                             if let Ok(sid) = song_id_str.parse::<i32>() {
                                 map.insert(
-                                    (sid, button_mode, difficulty),
+                                    (sid, as_static_mode(&button_mode), as_static_diff(&difficulty)),
                                     (rate as f32, is_max_combo_int != 0),
                                 );
                             }
@@ -333,7 +333,7 @@ impl RecordDB {
     pub fn all_records_for_steam(
         &self,
         steam_id: &str,
-    ) -> std::collections::HashMap<(i32, String, String), (f64, bool)> {
+    ) -> std::collections::HashMap<RecordKey, (f64, bool)> {
         let mut map = std::collections::HashMap::new();
         if !self.is_ready || steam_id.is_empty() || steam_id == Self::UNKNOWN_STEAM_ID {
             return map;
@@ -365,7 +365,10 @@ impl RecordDB {
             let difficulty: String = row.get(2).unwrap_or_default();
             let rate: f64 = row.get(3).unwrap_or(0.0);
             let is_max_combo: i32 = row.get(4).unwrap_or(0);
-            map.insert((sid, button_mode, difficulty), (rate, is_max_combo != 0));
+            map.insert(
+                (sid, as_static_mode(&button_mode), as_static_diff(&difficulty)),
+                (rate, is_max_combo != 0),
+            );
         }
         map
     }
@@ -373,7 +376,7 @@ impl RecordDB {
     pub fn load_varchive_records(
         &self,
         steam_id: &str,
-    ) -> Result<std::collections::HashMap<(i32, String, String), (f32, bool)>> {
+    ) -> Result<std::collections::HashMap<RecordKey, RecordValue>> {
         let mut map = std::collections::HashMap::new();
         if !self.is_ready || steam_id.is_empty() || steam_id == Self::UNKNOWN_STEAM_ID {
             return Ok(map);
@@ -394,7 +397,7 @@ impl RecordDB {
             let max_combo = max_combo_int != 0;
 
             map.insert(
-                (song_id, button_mode, difficulty),
+                (song_id, as_static_mode(&button_mode), as_static_diff(&difficulty)),
                 (score as f32, max_combo),
             );
         }

@@ -9,7 +9,7 @@ const DIFFICULTIES: &[&str] = &["NM", "HD", "MX", "SC"];
 const SC_GROUP: &[&str] = &["SC"];
 const MODES: &[&str] = &["4B", "5B", "6B", "8B"];
 
-type RecordKey = (i32, String, String);
+use overmax_core::RecordKey;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RecommendEntry {
@@ -340,8 +340,8 @@ impl Recommender {
         for entry in candidates.iter_mut() {
             if let Some(&(rate, is_max_combo)) = rate_map.get(&(
                 entry.song_id,
-                entry.button_mode.to_string(),
-                entry.difficulty.to_string(),
+                entry.button_mode,
+                entry.difficulty,
             )) {
                 entry.rate = Some(rate as f64);
                 entry.is_max_combo = is_max_combo;
@@ -391,7 +391,7 @@ impl Recommender {
                             scale_type,
                             floor_millis: Self::floor_to_millis(floor_val),
                         };
-                        let record_key = (song_id, mode.to_string(), diff.to_string());
+                        let record_key = (song_id, mode, diff);
                         floor_patterns
                             .entry(key.clone())
                             .or_insert_with(Vec::new)

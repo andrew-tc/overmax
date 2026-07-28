@@ -94,8 +94,8 @@ impl SyncCandidate {
     pub fn key(&self) -> RecordKey {
         (
             self.song_id,
-            self.button_mode.clone(),
-            self.difficulty.clone(),
+            overmax_core::as_static_mode(&self.button_mode),
+            overmax_core::as_static_diff(&self.difficulty),
         )
     }
 

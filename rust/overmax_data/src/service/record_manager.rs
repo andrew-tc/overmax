@@ -1,5 +1,5 @@
 use crate::store::record_db::RecordDB;
-use overmax_core::{RecordKey, RecordValue};
+use overmax_core::{as_static_diff, as_static_mode, RecordKey, RecordValue};
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -80,7 +80,7 @@ impl RecordManager {
             only_if_improved,
         ) {
             if let Ok(mut guard) = self.dirty_record_keys.lock() {
-                guard.insert((song_id, button_mode.to_string(), difficulty.to_string()));
+                guard.insert((song_id, as_static_mode(button_mode), as_static_diff(difficulty)));
             }
             self.data_revision.fetch_add(1, Ordering::SeqCst);
             return true;
@@ -90,11 +90,12 @@ impl RecordManager {
 
     pub fn delete(&self, song_id: i32, button_mode: &str, difficulty: &str) -> bool {
         if self.record_db.delete(song_id, button_mode, difficulty) {
+            let key = (song_id, as_static_mode(button_mode), as_static_diff(difficulty));
             if let Ok(mut guard) = self.varchive_cache.lock() {
-                guard.remove(&(song_id, button_mode.to_string(), difficulty.to_string()));
+                guard.remove(&key);
             }
             if let Ok(mut guard) = self.dirty_record_keys.lock() {
-                guard.insert((song_id, button_mode.to_string(), difficulty.to_string()));
+                guard.insert(key);
             }
             self.data_revision.fetch_add(1, Ordering::SeqCst);
             return true;
@@ -132,7 +133,7 @@ impl RecordManager {
     ) -> Option<RecordValue> {
         let guard = overmax_core::lock_or_recover(&self.varchive_cache);
         guard
-            .get(&(song_id, button_mode.to_string(), difficulty.to_string()))
+            .get(&(song_id, as_static_mode(button_mode), as_static_diff(difficulty)))
             .copied()
     }
 
@@ -204,11 +205,11 @@ mod tests {
         let map = manager.get_rate_map(&[42, 99]);
 
         assert_eq!(
-            map.get(&(42, "4B".into(), "MX".into())),
+            map.get(&(42, "4B", "MX")),
             Some(&(99.5, true))
         );
         assert_eq!(
-            map.get(&(99, "4B".into(), "SC".into())),
+            map.get(&(99, "4B", "SC")),
             Some(&(97.0, false))
         );
 
@@ -354,7 +355,7 @@ mod tests {
         assert_eq!(manager.get_varchive_cache_record(50, "6B", "MX"), None);
 
         // Perform O(1) incremental update
-        manager.upsert_varchive_record((50, "6B".into(), "MX".into()), (99.85, true));
+        manager.upsert_varchive_record((50, "6B", "MX"), (99.85, true));
 
         assert_eq!(
             manager.get_varchive_cache_record(50, "6B", "MX"),

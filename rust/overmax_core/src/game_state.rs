@@ -1,8 +1,28 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-pub type RecordKey = (i32, String, String);
+pub type RecordKey = (i32, &'static str, &'static str);
 pub type RecordValue = (f32, bool);
+
+pub fn as_static_mode(s: &str) -> &'static str {
+    match s {
+        "4B" | "4b" => "4B",
+        "5B" | "5b" => "5B",
+        "6B" | "6b" => "6B",
+        "8B" | "8b" => "8B",
+        _ => "4B",
+    }
+}
+
+pub fn as_static_diff(s: &str) -> &'static str {
+    match s {
+        "NM" | "nm" | "NORMAL" => "NM",
+        "HD" | "hd" | "HARD" => "HD",
+        "MX" | "mx" | "MAXIMUM" => "MX",
+        "SC" | "sc" => "SC",
+        _ => "NM",
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SceneType {
