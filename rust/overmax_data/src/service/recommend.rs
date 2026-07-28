@@ -102,6 +102,49 @@ struct CandidateSearchParams<'a> {
     same_mode_only: bool,
 }
 
+fn as_static_mode(s: &str) -> &'static str {
+    match s {
+        "4B" => "4B",
+        "5B" => "5B",
+        "6B" => "6B",
+        "8B" => "8B",
+        _ => "4B",
+    }
+}
+
+struct RawCandidate<'a> {
+    song_id: i32,
+    song: &'a crate::community::client::Song,
+    button_mode: &'static str,
+    difficulty: &'static str,
+    level: Option<u32>,
+    floor: f64,
+    floor_name: Option<String>,
+    rate: Option<f64>,
+    is_max_combo: bool,
+}
+
+impl<'a> RawCandidate<'a> {
+    fn is_played(&self) -> bool {
+        self.rate.is_some()
+    }
+
+    fn into_entry(self) -> RecommendEntry {
+        RecommendEntry {
+            song_id: self.song_id,
+            song_name: self.song.name.clone(),
+            composer: self.song.composer.to_string(),
+            button_mode: self.button_mode.to_string(),
+            difficulty: self.difficulty.to_string(),
+            level: self.level,
+            floor: Some(self.floor),
+            floor_name: self.floor_name,
+            rate: self.rate,
+            is_max_combo: self.is_max_combo,
+        }
+    }
+}
+
 impl Recommender {
     pub fn new(vdb: Arc<VArchiveDB>, rdb: Arc<RecordManager>) -> Self {
         Self {
@@ -184,17 +227,9 @@ impl Recommender {
             } else if let (Some(ra), Some(rb)) = (a.rate, b.rate) {
                 ra.partial_cmp(&rb)
                     .unwrap_or(Ordering::Equal)
-                    .then_with(|| {
-                        a.floor
-                            .unwrap_or(0.0)
-                            .partial_cmp(&b.floor.unwrap_or(0.0))
-                            .unwrap_or(Ordering::Equal)
-                    })
+                    .then_with(|| a.floor.partial_cmp(&b.floor).unwrap_or(Ordering::Equal))
             } else {
-                a.floor
-                    .unwrap_or(0.0)
-                    .partial_cmp(&b.floor.unwrap_or(0.0))
-                    .unwrap_or(Ordering::Equal)
+                a.floor.partial_cmp(&b.floor).unwrap_or(Ordering::Equal)
             }
         });
 
@@ -209,17 +244,19 @@ impl Recommender {
 
         candidates.truncate(max_results);
 
+        let final_entries = candidates.into_iter().map(|c| c.into_entry()).collect();
+
         RecommendResult {
-            entries: candidates,
+            entries: final_entries,
             avg_rate: summary.avg_rate(),
             has_record_count: summary.has_record_count,
             total_count: summary.total_count,
         }
     }
 
-    fn get_candidates(&self, params: CandidateSearchParams) -> Vec<RecommendEntry> {
-        let modes_to_check = if params.same_mode_only {
-            vec![params.target_mode]
+    fn get_candidates<'a>(&'a self, params: CandidateSearchParams) -> Vec<RawCandidate<'a>> {
+        let modes_to_check: Vec<&'static str> = if params.same_mode_only {
+            vec![as_static_mode(params.target_mode)]
         } else {
             MODES.to_vec()
         };
@@ -232,9 +269,9 @@ impl Recommender {
                 Err(_) => continue,
             };
 
-            for mode in &modes_to_check {
+            for &mode in &modes_to_check {
                 if let Some(m) = crate::community::client::Mode::from_str(mode) {
-                    for diff in DIFFICULTIES {
+                    for &diff in DIFFICULTIES {
                         if let Some(p) = crate::community::client::Difficulty::from_str(diff)
                             .and_then(|d| song.patterns[m as usize][d as usize].as_ref())
                         {
@@ -261,20 +298,19 @@ impl Recommender {
                             }
 
                             if sid == params.target_song_id
-                                && mode == &params.target_mode
-                                && diff == &params.target_diff
+                                && mode == params.target_mode
+                                && diff == params.target_diff
                             {
                                 continue;
                             }
 
-                            candidates.push(RecommendEntry {
+                            candidates.push(RawCandidate {
                                 song_id: sid,
-                                song_name: song.name.clone(),
-                                composer: song.composer.to_string(),
-                                button_mode: mode.to_string(),
-                                difficulty: diff.to_string(),
+                                song,
+                                button_mode: mode,
+                                difficulty: diff,
                                 level: p.level,
-                                floor: Some(final_cand_floor),
+                                floor: final_cand_floor,
                                 floor_name: p.floor_name.clone(),
                                 rate: None,
                                 is_max_combo: false,
@@ -287,7 +323,7 @@ impl Recommender {
         candidates
     }
 
-    fn merge_record_rates(&self, candidates: &mut [RecommendEntry]) {
+    fn merge_record_rates(&self, candidates: &mut [RawCandidate<'_>]) {
         if !self.rdb.is_ready() {
             return;
         }
@@ -304,8 +340,8 @@ impl Recommender {
         for entry in candidates.iter_mut() {
             if let Some(&(rate, is_max_combo)) = rate_map.get(&(
                 entry.song_id,
-                entry.button_mode.clone(),
-                entry.difficulty.clone(),
+                entry.button_mode.to_string(),
+                entry.difficulty.to_string(),
             )) {
                 entry.rate = Some(rate as f64);
                 entry.is_max_combo = is_max_combo;
