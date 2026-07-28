@@ -16,8 +16,8 @@ pub struct RecommendEntry {
     pub song_id: i32,
     pub song_name: String,
     pub composer: String,
-    pub button_mode: String,
-    pub difficulty: String,
+    pub button_mode: overmax_core::Mode,
+    pub difficulty: overmax_core::Difficulty,
     pub level: Option<u32>,
     pub floor: Option<f64>,
     pub floor_name: Option<String>,
@@ -52,7 +52,7 @@ impl RecommendResult {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FloorCacheKey {
-    pub button_mode: String,
+    pub button_mode: overmax_core::Mode,
     pub scale_type: String,
     pub floor_millis: i64,
 }
@@ -115,8 +115,6 @@ fn as_static_mode(s: &str) -> &'static str {
 struct RawCandidate<'a> {
     song_id: i32,
     song: &'a crate::community::client::Song,
-    button_mode: &'static str,
-    difficulty: &'static str,
     mode: overmax_core::Mode,
     diff: overmax_core::Difficulty,
     level: Option<u32>,
@@ -136,8 +134,8 @@ impl<'a> RawCandidate<'a> {
             song_id: self.song_id,
             song_name: self.song.name.to_string(),
             composer: self.song.composer.to_string(),
-            button_mode: self.button_mode.to_string(),
-            difficulty: self.difficulty.to_string(),
+            button_mode: self.mode,
+            difficulty: self.diff,
             level: self.level,
             floor: Some(self.floor),
             floor_name: self.floor_name.map(|s| s.to_string()),
@@ -311,8 +309,6 @@ impl Recommender {
                             candidates.push(RawCandidate {
                                 song_id: sid,
                                 song,
-                                button_mode: mode,
-                                difficulty: diff,
                                 mode: mode_enum,
                                 diff: diff_enum,
                                 level: p.level,
@@ -390,13 +386,14 @@ impl Recommender {
                             };
                         }
 
+                        let m_enum = overmax_core::Mode::from_str(mode).unwrap();
+                        let d_enum = overmax_core::Difficulty::from_str(diff).unwrap();
+
                         let key = FloorCacheKey {
-                            button_mode: mode.to_string(),
+                            button_mode: m_enum,
                             scale_type,
                             floor_millis: Self::floor_to_millis(floor_val),
                         };
-                        let m_enum = overmax_core::Mode::from_str(mode).unwrap();
-                        let d_enum = overmax_core::Difficulty::from_str(diff).unwrap();
                         let record_key = (song_id, m_enum, d_enum);
                         floor_patterns
                             .entry(key.clone())

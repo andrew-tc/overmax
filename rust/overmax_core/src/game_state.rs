@@ -116,8 +116,8 @@ impl SceneType {
 #[derive(Clone, Debug, PartialEq)]
 pub struct PlayContext {
     pub song_id: i32,
-    pub mode: String,
-    pub diff: String,
+    pub mode: Mode,
+    pub diff: Difficulty,
     pub rate: f32,
     pub is_max_combo: bool,
 }
@@ -187,7 +187,7 @@ impl fmt::Display for GameSessionState {
 
 #[cfg(test)]
 mod tests {
-    use super::{GameSessionState, PlayContext, SceneType};
+    use super::{Difficulty, GameSessionState, Mode, PlayContext, SceneType};
 
     #[test]
     fn song_id_zero_is_valid_when_state_is_stable() {
@@ -195,8 +195,8 @@ mod tests {
             scene: SceneType::Freestyle,
             context: Some(PlayContext {
                 song_id: 0,
-                mode: "4B".to_string(),
-                diff: "MX".to_string(),
+                mode: Mode::B4,
+                diff: Difficulty::MX,
                 rate: 0.0,
                 is_max_combo: false,
             }),
@@ -213,8 +213,8 @@ mod tests {
             scene: SceneType::Freestyle,
             context: Some(PlayContext {
                 song_id: 1,
-                mode: "4B".to_string(),
-                diff: "MX".to_string(),
+                mode: Mode::B4,
+                diff: Difficulty::MX,
                 rate: 99.1,
                 is_max_combo: false,
             }),
@@ -232,8 +232,8 @@ mod tests {
 
         state.context = Some(PlayContext {
             song_id: 1,
-            mode: "4B".to_string(),
-            diff: "MX".to_string(),
+            mode: Mode::B4,
+            diff: Difficulty::MX,
             rate: 0.0,
             is_max_combo: false,
         });

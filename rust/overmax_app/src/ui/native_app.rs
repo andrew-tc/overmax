@@ -485,10 +485,11 @@ impl NativeApp {
                 .ok()
                 .and_then(|g| g.iter().find(|c| c.matches_key(&key)).cloned());
             if let Some(c) = cand {
-                if self
-                    .record_manager
-                    .delete(c.song_id, &c.button_mode, &c.difficulty)
-                {
+                if self.record_manager.delete(
+                    c.song_id,
+                    c.button_mode.as_str(),
+                    c.difficulty.as_str(),
+                ) {
                     debug_ui::push_log(
                         &self.debug_state.log_lines,
                         self.max_log_lines(),
@@ -723,8 +724,8 @@ impl NativeApp {
             let res = varchive_upload::upload_score_blocking(
                 &account,
                 &candidate.song_name,
-                &candidate.button_mode,
-                &candidate.difficulty,
+                candidate.button_mode.as_str(),
+                candidate.difficulty.as_str(),
                 candidate.overmax_rate,
                 candidate.overmax_mc,
                 &candidate.composer,
@@ -735,7 +736,7 @@ impl NativeApp {
                 } else {
                     "등록 완료"
                 };
-                let btn = button_num(&candidate.button_mode);
+                let btn = button_num(candidate.button_mode.as_str());
 
                 let varchive_settings = settings.varchive();
                 let v_id = varchive_settings
@@ -806,9 +807,9 @@ impl NativeApp {
                         let mut msg = success_message.to_string();
                         if let Ok(Some(rank)) = record_db.get_varchive_top50_rank(
                             &steam,
-                            &candidate.button_mode,
+                            candidate.button_mode.as_str(),
                             &candidate.song_id.to_string(),
-                            &candidate.difficulty,
+                            candidate.difficulty.as_str(),
                         ) {
                             msg =
                                 format!("{} ({} TOP {}위 달성!)", msg, candidate.button_mode, rank);
@@ -858,8 +859,8 @@ impl NativeApp {
             return false;
         };
         let song_id = ctx.song_id;
-        let mode = &ctx.mode;
-        let diff = &ctx.diff;
+        let mode = ctx.mode.as_str();
+        let diff = ctx.diff.as_str();
 
         let local = self.record_manager.get_local_record(song_id, mode, diff);
         let varchive = self
@@ -880,8 +881,8 @@ impl NativeApp {
             return;
         };
         let song_id = session_ctx.song_id;
-        let mode = &session_ctx.mode;
-        let diff = &session_ctx.diff;
+        let mode = session_ctx.mode.as_str();
+        let diff = session_ctx.diff.as_str();
 
         let Some(song) = self.varchive_db.search_by_id(song_id) else {
             return;
@@ -897,15 +898,17 @@ impl NativeApp {
             None => (None, None),
         };
 
-        let pattern_level = song.get_pattern(mode, diff).and_then(|p| p.level);
+        let pattern_level = song
+            .get_pattern(session_ctx.mode, session_ctx.diff)
+            .and_then(|p| p.level);
 
         let candidate = overmax_data::SyncCandidate {
             song_id,
             song_name: song.name.to_string(),
             composer: song.composer.to_string(),
             dlc: song.dlc_code.to_string(),
-            button_mode: mode.clone(),
-            difficulty: diff.clone(),
+            button_mode: session_ctx.mode,
+            difficulty: session_ctx.diff,
             pattern_level,
             overmax_rate: overmax_rate as f64,
             overmax_mc,

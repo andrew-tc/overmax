@@ -10,8 +10,8 @@ pub struct SyncCandidate {
     pub song_name: String,
     pub composer: String,
     pub dlc: String,
-    pub button_mode: String,
-    pub difficulty: String,
+    pub button_mode: overmax_core::Mode,
+    pub difficulty: overmax_core::Difficulty,
     pub pattern_level: Option<u32>,
     pub overmax_rate: f64,
     pub overmax_mc: bool,
@@ -43,29 +43,27 @@ pub fn matches_filter(
     c: &SyncCandidate,
     filter: &crate::config::settings::SyncFilterSettings,
 ) -> bool {
-    let mode_ok = match c.button_mode.as_str() {
-        "4B" => filter.mode_4b,
-        "5B" => filter.mode_5b,
-        "6B" => filter.mode_6b,
-        "8B" => filter.mode_8b,
-        _ => true,
+    let mode_ok = match c.button_mode {
+        overmax_core::Mode::B4 => filter.mode_4b,
+        overmax_core::Mode::B5 => filter.mode_5b,
+        overmax_core::Mode::B6 => filter.mode_6b,
+        overmax_core::Mode::B8 => filter.mode_8b,
     };
     if !mode_ok {
         return false;
     }
 
-    let diff_ok = match c.difficulty.as_str() {
-        "NM" => filter.diff_nm,
-        "HD" => filter.diff_hd,
-        "MX" => filter.diff_mx,
-        "SC" => filter.diff_sc,
-        _ => true,
+    let diff_ok = match c.difficulty {
+        overmax_core::Difficulty::NM => filter.diff_nm,
+        overmax_core::Difficulty::HD => filter.diff_hd,
+        overmax_core::Difficulty::MX => filter.diff_mx,
+        overmax_core::Difficulty::SC => filter.diff_sc,
     };
     if !diff_ok {
         return false;
     }
 
-    if let Some(lvl_idx) = pattern_level_index(&c.difficulty, c.pattern_level) {
+    if let Some(lvl_idx) = pattern_level_index(c.difficulty.as_str(), c.pattern_level) {
         if lvl_idx < filter.min_level_idx || lvl_idx > filter.max_level_idx {
             return false;
         }
@@ -92,19 +90,19 @@ pub fn matches_filter(
 
 impl SyncCandidate {
     pub fn key(&self) -> Option<RecordKey> {
-        let m = overmax_core::Mode::from_str(&self.button_mode)?;
-        let d = overmax_core::Difficulty::from_str(&self.difficulty)?;
-        Some((self.song_id, m, d))
+        Some((self.song_id, self.button_mode, self.difficulty))
     }
 
     pub fn key_ref(&self) -> (i32, &str, &str) {
-        (self.song_id, &self.button_mode, &self.difficulty)
+        (
+            self.song_id,
+            self.button_mode.as_str(),
+            self.difficulty.as_str(),
+        )
     }
 
     pub fn matches_key(&self, key: &RecordKey) -> bool {
-        self.song_id == key.0
-            && self.button_mode == key.1.as_str()
-            && self.difficulty == key.2.as_str()
+        self.song_id == key.0 && self.button_mode == key.1 && self.difficulty == key.2
     }
 
     pub fn reason_label(&self) -> String {
@@ -153,14 +151,20 @@ pub fn build_candidates(
     let mut candidates = Vec::with_capacity(raw_rows.len());
 
     for row in raw_rows {
+        let Some(button_mode) = overmax_core::Mode::from_str(&row.button_mode) else {
+            continue;
+        };
+        let Some(difficulty) = overmax_core::Difficulty::from_str(&row.difficulty) else {
+            continue;
+        };
+
         let (song_name, composer, dlc, pattern_level) = match varchive_db.search_by_id(row.song_id)
         {
             Some(s) => (
                 s.name.to_string(),
                 s.composer.to_string(),
                 s.dlc_code.to_string(),
-                s.get_pattern(&row.button_mode, &row.difficulty)
-                    .and_then(|p| p.level),
+                s.get_pattern(button_mode, difficulty).and_then(|p| p.level),
             ),
             None => (row.song_id.to_string(), String::new(), String::new(), None),
         };
@@ -170,8 +174,8 @@ pub fn build_candidates(
             song_name,
             composer,
             dlc,
-            button_mode: row.button_mode,
-            difficulty: row.difficulty,
+            button_mode,
+            difficulty,
             pattern_level,
             overmax_rate: row.local_rate,
             overmax_mc: row.local_mc,
@@ -242,8 +246,8 @@ mod tests {
             song_name: "Test 1".to_string(),
             composer: "Comp".to_string(),
             dlc: "R".to_string(),
-            button_mode: "4B".to_string(),
-            difficulty: "SC".to_string(),
+            button_mode: overmax_core::Mode::B4,
+            difficulty: overmax_core::Difficulty::SC,
             pattern_level: Some(5), // SC5 -> level index 19
             overmax_rate: 99.5,
             overmax_mc: true,
@@ -258,8 +262,8 @@ mod tests {
             song_name: "Test 2".to_string(),
             composer: "Comp".to_string(),
             dlc: "R".to_string(),
-            button_mode: "8B".to_string(),
-            difficulty: "MX".to_string(),
+            button_mode: overmax_core::Mode::B8,
+            difficulty: overmax_core::Difficulty::MX,
             pattern_level: Some(14), // MX 14 -> level index 13
             overmax_rate: 97.0,
             overmax_mc: false,

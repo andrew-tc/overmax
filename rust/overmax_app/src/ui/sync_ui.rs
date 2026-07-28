@@ -661,12 +661,12 @@ fn candidate_row<F: Fn(RecordKey), D: Fn(RecordKey)>(
                     ui.horizontal(|ui| {
                         // Button Mode Badge
                         let mode_color =
-                            crate::ui::components::ModeBadge::mode_color(&c.button_mode);
-                        badge(ui, &c.button_mode, mode_color, Theme::TEXT_PRIMARY);
+                            crate::ui::components::ModeBadge::mode_color(c.button_mode.as_str());
+                        badge(ui, c.button_mode.as_str(), mode_color, Theme::TEXT_PRIMARY);
                         ui.add_space(4.0);
                         // Difficulty Badge
-                        let diff_color = crate::ui::overlay_ui::diff_color(&c.difficulty);
-                        badge(ui, &c.difficulty, diff_color, Theme::TEXT_BRIGHT);
+                        let diff_color = crate::ui::overlay_ui::diff_color(c.difficulty.as_str());
+                        badge(ui, c.difficulty.as_str(), diff_color, Theme::TEXT_BRIGHT);
                         ui.add_space(8.0);
                         if let Some(lvl) = c.pattern_level {
                             ui.label(

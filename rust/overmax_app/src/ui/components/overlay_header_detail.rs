@@ -336,8 +336,8 @@ mod tests {
             scene: overmax_core::SceneType::Unknown,
             context: Some(PlayContext {
                 song_id: 1,
-                mode: "5B".into(),
-                diff: "SC".into(),
+                mode: overmax_core::Mode::B5,
+                diff: overmax_core::Difficulty::SC,
                 rate: 0.0,
                 is_max_combo: false,
             }),
@@ -345,7 +345,7 @@ mod tests {
             is_fullscreen: false,
         };
         let patterns = vec![PatternTabInfo {
-            diff: "SC".into(),
+            diff: overmax_core::Difficulty::SC,
             level: Some(12),
             floor_name: Some("12.3".into()),
             gold: "O".into(),

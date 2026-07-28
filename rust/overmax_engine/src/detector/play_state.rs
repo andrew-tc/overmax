@@ -290,29 +290,37 @@ impl PlayStateDetector {
             diff,
             confident
         );
-        let context = if let (Some(sid), Some(m), Some(d)) = (song_id, mode, diff) {
-            if confident {
-                let (rate, tel) = self.process_rate_ocr(frame, rois, ocr, scene, is_result, now);
-                telemetry = tel;
+        let context = if let (Some(sid), Some(m_str), Some(d_str)) = (song_id, mode, diff) {
+            if let (Some(m), Some(d)) = (
+                overmax_core::Mode::from_str(&m_str),
+                overmax_core::Difficulty::from_str(&d_str),
+            ) {
+                if confident {
+                    let (rate, tel) =
+                        self.process_rate_ocr(frame, rois, ocr, scene, is_result, now);
+                    telemetry = tel;
 
-                let rate_valid = !is_result
-                    || self
-                        .last_rate_result
-                        .0
-                        .map(|r| r >= MIN_VALID_RATE)
-                        .unwrap_or(false);
+                    let rate_valid = !is_result
+                        || self
+                            .last_rate_result
+                            .0
+                            .map(|r| r >= MIN_VALID_RATE)
+                            .unwrap_or(false);
 
-                Some(PlayContext {
-                    song_id: sid,
-                    mode: m,
-                    diff: d,
-                    rate: if rate_valid { rate } else { 0.0 },
-                    is_max_combo: if rate_valid && rate > 0.0 {
-                        is_max_combo
-                    } else {
-                        false
-                    },
-                })
+                    Some(PlayContext {
+                        song_id: sid,
+                        mode: m,
+                        diff: d,
+                        rate: if rate_valid { rate } else { 0.0 },
+                        is_max_combo: if rate_valid && rate > 0.0 {
+                            is_max_combo
+                        } else {
+                            false
+                        },
+                    })
+                } else {
+                    None
+                }
             } else {
                 None
             }

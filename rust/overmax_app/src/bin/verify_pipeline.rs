@@ -173,8 +173,8 @@ fn main() {
             let mut result_str = "None".to_string();
 
             if let Some(ref ctx) = out.state.context {
-                mode_str = ctx.mode.clone();
-                diff_str = ctx.diff.clone();
+                mode_str = ctx.mode.to_string();
+                diff_str = ctx.diff.to_string();
                 let mc_suffix = if ctx.is_max_combo { " (MAX COMBO)" } else { "" };
                 result_str = if ctx.rate > 0.0 {
                     format!("{:.2}%{}", ctx.rate, mc_suffix)

@@ -22,7 +22,7 @@ pub(crate) const RECOMMEND_BODY_HEIGHT: f32 =
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PatternTabInfo {
-    pub diff: String,
+    pub diff: overmax_core::Difficulty,
     pub level: Option<u32>,
     pub floor_name: Option<String>,
     pub gold: String,
@@ -77,7 +77,7 @@ fn draw_diff_tab(
     patterns: &[PatternTabInfo],
     scale: f32,
 ) {
-    let pattern = patterns.iter().find(|item| item.diff == diff);
+    let pattern = patterns.iter().find(|item| item.diff.as_str() == diff);
     let exists = pattern.is_some();
     Frame::new()
         .fill(tab_fill(active == Some(diff), exists))
@@ -170,7 +170,7 @@ fn draw_entry_badge(ui: &mut egui::Ui, entry: &RecommendEntry, scale: f32) {
     ui.painter().rect_filled(
         rect,
         CornerRadius::same((4.0 * scale) as u8),
-        diff_color(&entry.difficulty),
+        diff_color(entry.difficulty.as_str()),
     );
     ui.painter().text(
         rect.center(),
@@ -266,7 +266,7 @@ fn song_name_text(entry: &RecommendEntry, scale: f32) -> RichText {
 
 fn badge_text(entry: &RecommendEntry) -> String {
     if entry.floor_name.is_none() {
-        entry.difficulty.clone()
+        entry.difficulty.to_string()
     } else {
         format!("{} {}", entry.difficulty, entry.level.unwrap_or_default())
     }
@@ -334,7 +334,7 @@ mod tests {
     #[test]
     fn formats_pattern_tab_label() {
         let pattern = PatternTabInfo {
-            diff: "SC".into(),
+            diff: overmax_core::Difficulty::SC,
             level: Some(12),
             floor_name: Some("12.3".into()),
             gold: String::new(),
