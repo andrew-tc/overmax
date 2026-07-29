@@ -1,15 +1,16 @@
 use crate::ui::overlay_theme::Theme;
 use eframe::egui::{self, Color32, CornerRadius, FontId, Vec2};
+use overmax_core::Mode;
 
-pub struct ModeBadge<'a> {
-    mode: Option<&'a str>,
+pub struct ModeBadge {
+    mode: Option<Mode>,
     scale: f32,
     width: Option<f32>,
     height: Option<f32>,
 }
 
-impl<'a> ModeBadge<'a> {
-    pub fn new(mode: Option<&'a str>) -> Self {
+impl ModeBadge {
+    pub fn new(mode: Option<Mode>) -> Self {
         Self {
             mode,
             scale: 1.0,
@@ -33,20 +34,19 @@ impl<'a> ModeBadge<'a> {
         self
     }
 
-    pub fn mode_color(mode: &str) -> Color32 {
+    pub fn mode_color(mode: Mode) -> Color32 {
         match mode {
-            "4B" => Color32::from_rgb(0x2D, 0x4F, 0x55),
-            "5B" => Color32::from_rgb(0x44, 0xA9, 0xC6),
-            "6B" => Color32::from_rgb(0xED, 0x94, 0x30),
-            "8B" => Color32::from_rgb(0x1D, 0x14, 0x31),
-            _ => Color32::from_rgb(0x6A, 0x4D, 0x3D),
+            Mode::B4 => Color32::from_rgb(0x2D, 0x4F, 0x55),
+            Mode::B5 => Color32::from_rgb(0x44, 0xA9, 0xC6),
+            Mode::B6 => Color32::from_rgb(0xED, 0x94, 0x30),
+            Mode::B8 => Color32::from_rgb(0x1D, 0x14, 0x31),
         }
     }
 }
 
-impl<'a> egui::Widget for ModeBadge<'a> {
+impl egui::Widget for ModeBadge {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let text = self.mode.unwrap_or("—");
+        let text = self.mode.map_or("—", |m| m.as_str());
         let color = self
             .mode
             .map_or(Color32::from_rgb(0x6A, 0x4D, 0x3D), Self::mode_color);

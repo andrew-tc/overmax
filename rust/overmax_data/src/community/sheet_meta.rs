@@ -140,8 +140,7 @@ impl PatternSheetMeta {
             let Some(diff) = Difficulty::from_str(&diff_str) else {
                 continue;
             };
-            if let Some(song) =
-                varchive_db.find_best_match(title, &mode_str, &diff_str, None, "", &item.note)
+            if let Some(song) = varchive_db.find_best_match(title, mode, diff, None, "", &item.note)
             {
                 if let Ok(id) = song.title.parse::<i32>() {
                     items.insert((id, mode, diff), item);

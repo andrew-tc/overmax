@@ -33,7 +33,7 @@ pub struct PatternTabInfo {
 
 pub fn draw_diff_tabs(
     ui: &mut egui::Ui,
-    active: Option<&str>,
+    active: Option<overmax_core::Difficulty>,
     patterns: &[PatternTabInfo],
     scale: f32,
 ) {
@@ -42,7 +42,7 @@ pub fn draw_diff_tabs(
         ui.add_space(TAB_PAD_Y * scale);
         ui.spacing_mut().item_spacing.y = TAB_GAP * scale;
         for diff in overmax_core::Difficulty::ALL {
-            draw_diff_tab(ui, diff.as_str(), active, patterns, scale);
+            draw_diff_tab(ui, diff, active, patterns, scale);
         }
         ui.add_space(TAB_PAD_Y * scale);
     });
@@ -72,12 +72,12 @@ pub fn pattern_count_text(result: &RecommendResult) -> String {
 
 fn draw_diff_tab(
     ui: &mut egui::Ui,
-    diff: &str,
-    active: Option<&str>,
+    diff: overmax_core::Difficulty,
+    active: Option<overmax_core::Difficulty>,
     patterns: &[PatternTabInfo],
     scale: f32,
 ) {
-    let pattern = patterns.iter().find(|item| item.diff.as_str() == diff);
+    let pattern = patterns.iter().find(|item| item.diff == diff);
     let exists = pattern.is_some();
     Frame::new()
         .fill(tab_fill(active == Some(diff), exists))
@@ -170,7 +170,7 @@ fn draw_entry_badge(ui: &mut egui::Ui, entry: &RecommendEntry, scale: f32) {
     ui.painter().rect_filled(
         rect,
         CornerRadius::same((4.0 * scale) as u8),
-        diff_color(entry.difficulty.as_str()),
+        diff_color(entry.difficulty),
     );
     ui.painter().text(
         rect.center(),
@@ -234,9 +234,9 @@ fn draw_status_badge(ui: &mut egui::Ui, text: &str, color: Color32, scale: f32) 
     );
 }
 
-fn diff_label(diff: &str, scale: f32) -> Label {
+fn diff_label(diff: overmax_core::Difficulty, scale: f32) -> Label {
     Label::new(
-        RichText::new(diff.to_string())
+        RichText::new(diff.as_str())
             .color(diff_color(diff))
             .font(FontId::proportional(11.0 * scale))
             .strong(),

@@ -163,7 +163,7 @@ fn draw_body(
         ui.spacing_mut().item_spacing.x = px.body_gap();
         draw_diff_tabs(
             ui,
-            state.context.as_ref().map(|ctx| ctx.diff.as_str()),
+            state.context.as_ref().map(|ctx| ctx.diff),
             pattern_tabs,
             px.scale,
         );
@@ -221,13 +221,12 @@ fn draw_footer(
         });
 }
 
-pub(crate) fn diff_color(diff: &str) -> Color32 {
+pub(crate) fn diff_color(diff: overmax_core::Difficulty) -> Color32 {
     match diff {
-        "NM" => Color32::from_rgb(0x4A, 0x90, 0xD9),
-        "HD" => Color32::from_rgb(0xF5, 0xA6, 0x23),
-        "MX" => Color32::from_rgb(0xD0, 0x02, 0x1B),
-        "SC" => Color32::from_rgb(0x9B, 0x59, 0xB6),
-        _ => Color32::WHITE,
+        overmax_core::Difficulty::NM => Color32::from_rgb(0x4A, 0x90, 0xD9),
+        overmax_core::Difficulty::HD => Color32::from_rgb(0xF5, 0xA6, 0x23),
+        overmax_core::Difficulty::MX => Color32::from_rgb(0xD0, 0x02, 0x1B),
+        overmax_core::Difficulty::SC => Color32::from_rgb(0x9B, 0x59, 0xB6),
     }
 }
 
@@ -240,7 +239,10 @@ mod tests {
 
     #[test]
     fn uses_existing_diff_colors() {
-        assert_eq!(diff_color("SC"), Color32::from_rgb(0x9B, 0x59, 0xB6));
+        assert_eq!(
+            diff_color(overmax_core::Difficulty::SC),
+            Color32::from_rgb(0x9B, 0x59, 0xB6)
+        );
     }
 
     #[test]

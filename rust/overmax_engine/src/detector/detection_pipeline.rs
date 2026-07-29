@@ -930,9 +930,11 @@ mod tests {
             for roi_name in roi_names {
                 let roi_rect = if roi_name.starts_with("diff_panel_") {
                     let diff_name = roi_name.strip_prefix("diff_panel_").unwrap();
-                    pipeline
-                        .rois
-                        .get_diff_panel_roi_for_scene(diff_name, final_scene)
+                    overmax_core::Difficulty::from_str(diff_name).and_then(|diff| {
+                        pipeline
+                            .rois
+                            .get_diff_panel_roi_for_scene(diff, final_scene)
+                    })
                 } else {
                     pipeline.rois.get_roi_for_scene(&roi_name, final_scene)
                 };

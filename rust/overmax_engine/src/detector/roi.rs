@@ -1,6 +1,6 @@
 use crate::capture::frame::CapturedFrame;
 use crate::capture::frame_utils::{crop_roi, ImageRegion};
-use overmax_core::SceneType;
+use overmax_core::{Difficulty, SceneType};
 use overmax_data::{GlobalRoiConfig, RoiRect as DataRoiRect};
 
 const REF_WIDTH: i32 = 1920;
@@ -122,13 +122,16 @@ impl RoiManager {
         self.get_roi(name).and_then(|roi| roi.and_then(frame, f))
     }
 
-    pub fn get_diff_panel_roi_for_scene(&self, diff: &str, scene: SceneType) -> Option<RoiRect> {
+    pub fn get_diff_panel_roi_for_scene(
+        &self,
+        diff: Difficulty,
+        scene: SceneType,
+    ) -> Option<RoiRect> {
         let offset = match diff {
-            "NM" => 0,
-            "HD" => 120,
-            "MX" => 240,
-            "SC" => 360,
-            _ => return None,
+            Difficulty::NM => 0,
+            Difficulty::HD => 120,
+            Difficulty::MX => 240,
+            Difficulty::SC => 360,
         };
         let roi = self.config.scenes.get(&scene)?.rois.get("diff_panel")?;
         Some(self.transform_roi(RoiRect {
@@ -139,7 +142,7 @@ impl RoiManager {
         }))
     }
 
-    pub fn get_diff_panel_roi(&self, diff: &str) -> Option<RoiRect> {
+    pub fn get_diff_panel_roi(&self, diff: Difficulty) -> Option<RoiRect> {
         self.get_diff_panel_roi_for_scene(diff, self.current_scene)
     }
 

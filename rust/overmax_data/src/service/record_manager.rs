@@ -192,7 +192,14 @@ mod tests {
 
         let mut db = RecordDB::new(&db_path, Some(steam_id));
         assert!(db.initialize());
-        assert!(db.upsert(42, overmax_core::Mode::B4, overmax_core::Difficulty::MX, 98.0, false, false));
+        assert!(db.upsert(
+            42,
+            overmax_core::Mode::B4,
+            overmax_core::Difficulty::MX,
+            98.0,
+            false,
+            false
+        ));
         write_cache(&cache_root, steam_id);
         db.migrate_json_cache_to_db(&cache_root).unwrap();
 
@@ -283,8 +290,22 @@ mod tests {
         let mut db = RecordDB::new(&db_path, None);
         assert!(db.initialize());
 
-        assert!(db.upsert(1, overmax_core::Mode::B4, overmax_core::Difficulty::MX, 99.0, false, false));
-        assert!(db.upsert(2, overmax_core::Mode::B4, overmax_core::Difficulty::MX, 97.0, false, false));
+        assert!(db.upsert(
+            1,
+            overmax_core::Mode::B4,
+            overmax_core::Difficulty::MX,
+            99.0,
+            false,
+            false
+        ));
+        assert!(db.upsert(
+            2,
+            overmax_core::Mode::B4,
+            overmax_core::Difficulty::MX,
+            97.0,
+            false,
+            false
+        ));
 
         let record_db = Arc::new(db);
         let record_manager = Arc::new(RecordManager::new(record_db));
@@ -292,7 +313,14 @@ mod tests {
 
         let recommender = Recommender::new(Arc::new(vdb), record_manager);
 
-        let result = recommender.recommend(1, overmax_core::Mode::B4, overmax_core::Difficulty::MX, 0.1, 10, true);
+        let result = recommender.recommend(
+            1,
+            overmax_core::Mode::B4,
+            overmax_core::Difficulty::MX,
+            0.1,
+            10,
+            true,
+        );
 
         assert_eq!(result.entries.len(), 1);
         assert_eq!(result.entries[0].song_id, 2);
@@ -314,7 +342,14 @@ mod tests {
 
         let mut db = RecordDB::new(&db_path, Some(steam_id));
         assert!(db.initialize());
-        assert!(db.upsert(123, overmax_core::Mode::B5, overmax_core::Difficulty::SC, 99.80, true, false));
+        assert!(db.upsert(
+            123,
+            overmax_core::Mode::B5,
+            overmax_core::Difficulty::SC,
+            99.80,
+            true,
+            false
+        ));
         write_cache(&cache_root, steam_id); // Writes MX/SC cache: MX=99.5, SC=97.0 for song 42/99
         db.migrate_json_cache_to_db(&cache_root).unwrap();
 
@@ -327,15 +362,29 @@ mod tests {
             manager.get_local_record(123, overmax_core::Mode::B5, overmax_core::Difficulty::SC),
             Some((99.80, true))
         );
-        assert_eq!(manager.get_local_record(999, overmax_core::Mode::B4, overmax_core::Difficulty::NM), None);
+        assert_eq!(
+            manager.get_local_record(999, overmax_core::Mode::B4, overmax_core::Difficulty::NM),
+            None
+        );
 
         // 2. Verify get_varchive_cache_record
         // Write cache has MX 99.5 for song 42
         assert_eq!(
-            manager.get_varchive_cache_record(42, overmax_core::Mode::B4, overmax_core::Difficulty::MX),
+            manager.get_varchive_cache_record(
+                42,
+                overmax_core::Mode::B4,
+                overmax_core::Difficulty::MX
+            ),
             Some((99.5, true))
         );
-        assert_eq!(manager.get_varchive_cache_record(42, overmax_core::Mode::B4, overmax_core::Difficulty::NM), None);
+        assert_eq!(
+            manager.get_varchive_cache_record(
+                42,
+                overmax_core::Mode::B4,
+                overmax_core::Difficulty::NM
+            ),
+            None
+        );
 
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -350,7 +399,14 @@ mod tests {
         let db = Arc::new(db);
         let manager = RecordManager::new(db);
 
-        assert_eq!(manager.get_varchive_cache_record(50, overmax_core::Mode::B6, overmax_core::Difficulty::MX), None);
+        assert_eq!(
+            manager.get_varchive_cache_record(
+                50,
+                overmax_core::Mode::B6,
+                overmax_core::Difficulty::MX
+            ),
+            None
+        );
 
         // Perform O(1) incremental update
         manager.upsert_varchive_record(
@@ -359,7 +415,11 @@ mod tests {
         );
 
         assert_eq!(
-            manager.get_varchive_cache_record(50, overmax_core::Mode::B6, overmax_core::Difficulty::MX),
+            manager.get_varchive_cache_record(
+                50,
+                overmax_core::Mode::B6,
+                overmax_core::Difficulty::MX
+            ),
             Some((99.85, true))
         );
 

@@ -2,6 +2,8 @@
 
 use std::path::Path;
 
+use overmax_core::{Difficulty, Mode};
+
 const BASE_URL: &str = "https://v-archive.net/client/open/{user_no}/score";
 
 #[derive(Debug, Clone)]
@@ -28,38 +30,14 @@ pub fn parse_account_file(path: &Path) -> Option<AccountInfo> {
 pub fn upload_score_blocking(
     account: &AccountInfo,
     song_name: &str,
-    button_mode: &str,
-    difficulty: &str,
+    button_mode: Mode,
+    difficulty: Difficulty,
     score: f64,
     is_max_combo: bool,
     composer: &str,
 ) -> UploadResult {
-    let pattern = match difficulty {
-        "NM" => "NORMAL",
-        "HD" => "HARD",
-        "MX" => "MAXIMUM",
-        "SC" => "SC",
-        _ => {
-            return UploadResult {
-                success: false,
-                updated: false,
-                message: format!("unsupported difficulty: {difficulty}"),
-            };
-        }
-    };
-    let button = match button_mode {
-        "4B" => 4,
-        "5B" => 5,
-        "6B" => 6,
-        "8B" => 8,
-        _ => {
-            return UploadResult {
-                success: false,
-                updated: false,
-                message: format!("unsupported button mode: {button_mode}"),
-            };
-        }
-    };
+    let pattern = difficulty.as_full_name();
+    let button = button_mode.button_count();
 
     let url = BASE_URL.replace("{user_no}", &account.user_no.to_string());
     let client = match reqwest::blocking::Client::builder()

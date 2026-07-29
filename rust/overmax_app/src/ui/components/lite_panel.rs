@@ -38,10 +38,10 @@ impl LitePanel {
 
                     if let Some(ctx) = &props.state.context {
                         // 1. Mode 뱃지
-                        ui.add(ModeBadge::new(Some(ctx.mode.as_str())).scale(px.scale));
+                        ui.add(ModeBadge::new(Some(ctx.mode)).scale(px.scale));
 
                         // 2. Diff 뱃지
-                        let color = diff_color(ctx.diff.as_str());
+                        let color = diff_color(ctx.diff);
                         let (d_rect, _) = ui.allocate_exact_size(
                             Vec2::new(px.mode_badge_w(), px.mode_badge_h()),
                             egui::Sense::hover(),

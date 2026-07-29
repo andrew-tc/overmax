@@ -1,7 +1,9 @@
+use overmax_core::Difficulty;
+
 /// 결과 화면 전용 난이도 패널 템플릿 (90x18, threshold=120)
 /// ROI: (709, 86, 90, 18)
 pub struct ResultDiffTemplate {
-    pub name: &'static str,
+    pub diff: Difficulty,
     pub width: usize,
     pub height: usize,
     pub mask: &'static [u8],
@@ -92,10 +94,10 @@ const RESULT_DIFF_MASK_SC: [u8; 1620] = [
 ];
 
 pub const RESULT_DIFF_TEMPLATES: [ResultDiffTemplate; 4] = [
-    ResultDiffTemplate { name: "NM", width: 90, height: 18, mask: &RESULT_DIFF_MASK_NM },
-    ResultDiffTemplate { name: "HD", width: 90, height: 18, mask: &RESULT_DIFF_MASK_HD },
-    ResultDiffTemplate { name: "MX", width: 90, height: 18, mask: &RESULT_DIFF_MASK_MX },
-    ResultDiffTemplate { name: "SC", width: 90, height: 18, mask: &RESULT_DIFF_MASK_SC },
+    ResultDiffTemplate { diff: Difficulty::NM, width: 90, height: 18, mask: &RESULT_DIFF_MASK_NM },
+    ResultDiffTemplate { diff: Difficulty::HD, width: 90, height: 18, mask: &RESULT_DIFF_MASK_HD },
+    ResultDiffTemplate { diff: Difficulty::MX, width: 90, height: 18, mask: &RESULT_DIFF_MASK_MX },
+    ResultDiffTemplate { diff: Difficulty::SC, width: 90, height: 18, mask: &RESULT_DIFF_MASK_SC },
 ];
 
 const RESULT_DIFF_MASK_OPEN_NM: [u8; 1908] = [
@@ -183,8 +185,8 @@ const RESULT_DIFF_MASK_OPEN_SC: [u8; 1908] = [
 ];
 
 pub const RESULT_DIFF_OPEN_TEMPLATES: [ResultDiffTemplate; 4] = [
-    ResultDiffTemplate { name: "NM", width: 106, height: 18, mask: &RESULT_DIFF_MASK_OPEN_NM },
-    ResultDiffTemplate { name: "HD", width: 106, height: 18, mask: &RESULT_DIFF_MASK_OPEN_HD },
-    ResultDiffTemplate { name: "MX", width: 106, height: 18, mask: &RESULT_DIFF_MASK_OPEN_MX },
-    ResultDiffTemplate { name: "SC", width: 106, height: 18, mask: &RESULT_DIFF_MASK_OPEN_SC },
+    ResultDiffTemplate { diff: Difficulty::NM, width: 106, height: 18, mask: &RESULT_DIFF_MASK_OPEN_NM },
+    ResultDiffTemplate { diff: Difficulty::HD, width: 106, height: 18, mask: &RESULT_DIFF_MASK_OPEN_HD },
+    ResultDiffTemplate { diff: Difficulty::MX, width: 106, height: 18, mask: &RESULT_DIFF_MASK_OPEN_MX },
+    ResultDiffTemplate { diff: Difficulty::SC, width: 106, height: 18, mask: &RESULT_DIFF_MASK_OPEN_SC },
 ];

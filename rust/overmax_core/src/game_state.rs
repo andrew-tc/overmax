@@ -13,15 +13,24 @@ pub enum Mode {
     B8 = 3,
 }
 
-impl Mode {
-    pub fn from_str(s: &str) -> Option<Self> {
+impl std::str::FromStr for Mode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
-            "4B" | "4b" => Some(Self::B4),
-            "5B" | "5b" => Some(Self::B5),
-            "6B" | "6b" => Some(Self::B6),
-            "8B" | "8b" => Some(Self::B8),
-            _ => None,
+            "4B" | "4b" => Ok(Self::B4),
+            "5B" | "5b" => Ok(Self::B5),
+            "6B" | "6b" => Ok(Self::B6),
+            "8B" | "8b" => Ok(Self::B8),
+            _ => Err(()),
         }
+    }
+}
+
+impl Mode {
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> Option<Self> {
+        <Self as std::str::FromStr>::from_str(s).ok()
     }
 
     pub fn as_str(&self) -> &'static str {
@@ -63,15 +72,24 @@ pub enum Difficulty {
     SC = 3,
 }
 
-impl Difficulty {
-    pub fn from_str(s: &str) -> Option<Self> {
+impl std::str::FromStr for Difficulty {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim().to_uppercase().as_str() {
-            "NM" | "NORMAL" => Some(Self::NM),
-            "HD" | "HARD" => Some(Self::HD),
-            "MX" | "MAXIMUM" => Some(Self::MX),
-            "SC" => Some(Self::SC),
-            _ => None,
+            "NM" | "NORMAL" => Ok(Self::NM),
+            "HD" | "HARD" => Ok(Self::HD),
+            "MX" | "MAXIMUM" => Ok(Self::MX),
+            "SC" => Ok(Self::SC),
+            _ => Err(()),
         }
+    }
+}
+
+impl Difficulty {
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> Option<Self> {
+        <Self as std::str::FromStr>::from_str(s).ok()
     }
 
     pub fn as_str(&self) -> &'static str {
@@ -79,6 +97,15 @@ impl Difficulty {
             Self::NM => "NM",
             Self::HD => "HD",
             Self::MX => "MX",
+            Self::SC => "SC",
+        }
+    }
+
+    pub fn as_full_name(&self) -> &'static str {
+        match self {
+            Self::NM => "NORMAL",
+            Self::HD => "HARD",
+            Self::MX => "MAXIMUM",
             Self::SC => "SC",
         }
     }

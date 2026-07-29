@@ -1,10 +1,8 @@
 use crate::ui::debug_ui;
 use crate::ui::native_app::NativeApp;
 use crate::ui::overlay_recommend_ui::PatternTabInfo;
-use overmax_core::GameSessionState;
+use overmax_core::{Difficulty, GameSessionState};
 use overmax_data::{RecommendResult, RecordSource};
-
-const DIFFICULTIES: [&str; 4] = ["NM", "HD", "MX", "SC"];
 
 impl NativeApp {
     pub(crate) fn drain_detection_results(&mut self, ctx: &egui::Context) {
@@ -110,14 +108,8 @@ impl NativeApp {
         let Some(ctx) = &state.context else {
             return RecommendResult::empty();
         };
-        self.recommender.recommend(
-            ctx.song_id,
-            ctx.mode,
-            ctx.diff,
-            0.0,
-            6,
-            true,
-        )
+        self.recommender
+            .recommend(ctx.song_id, ctx.mode, ctx.diff, 0.0, 6, true)
     }
 
     fn pattern_tabs_for_state(&self, state: &GameSessionState) -> Vec<PatternTabInfo> {
@@ -129,10 +121,9 @@ impl NativeApp {
         };
         let m = ctx.mode;
         let patterns = &song.patterns[m as usize];
-        DIFFICULTIES
+        Difficulty::ALL
             .iter()
-            .filter_map(|diff| {
-                let d = overmax_data::community::client::Difficulty::from_str(diff)?;
+            .filter_map(|&d| {
                 let pattern = patterns[d as usize].as_ref()?;
                 let meta = self.sheet_meta.get(&song.title, m, d);
                 Some(PatternTabInfo {

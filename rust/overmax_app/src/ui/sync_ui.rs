@@ -190,27 +190,35 @@ pub fn render_sync<F1, F2, F3, F4>(
                             ui.horizontal(|ui| {
                                 filter_changed |= toggle_btn(
                                     ui,
-                                    "4B",
+                                    overmax_core::Mode::B4.as_str(),
                                     &mut filter.mode_4b,
-                                    crate::ui::components::ModeBadge::mode_color("4B"),
+                                    crate::ui::components::ModeBadge::mode_color(
+                                        overmax_core::Mode::B4,
+                                    ),
                                 );
                                 filter_changed |= toggle_btn(
                                     ui,
-                                    "5B",
+                                    overmax_core::Mode::B5.as_str(),
                                     &mut filter.mode_5b,
-                                    crate::ui::components::ModeBadge::mode_color("5B"),
+                                    crate::ui::components::ModeBadge::mode_color(
+                                        overmax_core::Mode::B5,
+                                    ),
                                 );
                                 filter_changed |= toggle_btn(
                                     ui,
-                                    "6B",
+                                    overmax_core::Mode::B6.as_str(),
                                     &mut filter.mode_6b,
-                                    crate::ui::components::ModeBadge::mode_color("6B"),
+                                    crate::ui::components::ModeBadge::mode_color(
+                                        overmax_core::Mode::B6,
+                                    ),
                                 );
                                 filter_changed |= toggle_btn(
                                     ui,
-                                    "8B",
+                                    overmax_core::Mode::B8.as_str(),
                                     &mut filter.mode_8b,
-                                    crate::ui::components::ModeBadge::mode_color("8B"),
+                                    crate::ui::components::ModeBadge::mode_color(
+                                        overmax_core::Mode::B8,
+                                    ),
                                 );
                             });
                             ui.end_row();
@@ -228,27 +236,27 @@ pub fn render_sync<F1, F2, F3, F4>(
                             ui.horizontal(|ui| {
                                 filter_changed |= toggle_btn(
                                     ui,
-                                    "NM",
+                                    overmax_core::Difficulty::NM.as_str(),
                                     &mut filter.diff_nm,
-                                    crate::ui::overlay_ui::diff_color("NM"),
+                                    crate::ui::overlay_ui::diff_color(overmax_core::Difficulty::NM),
                                 );
                                 filter_changed |= toggle_btn(
                                     ui,
-                                    "HD",
+                                    overmax_core::Difficulty::HD.as_str(),
                                     &mut filter.diff_hd,
-                                    crate::ui::overlay_ui::diff_color("HD"),
+                                    crate::ui::overlay_ui::diff_color(overmax_core::Difficulty::HD),
                                 );
                                 filter_changed |= toggle_btn(
                                     ui,
-                                    "MX",
+                                    overmax_core::Difficulty::MX.as_str(),
                                     &mut filter.diff_mx,
-                                    crate::ui::overlay_ui::diff_color("MX"),
+                                    crate::ui::overlay_ui::diff_color(overmax_core::Difficulty::MX),
                                 );
                                 filter_changed |= toggle_btn(
                                     ui,
-                                    "SC",
+                                    overmax_core::Difficulty::SC.as_str(),
                                     &mut filter.diff_sc,
-                                    crate::ui::overlay_ui::diff_color("SC"),
+                                    crate::ui::overlay_ui::diff_color(overmax_core::Difficulty::SC),
                                 );
                             });
                             ui.end_row();
@@ -661,11 +669,11 @@ fn candidate_row<F: Fn(RecordKey), D: Fn(RecordKey)>(
                     ui.horizontal(|ui| {
                         // Button Mode Badge
                         let mode_color =
-                            crate::ui::components::ModeBadge::mode_color(c.button_mode.as_str());
+                            crate::ui::components::ModeBadge::mode_color(c.button_mode);
                         badge(ui, c.button_mode.as_str(), mode_color, Theme::TEXT_PRIMARY);
                         ui.add_space(4.0);
                         // Difficulty Badge
-                        let diff_color = crate::ui::overlay_ui::diff_color(c.difficulty.as_str());
+                        let diff_color = crate::ui::overlay_ui::diff_color(c.difficulty);
                         badge(ui, c.difficulty.as_str(), diff_color, Theme::TEXT_BRIGHT);
                         ui.add_space(8.0);
                         if let Some(lvl) = c.pattern_level {

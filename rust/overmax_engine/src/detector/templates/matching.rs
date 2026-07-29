@@ -1,4 +1,5 @@
 use crate::capture::frame_utils::ImageRegion;
+use overmax_core::{Difficulty, Mode};
 use std::fmt;
 
 #[derive(Clone, Default, PartialEq)]
@@ -83,7 +84,7 @@ pub fn detect_score(score: &ImageRegion) -> Option<u32> {
 }
 
 /// Freestyle 결과창 모드 영역을 템플릿 매칭으로 판독합니다.
-pub fn detect_freestyle_mode(mode_img: &ImageRegion) -> Option<String> {
+pub fn detect_freestyle_mode(mode_img: &ImageRegion) -> Option<Mode> {
     let w = mode_img.width as usize;
     let h = mode_img.height as usize;
     if w * h == 0 {
@@ -107,14 +108,14 @@ pub fn detect_freestyle_mode(mode_img: &ImageRegion) -> Option<String> {
     let (target_w, target_h) = (50usize, 68usize);
     let resized_binary = resize_binary(&binary, w, h, target_w, target_h);
 
-    let t_infos: Vec<MatchTemplateInfo> =
+    let t_infos: Vec<MatchTemplateInfo<Mode>> =
         super::result_mode::RESULT_MODE_TEMPLATES
             .iter()
             .map(|t| MatchTemplateInfo {
                 width: t.width,
                 height: t.height,
                 mask: t.mask,
-                label: t.mode_label,
+                value: t.mode,
             })
             .collect();
 
@@ -122,7 +123,7 @@ pub fn detect_freestyle_mode(mode_img: &ImageRegion) -> Option<String> {
 }
 
 /// 결과 화면 전용 난이도 패널 영역을 템플릿 매칭으로 감지합니다.
-pub fn detect_result_difficulty(diff_img: &ImageRegion) -> Option<String> {
+pub fn detect_result_difficulty(diff_img: &ImageRegion) -> Option<Difficulty> {
     let w = diff_img.width as usize;
     let h = diff_img.height as usize;
     if w * h == 0 {
@@ -146,14 +147,14 @@ pub fn detect_result_difficulty(diff_img: &ImageRegion) -> Option<String> {
     let (target_w, target_h) = (90usize, 18usize);
     let resized_binary = resize_binary(&binary, w, h, target_w, target_h);
 
-    let t_infos: Vec<MatchTemplateInfo> =
+    let t_infos: Vec<MatchTemplateInfo<Difficulty>> =
         super::result_diff::RESULT_DIFF_TEMPLATES
             .iter()
             .map(|t| MatchTemplateInfo {
                 width: t.width,
                 height: t.height,
                 mask: t.mask,
-                label: t.name,
+                value: t.diff,
             })
             .collect();
 
@@ -161,7 +162,7 @@ pub fn detect_result_difficulty(diff_img: &ImageRegion) -> Option<String> {
 }
 
 /// 오픈매치 결과 화면 전용 난이도 영역을 템플릿 매칭으로 감지합니다. (106x18 해상도 적용)
-pub fn detect_openmatch_result_difficulty(diff_img: &ImageRegion) -> Option<String> {
+pub fn detect_openmatch_result_difficulty(diff_img: &ImageRegion) -> Option<Difficulty> {
     let w = diff_img.width as usize;
     let h = diff_img.height as usize;
     if w * h == 0 {
@@ -180,14 +181,14 @@ pub fn detect_openmatch_result_difficulty(diff_img: &ImageRegion) -> Option<Stri
     let (target_w, target_h) = (106usize, 18usize);
     let resized_binary = resize_binary(&binary, w, h, target_w, target_h);
 
-    let t_infos: Vec<MatchTemplateInfo> =
+    let t_infos: Vec<MatchTemplateInfo<Difficulty>> =
         super::result_diff::RESULT_DIFF_OPEN_TEMPLATES
             .iter()
             .map(|t| MatchTemplateInfo {
                 width: t.width,
                 height: t.height,
                 mask: t.mask,
-                label: t.name,
+                value: t.diff,
             })
             .collect();
 
@@ -197,36 +198,13 @@ pub fn detect_openmatch_result_difficulty(diff_img: &ImageRegion) -> Option<Stri
         target_h,
         &t_infos,
         0.80,
-        |label| match label {
-            "NM" => 15,
-            "HD" => 35,
-            "MX" => 0,
-            "SC" => 55,
-            _ => 0,
+        |val| match val {
+            Difficulty::NM => 15,
+            Difficulty::HD => 35,
+            Difficulty::MX => 0,
+            Difficulty::SC => 55,
         },
     )
-}
-
-/// 텍스트 내에 유효한 버튼 모드 키워드가 포함되어 있는지 판단합니다.
-pub fn contains_mode_keyword(text: &str) -> bool {
-    let norm = text.to_lowercase();
-    norm.contains("4b") || norm.contains("5b") || norm.contains("6b") || norm.contains("8b")
-}
-
-/// 텍스트에서 매칭되는 버튼 모드를 문자열로 파싱합니다.
-pub fn parse_mode_from_text(text: &str) -> Option<String> {
-    let norm = text.to_lowercase();
-    if norm.contains("4b") || norm.contains('4') {
-        Some("4B".to_string())
-    } else if norm.contains("5b") || norm.contains('5') {
-        Some("5B".to_string())
-    } else if norm.contains("6b") || norm.contains('6') {
-        Some("6B".to_string())
-    } else if norm.contains("8b") || norm.contains('8') {
-        Some("8B".to_string())
-    } else {
-        None
-    }
 }
 
 fn match_digits_template(
@@ -301,30 +279,30 @@ fn get_digit_templates() -> Vec<overmax_cv::CvTemplate<'static>> {
         .collect()
 }
 
-struct MatchTemplateInfo<'a> {
+struct MatchTemplateInfo<'a, T> {
     width: usize,
     height: usize,
     mask: &'a [u8],
-    label: &'a str,
+    value: T,
 }
 
-fn match_best_template(
+fn match_best_template<T: Copy + std::fmt::Display>(
     resized_binary: &[u8],
     target_w: usize,
     target_h: usize,
-    templates: &[MatchTemplateInfo],
+    templates: &[MatchTemplateInfo<'_, T>],
     min_score: f32,
-    safe_x_calc: impl Fn(&str) -> usize,
-) -> Option<String> {
+    safe_x_calc: impl Fn(T) -> usize,
+) -> Option<T> {
     let mut best_score = 0.0f32;
-    let mut best_label: Option<String> = None;
+    let mut best_val: Option<T> = None;
     let compare_total = target_w * target_h;
 
     for t in templates {
         if t.width != target_w || t.height != target_h {
             continue;
         }
-        let safe_x = safe_x_calc(t.label);
+        let safe_x = safe_x_calc(t.value);
         let mut matches = 0usize;
         for dy in 0..target_h {
             for dx in 0..target_w {
@@ -337,17 +315,17 @@ fn match_best_template(
         let score = matches as f32 / compare_total as f32;
         if score > min_score && score > best_score {
             best_score = score;
-            best_label = Some(t.label.to_string());
+            best_val = Some(t.value);
         }
     }
-    if best_label.is_none() {
+    if best_val.is_none() {
         let mut max_candidate_score = 0.0f32;
-        let mut max_candidate_label = "None";
+        let mut max_candidate_val: Option<T> = None;
         for t in templates {
             if t.width != target_w || t.height != target_h {
                 continue;
             }
-            let safe_x = safe_x_calc(t.label);
+            let safe_x = safe_x_calc(t.value);
             let mut matches = 0usize;
             for dy in 0..target_h {
                 for dx in 0..target_w {
@@ -360,12 +338,22 @@ fn match_best_template(
             let score = matches as f32 / compare_total as f32;
             if score > max_candidate_score {
                 max_candidate_score = score;
-                max_candidate_label = t.label;
+                max_candidate_val = Some(t.value);
             }
         }
-        println!("      [Debug Template] Matching failed. Best candidate: '{}' with score {:.4} (min_score: {:.4})", max_candidate_label, max_candidate_score, min_score);
+        if let Some(cand) = max_candidate_val {
+            println!(
+                "      [Debug Result Mode/Diff] Match failed (min_score: {}). Best candidate was '{}' with score {:.3}",
+                min_score, cand, max_candidate_score
+            );
+        } else {
+            println!(
+                "      [Debug Result Mode/Diff] Match failed (min_score: {}). No candidates matched size",
+                min_score
+            );
+        }
     }
-    best_label
+    best_val
 }
 
 fn parse_score_text(text: &str) -> Option<u32> {

@@ -174,7 +174,8 @@ impl Recommender {
             None => return RecommendResult::empty(),
         };
 
-        let current_pattern = current_song.patterns[button_mode as usize][difficulty as usize].as_ref();
+        let current_pattern =
+            current_song.patterns[button_mode as usize][difficulty as usize].as_ref();
 
         let p = match current_pattern {
             Some(p) => p,

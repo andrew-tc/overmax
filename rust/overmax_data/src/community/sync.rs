@@ -27,12 +27,15 @@ pub const LEVEL_LABELS: [&str; 30] = [
     "SC15",
 ];
 
-pub fn pattern_level_index(difficulty: &str, level: Option<u32>) -> Option<usize> {
+pub fn pattern_level_index(
+    difficulty: overmax_core::Difficulty,
+    level: Option<u32>,
+) -> Option<usize> {
     let lvl = level?;
     if lvl == 0 || lvl > 15 {
         return None;
     }
-    if difficulty == "SC" {
+    if difficulty.is_sc() {
         Some(15 + (lvl as usize - 1))
     } else {
         Some(lvl as usize - 1)
@@ -63,7 +66,7 @@ pub fn matches_filter(
         return false;
     }
 
-    if let Some(lvl_idx) = pattern_level_index(c.difficulty.as_str(), c.pattern_level) {
+    if let Some(lvl_idx) = pattern_level_index(c.difficulty, c.pattern_level) {
         if lvl_idx < filter.min_level_idx || lvl_idx > filter.max_level_idx {
             return false;
         }
@@ -153,7 +156,8 @@ pub fn build_candidates(
                 s.name.to_string(),
                 s.composer.to_string(),
                 s.dlc_code.to_string(),
-                s.get_pattern(row.button_mode, row.difficulty).and_then(|p| p.level),
+                s.get_pattern(row.button_mode, row.difficulty)
+                    .and_then(|p| p.level),
             ),
             None => (row.song_id.to_string(), String::new(), String::new(), None),
         };
@@ -198,9 +202,30 @@ mod tests {
         assert!(rdb.initialize());
 
         // 1. Insert local records into record.db
-        rdb.upsert(1, overmax_core::Mode::B4, overmax_core::Difficulty::MX, 99.5, true, false); // Already synced identical score
-        rdb.upsert(2, overmax_core::Mode::B4, overmax_core::Difficulty::MX, 98.0, false, false); // Local is 98.0%, V-Archive has 95.0% (Improved!)
-        rdb.upsert(3, overmax_core::Mode::B4, overmax_core::Difficulty::MX, 99.0, false, false); // Unregistered on V-Archive
+        rdb.upsert(
+            1,
+            overmax_core::Mode::B4,
+            overmax_core::Difficulty::MX,
+            99.5,
+            true,
+            false,
+        ); // Already synced identical score
+        rdb.upsert(
+            2,
+            overmax_core::Mode::B4,
+            overmax_core::Difficulty::MX,
+            98.0,
+            false,
+            false,
+        ); // Local is 98.0%, V-Archive has 95.0% (Improved!)
+        rdb.upsert(
+            3,
+            overmax_core::Mode::B4,
+            overmax_core::Difficulty::MX,
+            99.0,
+            false,
+            false,
+        ); // Unregistered on V-Archive
 
         // 2. Insert V-Archive records into SQLite table
         let v_payload = json!({

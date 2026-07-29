@@ -2,7 +2,7 @@ use crate::capture::frame::CapturedFrame;
 use crate::capture::frame_utils::region_mean_bgr;
 use crate::detector::roi::RoiManager;
 use crate::detector::templates::{self, RateTelemetry};
-use overmax_core::{Changed, GameSessionState, PlayContext};
+use overmax_core::{Changed, Difficulty, GameSessionState, Mode, PlayContext};
 use std::collections::VecDeque;
 
 pub const MIN_VALID_RATE: f32 = 80.0;
@@ -10,9 +10,8 @@ pub const MIN_VALID_RATE: f32 = 80.0;
 const BTN_MODE_MAX_DIST: f32 = 60.0;
 const DIFF_MIN_BRIGHTNESS: f32 = 45.0;
 const DIFF_CONFIDENT_MARGIN: f32 = 15.0;
-const DIFFICULTIES: [&str; 4] = ["NM", "HD", "MX", "SC"];
 
-type ButtonColorEntry = (&'static str, &'static [(u8, u8, u8)]);
+type ButtonColorEntry = (Mode, &'static [(u8, u8, u8)]);
 
 #[derive(Clone, Debug, PartialEq)]
 struct RawPlayState {
@@ -21,8 +20,8 @@ struct RawPlayState {
 
 /// 결과창 mode·diff 인식 결과 캐시.
 struct ModeDiffCache {
-    result_mode: Changed<Option<String>>,
-    result_diff: Changed<Option<String>>,
+    result_mode: Changed<Option<Mode>>,
+    result_diff: Changed<Option<Difficulty>>,
 }
 
 impl ModeDiffCache {
@@ -149,8 +148,8 @@ impl PlayStateDetector {
 
     #[cfg(test)]
     pub(crate) fn seed_detected_cache_for_test(&mut self) {
-        self.cache.result_mode.update(Some("4B".into()));
-        self.cache.result_diff.update(Some("NM".into()));
+        self.cache.result_mode.update(Some(Mode::B4));
+        self.cache.result_diff.update(Some(Difficulty::NM));
     }
 
     #[cfg(test)]
@@ -163,16 +162,15 @@ impl PlayStateDetector {
         scene: overmax_core::SceneType,
         frame: &CapturedFrame,
         rois: &RoiManager,
-    ) -> (Option<String>, Option<String>) {
+    ) -> (Option<Mode>, Option<Difficulty>) {
         let mut detected_mode = None;
         let mut detected_diff = None;
 
         // 1. 결과창 실시간 템플릿 매칭 우선 시도
         match scene {
             overmax_core::SceneType::ResultFreestyle => {
-                detected_mode = rois.and_then_roi(frame, "mode_digit", |img| {
-                    templates::detect_freestyle_mode(img)
-                });
+                detected_mode =
+                    rois.and_then_roi(frame, "mode_digit", templates::detect_freestyle_mode);
                 detected_diff = rois.and_then_roi(frame, "diff_panel", |img| {
                     templates::detect_result_difficulty(img)
                 });
@@ -188,15 +186,15 @@ impl PlayStateDetector {
 
         // 2. 결과창 템플릿 매칭 성공 시, 결과창 캐시를 업데이트 (자가 보정 가능)
         if detected_mode.is_some() {
-            self.cache.result_mode.update(detected_mode.clone());
+            self.cache.result_mode.update(detected_mode);
         }
         if detected_diff.is_some() {
-            self.cache.result_diff.update(detected_diff.clone());
+            self.cache.result_diff.update(detected_diff);
         }
 
         // 3. 최종 반환값 결정: 결과창 캐시가 존재하면 우선 사용
-        let final_mode = self.cache.result_mode.get().clone();
-        let final_diff = self.cache.result_diff.get().clone();
+        let final_mode = *self.cache.result_mode.get();
+        let final_diff = *self.cache.result_diff.get();
 
         (final_mode, final_diff)
     }
@@ -282,36 +280,29 @@ impl PlayStateDetector {
             diff,
             confident
         );
-        let context = if let (Some(sid), Some(m_str), Some(d_str)) = (song_id, mode, diff) {
-            if let (Some(m), Some(d)) = (
-                overmax_core::Mode::from_str(&m_str),
-                overmax_core::Difficulty::from_str(&d_str),
-            ) {
-                if confident {
-                    let (rate, tel) = self.process_rate_detection(frame, rois, scene, is_result, now);
-                    telemetry = tel;
+        let context = if let (Some(sid), Some(m), Some(d)) = (song_id, mode, diff) {
+            if confident {
+                let (rate, tel) = self.process_rate_detection(frame, rois, scene, is_result, now);
+                telemetry = tel;
 
-                    let rate_valid = !is_result
-                        || self
-                            .last_rate_result
-                            .0
-                            .map(|r| r >= MIN_VALID_RATE)
-                            .unwrap_or(false);
+                let rate_valid = !is_result
+                    || self
+                        .last_rate_result
+                        .0
+                        .map(|r| r >= MIN_VALID_RATE)
+                        .unwrap_or(false);
 
-                    Some(PlayContext {
-                        song_id: sid,
-                        mode: m,
-                        diff: d,
-                        rate: if rate_valid { rate } else { 0.0 },
-                        is_max_combo: if rate_valid && rate > 0.0 {
-                            is_max_combo
-                        } else {
-                            false
-                        },
-                    })
-                } else {
-                    None
-                }
+                Some(PlayContext {
+                    song_id: sid,
+                    mode: m,
+                    diff: d,
+                    rate: if rate_valid { rate } else { 0.0 },
+                    is_max_combo: if rate_valid && rate > 0.0 {
+                        is_max_combo
+                    } else {
+                        false
+                    },
+                })
             } else {
                 None
             }
@@ -369,7 +360,7 @@ pub fn detect_button_mode_from_roi(
     frame: &CapturedFrame,
     rois: &RoiManager,
     roi_name: &str,
-) -> Option<String> {
+) -> Option<Mode> {
     let roi = rois.get_roi(roi_name)?;
     let mean = region_mean_bgr(frame, roi);
     let mut best = (None, f32::INFINITY);
@@ -384,24 +375,24 @@ pub fn detect_button_mode_from_roi(
         for color in colors {
             let dist = color_dist(mean, *color);
             if dist < best.1 {
-                best = (Some(mode.to_string()), dist);
+                best = (Some(mode), dist);
             }
         }
     }
     (best.1 <= BTN_MODE_MAX_DIST).then_some(best.0).flatten()
 }
 
-pub fn detect_button_mode(frame: &CapturedFrame, rois: &RoiManager) -> Option<String> {
+pub fn detect_button_mode(frame: &CapturedFrame, rois: &RoiManager) -> Option<Mode> {
     detect_button_mode_from_roi(frame, rois, "btn_mode")
 }
 
-pub fn detect_difficulty(frame: &CapturedFrame, rois: &RoiManager) -> (Option<String>, bool) {
-    let mut brightnesses = DIFFICULTIES
+pub fn detect_difficulty(frame: &CapturedFrame, rois: &RoiManager) -> (Option<Difficulty>, bool) {
+    let mut brightnesses = Difficulty::ALL
         .iter()
-        .filter_map(|diff| {
+        .filter_map(|&diff| {
             let roi = rois.get_diff_panel_roi(diff)?;
             let (b, g, r) = region_mean_bgr(frame, roi);
-            Some((*diff, (f32::from(b) + f32::from(g) + f32::from(r)) / 3.0))
+            Some((diff, (f32::from(b) + f32::from(g) + f32::from(r)) / 3.0))
         })
         .collect::<Vec<_>>();
     brightnesses.sort_by(|a, b| b.1.total_cmp(&a.1));
@@ -412,10 +403,7 @@ pub fn detect_difficulty(frame: &CapturedFrame, rois: &RoiManager) -> (Option<St
         return (None, false);
     }
     let second = brightnesses.get(1).map_or(0.0, |item| item.1);
-    (
-        Some(best.to_string()),
-        max_bright - second >= DIFF_CONFIDENT_MARGIN,
-    )
+    (Some(best), max_bright - second >= DIFF_CONFIDENT_MARGIN)
 }
 
 // 선곡창 Perfect Play (100.0%) 뱃지 대표 해시
@@ -504,19 +492,19 @@ pub fn detect_max_combo_result(frame: &CapturedFrame, rois: &RoiManager) -> bool
 
 fn button_colors() -> [ButtonColorEntry; 4] {
     [
-        ("4B", &[(0x55, 0x4F, 0x2D), (0x5A, 0x47, 0x0C)]),
-        ("5B", &[(0xC6, 0xA9, 0x44)]),
-        ("6B", &[(0x30, 0x94, 0xED)]),
-        ("8B", &[(0x31, 0x14, 0x1D)]),
+        (Mode::B4, &[(0x55, 0x4F, 0x2D), (0x5A, 0x47, 0x0C)]),
+        (Mode::B5, &[(0xC6, 0xA9, 0x44)]),
+        (Mode::B6, &[(0x30, 0x94, 0xED)]),
+        (Mode::B8, &[(0x31, 0x14, 0x1D)]),
     ]
 }
 
 fn openmatch_button_colors() -> [ButtonColorEntry; 4] {
     [
-        ("4B", &[(102, 118, 46)]),
-        ("5B", &[(147, 136, 95)]),
-        ("6B", &[(61, 137, 192)]),
-        ("8B", &[(153, 90, 88)]),
+        (Mode::B4, &[(102, 118, 46)]),
+        (Mode::B5, &[(147, 136, 95)]),
+        (Mode::B6, &[(61, 137, 192)]),
+        (Mode::B8, &[(153, 90, 88)]),
     ]
 }
 
@@ -571,7 +559,7 @@ mod tests {
         paint_rect(&mut frame, 80, 130, 85, 135, (0x55, 0x4F, 0x2D));
         let mut rois = RoiManager::new(1920, 1080);
         rois.set_scene(SceneType::Freestyle);
-        assert_eq!(detect_button_mode(&frame, &rois), Some("4B".to_string()));
+        assert_eq!(detect_button_mode(&frame, &rois), Some(super::Mode::B4));
     }
 
     #[test]

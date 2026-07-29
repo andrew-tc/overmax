@@ -197,8 +197,8 @@ impl VArchiveDB {
     pub fn find_best_match(
         &self,
         title: &str,
-        mode: &str,
-        diff: &str,
+        mode: Mode,
+        diff: Difficulty,
         level: Option<u32>,
         category: &str,
         note: &str,
@@ -220,8 +220,8 @@ impl VArchiveDB {
     fn find_best_match_internal(
         &self,
         title: &str,
-        mode: &str,
-        diff: &str,
+        mode: Mode,
+        diff: Difficulty,
         level: Option<u32>,
         category: &str,
         note: &str,
@@ -259,15 +259,13 @@ impl VArchiveDB {
             }
 
             // 2. Pattern (mode, diff) & Level check
-            if let (Some(m), Some(d)) = (Mode::from_str(mode), Difficulty::from_str(diff)) {
-                if let Some(p_info) = &song.patterns[m as usize][d as usize] {
-                    score += match_score::PATTERN_EXISTS;
-                    if let Some(target_lvl) = level {
-                        if p_info.level == Some(target_lvl) {
-                            score += match_score::LEVEL_MATCH;
-                        } else {
-                            score += match_score::LEVEL_MISMATCH_PENALTY; // Level mismatch penalty
-                        }
+            if let Some(p_info) = &song.patterns[mode as usize][diff as usize] {
+                score += match_score::PATTERN_EXISTS;
+                if let Some(target_lvl) = level {
+                    if p_info.level == Some(target_lvl) {
+                        score += match_score::LEVEL_MATCH;
+                    } else {
+                        score += match_score::LEVEL_MISMATCH_PENALTY; // Level mismatch penalty
                     }
                 }
             }
@@ -387,22 +385,10 @@ where
 {
     let mut raw_patterns = HashMap::new();
     for (m_idx, patterns_by_mode) in patterns.iter().enumerate().take(4) {
-        let mode = match m_idx {
-            0 => "4B",
-            1 => "5B",
-            2 => "6B",
-            3 => "8B",
-            _ => unreachable!(),
-        };
+        let mode = Mode::ALL[m_idx].as_str();
         let mut diffs = HashMap::new();
         for (d_idx, pattern) in patterns_by_mode.iter().enumerate().take(4) {
-            let diff = match d_idx {
-                0 => "NM",
-                1 => "HD",
-                2 => "MX",
-                3 => "SC",
-                _ => unreachable!(),
-            };
+            let diff = Difficulty::ALL[d_idx].as_str();
             if let Some(info) = &pattern {
                 diffs.insert(diff.to_string(), info.clone());
             }
@@ -514,13 +500,26 @@ mod tests {
         db.build_index();
 
         // 1. Marshmello (SC level 5, note has Marshmello)
-        let match1 =
-            db.find_best_match("Alone", "5B", "SC", Some(5), "RESPECT/V", "Marshmello 작곡");
+        let match1 = db.find_best_match(
+            "Alone",
+            Mode::B5,
+            Difficulty::SC,
+            Some(5),
+            "RESPECT/V",
+            "Marshmello 작곡",
+        );
         assert!(match1.is_some());
         assert_eq!(match1.unwrap().title, "2");
 
         // 2. Nauts (SC level 6, note has Nauts)
-        let match2 = db.find_best_match("Alone", "5B", "SC", Some(6), "RESPECT/V", "Nauts 작곡");
+        let match2 = db.find_best_match(
+            "Alone",
+            Mode::B5,
+            Difficulty::SC,
+            Some(6),
+            "RESPECT/V",
+            "Nauts 작곡",
+        );
         assert!(match2.is_some());
         assert_eq!(match2.unwrap().title, "441");
     }

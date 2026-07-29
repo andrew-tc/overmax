@@ -5,10 +5,22 @@ use std::path::Path;
 /// ROI: (709, 86, 90, 18) - x_start, y_start, width, height (FHD 1920x1080 기준)
 fn main() {
     let samples = vec![
-        ("NM", "scratch/screenshots/20260702233605_1.jpg"),
-        ("HD", "scratch/screenshots/20260702233310_1.jpg"),
-        ("MX", "scratch/screenshots/20260702233900_1.jpg"),
-        ("SC", "scratch/screenshots/20260703020235_1.jpg"),
+        (
+            overmax_core::Difficulty::NM,
+            "scratch/screenshots/20260702233605_1.jpg",
+        ),
+        (
+            overmax_core::Difficulty::HD,
+            "scratch/screenshots/20260702233310_1.jpg",
+        ),
+        (
+            overmax_core::Difficulty::MX,
+            "scratch/screenshots/20260702233900_1.jpg",
+        ),
+        (
+            overmax_core::Difficulty::SC,
+            "scratch/screenshots/20260703020235_1.jpg",
+        ),
     ];
 
     let roi_x = 709;

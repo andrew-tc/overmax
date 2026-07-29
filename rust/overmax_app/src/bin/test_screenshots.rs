@@ -298,8 +298,8 @@ fn run_roi_test(
     // 3. Mode & Difficulty 테스트
 
     #[allow(unused_assignments)]
-    let mut detected_mode: Option<String> = None;
-    let mut detected_diff = None;
+    let mut detected_mode: Option<overmax_core::Mode> = None;
+    let mut detected_diff: Option<overmax_core::Difficulty> = None;
 
     if is_result {
         match scene {

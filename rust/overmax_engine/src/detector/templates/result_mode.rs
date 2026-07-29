@@ -1,7 +1,9 @@
+use overmax_core::Mode;
+
 /// 결과 화면 전용 모드 숫자 템플릿 (50x68, threshold=120)
 /// ROI: (78, 28, 50, 68) -> 크롭 시 (50x68) 해상도 획득
 pub struct ResultModeTemplate {
-    pub mode_label: &'static str,
+    pub mode: Mode,
     pub width: usize,
     pub height: usize,
     pub mask: &'static [u8],
@@ -291,8 +293,8 @@ const RESULT_MODE_MASK_8: [u8; 3400] = [
 ];
 
 pub const RESULT_MODE_TEMPLATES: [ResultModeTemplate; 4] = [
-    ResultModeTemplate { mode_label: "4B", width: 50, height: 68, mask: &RESULT_MODE_MASK_4 },
-    ResultModeTemplate { mode_label: "5B", width: 50, height: 68, mask: &RESULT_MODE_MASK_5 },
-    ResultModeTemplate { mode_label: "6B", width: 50, height: 68, mask: &RESULT_MODE_MASK_6 },
-    ResultModeTemplate { mode_label: "8B", width: 50, height: 68, mask: &RESULT_MODE_MASK_8 },
+    ResultModeTemplate { mode: Mode::B4, width: 50, height: 68, mask: &RESULT_MODE_MASK_4 },
+    ResultModeTemplate { mode: Mode::B5, width: 50, height: 68, mask: &RESULT_MODE_MASK_5 },
+    ResultModeTemplate { mode: Mode::B6, width: 50, height: 68, mask: &RESULT_MODE_MASK_6 },
+    ResultModeTemplate { mode: Mode::B8, width: 50, height: 68, mask: &RESULT_MODE_MASK_8 },
 ];

@@ -485,11 +485,10 @@ impl NativeApp {
                 .ok()
                 .and_then(|g| g.iter().find(|c| c.matches_key(&key)).cloned());
             if let Some(c) = cand {
-                if self.record_manager.delete(
-                    c.song_id,
-                    c.button_mode,
-                    c.difficulty,
-                ) {
+                if self
+                    .record_manager
+                    .delete(c.song_id, c.button_mode, c.difficulty)
+                {
                     debug_ui::push_log(
                         &self.debug_state.log_lines,
                         self.max_log_lines(),
@@ -606,10 +605,7 @@ impl NativeApp {
                 });
             }
             if success {
-                if let Some(val) =
-                    self.record_manager
-                        .get_local_record(key.0, key.1, key.2)
-                {
+                if let Some(val) = self.record_manager.get_local_record(key.0, key.1, key.2) {
                     self.record_manager.upsert_varchive_record(key, val);
                 } else {
                     self.record_manager.refresh();
@@ -724,8 +720,8 @@ impl NativeApp {
             let res = varchive_upload::upload_score_blocking(
                 &account,
                 &candidate.song_name,
-                candidate.button_mode.as_str(),
-                candidate.difficulty.as_str(),
+                candidate.button_mode,
+                candidate.difficulty,
                 candidate.overmax_rate,
                 candidate.overmax_mc,
                 &candidate.composer,

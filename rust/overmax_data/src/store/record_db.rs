@@ -253,7 +253,12 @@ impl RecordDB {
         false
     }
 
-    pub fn get(&self, song_id: i32, button_mode: Mode, difficulty: Difficulty) -> Option<RecordValue> {
+    pub fn get(
+        &self,
+        song_id: i32,
+        button_mode: Mode,
+        difficulty: Difficulty,
+    ) -> Option<RecordValue> {
         let button_mode = button_mode.as_str();
         let difficulty = difficulty.as_str();
         if !self.is_ready {
@@ -472,10 +477,8 @@ impl RecordDB {
             let v_score: Option<f64> = row.get(5).ok();
             let v_mc_int: Option<i32> = row.get(6).ok();
 
-            if let (Some(bm), Some(d)) = (
-                Mode::from_str(&bm_str),
-                Difficulty::from_str(&diff_str),
-            ) {
+            if let (Some(bm), Some(d)) = (Mode::from_str(&bm_str), Difficulty::from_str(&diff_str))
+            {
                 list.push(RawSyncCandidateRow {
                     song_id,
                     button_mode: bm,

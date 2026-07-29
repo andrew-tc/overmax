@@ -87,7 +87,7 @@ impl<'a> OverlayHeader<'a> {
                     ui.spacing_mut().item_spacing.x = self.px.header_row_gap();
                     ui.add(StatusLamp::new(self.state.is_stable).scale(self.px.scale));
                     ui.add(
-                        ModeBadge::new(self.state.context.as_ref().map(|ctx| ctx.mode.as_str()))
+                        ModeBadge::new(self.state.context.as_ref().map(|ctx| ctx.mode))
                             .scale(self.px.scale),
                     );
 

@@ -7,6 +7,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
+use overmax_core::Mode;
+
 const USER_AGENT_VALUE: &str = concat!("overmax-rs/", env!("CARGO_PKG_VERSION"));
 const PATTERN_META_CACHE: &str = "cache/pattern_meta.json";
 const IMAGE_DB_OWNER: &str = "orphera";
@@ -16,11 +18,11 @@ const IMAGE_DB_VERSION: &str = "image_db_version.txt";
 const SHEET_ID: &str = "1ks1dwJyNjkAXYtQ_6UZIeNOCGOmhf2jMbakpTcJm9rw";
 const DAY: Duration = Duration::from_secs(60 * 60 * 24);
 
-const SHEET_GIDS: &[(&str, &str)] = &[
-    ("4B", "979055934"),
-    ("5B", "112529029"),
-    ("6B", "2010625608"),
-    ("8B", "1833696991"),
+const SHEET_GIDS: &[(Mode, &str)] = &[
+    (Mode::B4, "979055934"),
+    (Mode::B5, "112529029"),
+    (Mode::B6, "2010625608"),
+    (Mode::B8, "1833696991"),
 ];
 
 type LogFn<'a> = &'a mut dyn FnMut(String);
@@ -108,7 +110,7 @@ fn refresh_pattern_meta(
         std::collections::HashMap::new();
     for (mode, gid) in SHEET_GIDS {
         match download_text(&sheet_csv_url(gid), Duration::from_secs(10)) {
-            Ok(csv) => merge_sheet_meta(&mut items, mode, &csv, varchive_db),
+            Ok(csv) => merge_sheet_meta(&mut items, *mode, &csv, varchive_db),
             Err(e) => log(format!("[Cache] pattern meta {mode} 갱신 실패: {e}")),
         }
     }
@@ -263,20 +265,13 @@ fn sheet_csv_url(gid: &str) -> String {
 
 fn merge_sheet_meta(
     items: &mut std::collections::HashMap<
-        (
-            String,
-            overmax_data::community::client::Mode,
-            overmax_data::community::client::Difficulty,
-        ),
+        (String, overmax_core::Mode, overmax_core::Difficulty),
         overmax_data::PatternSheetMetaItem,
     >,
-    mode: &str,
+    mode: Mode,
     csv: &str,
     varchive_db: &overmax_data::community::client::VArchiveDB,
 ) {
-    let Some(parsed_mode) = overmax_data::community::client::Mode::from_str(mode) else {
-        return;
-    };
     let rows = parse_csv(csv);
     let Some(headers) = rows.first() else {
         return;
@@ -288,7 +283,7 @@ fn merge_sheet_meta(
         if title.is_empty() || diff.is_empty() {
             continue;
         }
-        let Some(parsed_diff) = overmax_data::community::client::Difficulty::from_str(&diff) else {
+        let Some(parsed_diff) = overmax_core::Difficulty::from_str(&diff) else {
             continue;
         };
         let meta = pattern_meta_value(mode, &values);
@@ -304,19 +299,19 @@ fn merge_sheet_meta(
             let note = pick(&values, &["비고", "Note"]);
 
             let song_id = if let Some(song) =
-                varchive_db.find_best_match(&title, mode, &diff, level, &category, &note)
+                varchive_db.find_best_match(&title, mode, parsed_diff, level, &category, &note)
             {
                 song.title.to_string()
             } else {
                 norm(&title)
             };
-            items.insert((song_id, parsed_mode, parsed_diff), meta);
+            items.insert((song_id, mode, parsed_diff), meta);
         }
     }
 }
 
 fn pattern_meta_value(
-    mode: &str,
+    mode: Mode,
     values: &HashMap<String, String>,
 ) -> overmax_data::PatternSheetMetaItem {
     let raw_gold = pick(values, &["황배 여부", "황배여부"]);
@@ -333,7 +328,7 @@ fn pattern_meta_value(
     let note = pick(values, &["비고", "Note"]);
     let mut keypart = false;
 
-    if mode == "8B" {
+    if mode == Mode::B8 {
         let raw_keypart = pick(values, &["키파트 위주", "키파트위주"]);
         if !raw_keypart.is_empty() {
             keypart = true;
@@ -457,7 +452,7 @@ mod tests {
             std::collections::HashMap::new();
         merge_sheet_meta(
             &mut items,
-            "5B",
+            Mode::B5,
             "곡명,난이도,황배 여부,비고,보조 키 여부\nLove ☆ Panic,SC,O,개인차,❌\n",
             &db,
         );
