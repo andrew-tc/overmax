@@ -142,10 +142,9 @@ fn main() {
             img
         } else {
             // 씬 판별
-            let logo_roi = match rois.get_roi("logo") {
-                Some(roi) => roi,
-                None => continue,
-            };
+            if rois.get_roi("logo").is_none() {
+                continue;
+            }
             let (mut s, _, _) = (SceneType::Unknown, String::new(), String::new());
 
             // 씬 Unknown 이면 파일명으로 유추

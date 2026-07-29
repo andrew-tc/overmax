@@ -73,16 +73,12 @@ pub fn matches_filter(
         return false;
     }
 
-    if filter.require_mc_not_on_varchive {
-        if !c.overmax_mc || c.varchive_mc == Some(true) {
-            return false;
-        }
+    if filter.require_mc_not_on_varchive && (!c.overmax_mc || c.varchive_mc == Some(true)) {
+        return false;
     }
 
-    if filter.exclude_unuploaded {
-        if c.varchive_rate.is_none() {
-            return false;
-        }
+    if filter.exclude_unuploaded && c.varchive_rate.is_none() {
+        return false;
     }
 
     true

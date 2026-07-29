@@ -495,7 +495,7 @@ fn dual_thumb_range_slider(
     min_limit: f64,
     max_limit: f64,
 ) -> bool {
-    let desired_size = egui::vec2(ui.available_width().min(240.0).max(120.0), 20.0);
+    let desired_size = egui::vec2(ui.available_width().clamp(120.0, 240.0), 20.0);
     let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::click_and_drag());
 
     if !ui.is_rect_visible(rect) {
@@ -583,11 +583,11 @@ fn dual_thumb_range_slider(
         }
     }
 
-    if response.drag_stopped() || (!response.dragged() && !response.clicked()) {
-        if active_thumb.is_some() {
-            active_thumb = None;
-            ui.data_mut(|d| d.insert_temp(active_thumb_id, active_thumb));
-        }
+    if (response.drag_stopped() || (!response.dragged() && !response.clicked()))
+        && active_thumb.is_some()
+    {
+        active_thumb = None;
+        ui.data_mut(|d| d.insert_temp(active_thumb_id, active_thumb));
     }
 
     ui.painter().rect_filled(track_rect, 3.0, Theme::SECONDARY);
@@ -600,7 +600,7 @@ fn dual_thumb_range_slider(
 
     let min_hovered = response
         .hover_pos()
-        .map_or(false, |p| p.distance(min_thumb_pos) <= thumb_radius * 1.8);
+        .is_some_and(|p| p.distance(min_thumb_pos) <= thumb_radius * 1.8);
     let min_fill = if active_thumb == Some(0) || min_hovered {
         Theme::TEXT_BRIGHT
     } else {
@@ -616,7 +616,7 @@ fn dual_thumb_range_slider(
 
     let max_hovered = response
         .hover_pos()
-        .map_or(false, |p| p.distance(max_thumb_pos) <= thumb_radius * 1.8);
+        .is_some_and(|p| p.distance(max_thumb_pos) <= thumb_radius * 1.8);
     let max_fill = if active_thumb == Some(1) || max_hovered {
         Theme::TEXT_BRIGHT
     } else {

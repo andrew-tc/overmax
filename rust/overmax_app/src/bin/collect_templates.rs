@@ -1,11 +1,11 @@
 use overmax_app::bin_utils::load_frame;
-use overmax_core::SceneType;
 use overmax_engine::capture::frame::CapturedFrame;
 use overmax_engine::capture::frame_utils::crop_roi;
 use overmax_engine::detector::roi::RoiManager;
 use std::fs;
 use std::path::Path;
 
+#[allow(dead_code)]
 fn crop_roi_direct(
     frame: &CapturedFrame,
     x: usize,
@@ -171,7 +171,7 @@ fn main() {
         paths.len()
     );
 
-    let mut rois = RoiManager::new(1920, 1080);
+    let rois = RoiManager::new(1920, 1080);
 
     let mut total_saved = 0;
 

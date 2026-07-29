@@ -216,7 +216,7 @@ impl PlayStateDetector {
             return detected_rate;
         }
 
-        let score_val = rois.and_then_roi(frame, "score", |img| templates::detect_score(img));
+        let score_val = rois.and_then_roi(frame, "score", templates::detect_score);
         let Some(score_val) = score_val else {
             return detected_rate;
         };

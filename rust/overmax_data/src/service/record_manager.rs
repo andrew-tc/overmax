@@ -46,7 +46,7 @@ impl RecordManager {
 
     pub fn upsert_varchive_record(&self, key: RecordKey, value: RecordValue) {
         if let Ok(mut guard) = self.varchive_cache.lock() {
-            guard.insert(key.clone(), value);
+            guard.insert(key, value);
         }
         if let Ok(mut guard) = self.dirty_record_keys.lock() {
             guard.insert(key);
@@ -143,7 +143,7 @@ impl RecordManager {
                 continue;
             }
             result
-                .entry(key.clone())
+                .entry(*key)
                 .and_modify(|entry| {
                     entry.0 = entry.0.max(v_rate);
                     entry.1 |= v_mc;

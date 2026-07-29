@@ -703,7 +703,7 @@ impl NativeApp {
             let path = Path::new(&account_path);
             if account_path.is_empty() || !path.exists() {
                 let _ = tx.send((
-                    key.clone(),
+                    key,
                     is_quick_upload,
                     "error".into(),
                     "account.txt 경로 없음".into(),
@@ -713,7 +713,7 @@ impl NativeApp {
             }
             let Some(account) = varchive_upload::parse_account_file(path) else {
                 let _ = tx.send((
-                    key.clone(),
+                    key,
                     is_quick_upload,
                     "error".into(),
                     "account.txt 파싱 실패".into(),
