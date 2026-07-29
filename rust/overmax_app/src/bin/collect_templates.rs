@@ -2,7 +2,6 @@ use overmax_app::bin_utils::load_frame;
 use overmax_core::SceneType;
 use overmax_engine::capture::frame::CapturedFrame;
 use overmax_engine::capture::frame_utils::crop_roi;
-use overmax_engine::detector::ocr_engine::OcrDetector;
 use overmax_engine::detector::roi::RoiManager;
 use std::fs;
 use std::path::Path;
@@ -172,7 +171,6 @@ fn main() {
         paths.len()
     );
 
-    let ocr = OcrDetector::new();
     let mut rois = RoiManager::new(1920, 1080);
 
     let mut total_saved = 0;
@@ -184,61 +182,6 @@ fn main() {
         };
 
         // 씬 판별
-        let logo_roi = match rois.get_roi("logo") {
-            Some(roi) => roi,
-            None => continue,
-        };
-        let logo_img = match crop_roi(&frame, logo_roi) {
-            Some(img) => img,
-            None => continue,
-        };
-        let (mut scene, logo_raw, _) = ocr.detect_logo(&logo_img);
-
-        // 씬 Unknown 이면 텍스트 키워드 및 파일명으로 유추
-        if scene == SceneType::Unknown {
-            let logo_norm = logo_raw.to_lowercase();
-            if logo_norm.contains("button") || logo_norm.contains("tunes") {
-                scene = SceneType::ResultFreestyle;
-            } else {
-                // 오픈매치 결과창 뱃지 탐지를 통한 ResultOpen3 구원 로직 이식 (씬 설정 없이 다이렉트 크롭 - ResultOpen3 mode_diff_badge coordinates)
-                let temp_badge = crop_roi_direct(&frame, 212, 830, 316, 39);
-                if let Some(txt) = ocr.recognize_text_all_passes(&temp_badge) {
-                    let norm = txt.to_lowercase();
-                    if norm.contains("tunes")
-                        || norm.contains("mode")
-                        || norm.contains("button")
-                        || norm.contains("4b")
-                        || norm.contains("5b")
-                        || norm.contains("6b")
-                        || norm.contains("8b")
-                    {
-                        scene = SceneType::ResultOpen3;
-                    }
-                }
-            }
-        }
-
-        if scene == SceneType::Unknown {
-            let fname = filename.to_lowercase();
-            if fname.contains("freestyle") {
-                scene = SceneType::Freestyle;
-            } else if fname.contains("open") || fname.contains("match") {
-                scene = SceneType::OpenMatch;
-            } else if fname.contains("hd_test_2p") {
-                scene = SceneType::ResultOpen2;
-            } else if fname.contains("hd_test_1") || fname.contains("hd_test_3") {
-                scene = SceneType::ResultOpen3;
-            } else if fname.contains("hd_test") {
-                scene = SceneType::ResultFreestyle;
-            }
-        }
-
-        if scene == SceneType::Unknown {
-            continue;
-        }
-
-        rois.set_scene(scene);
-
         let Some(rate_roi) = rois.get_roi("rate") else {
             continue;
         };
@@ -246,27 +189,25 @@ fn main() {
             continue;
         };
 
-        // 1. Windows OCR로 현재 Rate 생 텍스트 추출 (템플릿 매칭 우회하여 수집 방해 원천 방지)
-        let mut raw_txt = String::new();
-        if let Some(txt) = ocr.recognize_text_color(&rate_img) {
-            raw_txt = txt;
-        }
-
-        let mut rate_val = None;
-        let clean: String = raw_txt
-            .chars()
-            .filter(|c| c.is_ascii_digit() || *c == '.')
-            .collect();
-        if let Ok(v) = clean.parse::<f32>() {
-            if (0.0..=100.0).contains(&v) {
-                rate_val = Some(v);
+        let (rate_val_opt, raw_txt, _) =
+            overmax_engine::detector::templates::detect_rate(&rate_img);
+        let mut rate_val = rate_val_opt;
+        if rate_val.is_none() {
+            let clean: String = raw_txt
+                .chars()
+                .filter(|c| c.is_ascii_digit() || *c == '.')
+                .collect();
+            if let Ok(v) = clean.parse::<f32>() {
+                if (0.0..=100.0).contains(&v) {
+                    rate_val = Some(v);
+                }
             }
         }
 
         let Some(val) = rate_val else {
             println!(
-                "      [DEBUG collect] detect_rate failed. raw_txt='{}', filename='{}', scene={:?}",
-                raw_txt, filename, scene
+                "      [DEBUG collect] detect_rate failed. raw_txt='{}', filename='{}'",
+                raw_txt, filename
             );
             continue;
         };
@@ -292,8 +233,13 @@ fn main() {
         let segments =
             segment_characters(&binary, rate_img.width as usize, rate_img.height as usize);
 
-        println!("File: {} (Scene: {:?}) -> OCR Rate: {:.2}%, Segment count: {}, Expected Char count: {}",
-                 filename, scene, val, segments.len(), expected_chars.len());
+        println!(
+            "File: {} -> OCR Rate: {:.2}%, Segment count: {}, Expected Char count: {}",
+            filename,
+            val,
+            segments.len(),
+            expected_chars.len()
+        );
 
         // 분할된 글자 개수와 원래 OCR의 글자 개수가 완전히 일치할 때만 안전하게 라벨링 저장
         if segments.len() == expected_chars.len() {

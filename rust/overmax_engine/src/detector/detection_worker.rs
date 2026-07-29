@@ -119,10 +119,7 @@ impl DetectionWorker {
             Err(e) => return self.log(format!("[Detection] capture init failed: {e}")),
         };
         let mut pipeline = self.build_pipeline();
-        self.log(format!(
-            "[Detection] OCR available={}",
-            pipeline.ocr_available()
-        ));
+        self.log("[Detection] Pure Rust Native Engine initialized".to_string());
 
         loop {
             #[cfg(target_os = "windows")]
@@ -322,7 +319,7 @@ impl DetectionWorker {
             game_rect: self.window_snapshot.map(|s| s.rect),
             window_snapshot: self.window_snapshot,
             capture_fatal,
-            ocr_telemetry: None,
+            rate_telemetry: None,
         }
     }
 
@@ -402,7 +399,7 @@ impl DetectionWorker {
                 game_rect: None,
                 window_snapshot: None,
                 capture_fatal: None,
-                ocr_telemetry: None,
+                rate_telemetry: None,
             });
             self.request_repaint();
             self.log("[WindowTracker] game window lost".into());

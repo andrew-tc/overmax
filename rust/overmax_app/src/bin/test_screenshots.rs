@@ -7,7 +7,6 @@ use overmax_data::ImageIndexDb;
 use overmax_engine::capture::frame::CapturedFrame;
 use overmax_engine::capture::frame_utils::crop_roi;
 use overmax_engine::detector::detection_pipeline::detect_scene_from_logo;
-use overmax_engine::detector::ocr_engine::OcrDetector;
 use overmax_engine::detector::play_state::resolve_most_plausible_rate;
 use overmax_engine::detector::roi::RoiManager;
 
@@ -169,9 +168,6 @@ fn main() {
     paths.sort_by_key(|p| p.file_name().unwrap().to_os_string());
     println!("Found {} total files to process and crop.", paths.len());
 
-    println!("--- Initializing OCR Detector ---");
-    let ocr = OcrDetector::new();
-
     let db_path = "cache/image_index.db";
     let mut image_db = ImageIndexDb::new(db_path, 0.6);
     let db_loaded = image_db.load().is_ok();
@@ -197,7 +193,7 @@ fn main() {
         let mut rois = RoiManager::new(frame.width, frame.height);
 
         // 1. Logo 분석을 통해 씬 판별
-        let mut scene = detect_scene_from_logo(&frame, &ocr, &rois, &matcher);
+        let mut scene = detect_scene_from_logo(&frame, &rois, &matcher);
         println!("  - Detected Scene: {:?}", scene);
 
         if scene == SceneType::Unknown {
@@ -239,13 +235,12 @@ fn main() {
         save_badge_crop(&frame, &rois, scene, &filename);
 
         // Rate/Score 출력 테스트도 함께 수행
-        run_roi_test(&frame, &ocr, &rois, scene, &matcher, &filename);
+        run_roi_test(&frame, &rois, scene, &matcher, &filename);
     }
 }
 
 fn run_roi_test(
     frame: &CapturedFrame,
-    ocr: &OcrDetector,
     rois: &RoiManager,
     scene: SceneType,
     matcher: &overmax_data::JacketMatcher,
@@ -327,7 +322,8 @@ fn run_roi_test(
                                 .ok();
                         }
 
-                        detected_mode = ocr.detect_freestyle_mode(&mode_img);
+                        detected_mode =
+                            overmax_engine::detector::templates::detect_freestyle_mode(&mode_img);
                         println!("    Mode Match: Resolved: {:?}", detected_mode);
                     }
                 }
@@ -352,7 +348,10 @@ fn run_roi_test(
                                 .ok();
                         }
 
-                        detected_diff = ocr.detect_result_difficulty(&diff_img);
+                        detected_diff =
+                            overmax_engine::detector::templates::detect_result_difficulty(
+                                &diff_img,
+                            );
                         println!(
                             "    Difficulty BGR/Pattern Match: Resolved: {:?}",
                             detected_diff
@@ -368,35 +367,10 @@ fn run_roi_test(
                 );
                 if let Some(diff_roi) = rois.get_roi("openmatch_diff") {
                     if let Some(diff_img) = crop_roi(frame, diff_roi) {
-                        detected_diff = ocr.detect_openmatch_result_difficulty(&diff_img);
-                    }
-                }
-                if (detected_mode.is_none() || detected_diff.is_none())
-                    && scene == SceneType::ResultOpen2
-                {
-                    if let Some(logo_roi) = rois.get_roi("logo") {
-                        if let Some(logo_img) = crop_roi(frame, logo_roi) {
-                            if let Some(txt) = ocr.recognize_text_all_passes(&logo_img) {
-                                if detected_mode.is_none() {
-                                    detected_mode = ocr.parse_mode_from_text(&txt);
-                                }
-                                if detected_diff.is_none() {
-                                    let norm = txt.to_lowercase();
-                                    if norm.contains("sc") {
-                                        detected_diff = Some("SC".to_string());
-                                    } else if norm.contains("mx")
-                                        || norm.contains("maximum")
-                                        || norm.contains("max")
-                                    {
-                                        detected_diff = Some("MX".to_string());
-                                    } else if norm.contains("hd") || norm.contains("hard") {
-                                        detected_diff = Some("HD".to_string());
-                                    } else if norm.contains("nm") || norm.contains("normal") {
-                                        detected_diff = Some("NM".to_string());
-                                    }
-                                }
-                            }
-                        }
+                        detected_diff =
+                            overmax_engine::detector::templates::detect_openmatch_result_difficulty(
+                                &diff_img,
+                            );
                     }
                 }
                 println!(
@@ -443,9 +417,9 @@ fn run_roi_test(
     let mut rate_val: Option<f32> = None;
     if let Some(rate_roi) = rois.get_roi("rate") {
         if let Some(rate_img) = crop_roi(frame, rate_roi) {
-            let res = ocr.detect_rate(&rate_img);
+            let res = overmax_engine::detector::templates::detect_rate(&rate_img);
             rate_val = res.0;
-            println!("    Rate ROI OCR Result: {:?}", res.0);
+            println!("    Rate ROI Match Result: {:?}", res.0);
         }
     }
 
@@ -453,7 +427,7 @@ fn run_roi_test(
     let mut score_val: Option<u32> = None;
     if let Some(score_roi) = rois.get_roi("score") {
         if let Some(score_img) = crop_roi(frame, score_roi) {
-            let res = ocr.detect_score(&score_img);
+            let res = overmax_engine::detector::templates::detect_score(&score_img);
             score_val = res;
             println!("    Score ROI OCR Result: {:?}", res);
         }

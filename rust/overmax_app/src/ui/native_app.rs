@@ -28,7 +28,7 @@ use crate::ui::ui_command::UiCommand;
 use eframe::egui;
 use overmax_engine::detector::detection_pipeline::DetectionOutput;
 use overmax_engine::detector::detection_worker;
-use overmax_engine::detector::ocr_engine::OcrTelemetry;
+use overmax_engine::detector::RateTelemetry;
 
 pub fn run_native_app() -> eframe::Result<()> {
     if let Err(error) = platform::init_platform_on_startup() {
@@ -170,7 +170,7 @@ pub struct SharedDebugState {
     pub log_lines: Arc<Mutex<VecDeque<Arc<str>>>>,
     pub paused: Arc<AtomicBool>,
     pub filters: Arc<Mutex<std::collections::HashMap<String, bool>>>,
-    pub rate_ocr: Arc<Mutex<Option<OcrTelemetry>>>,
+    pub rate_ocr: Arc<Mutex<Option<RateTelemetry>>>,
     pub rate_ocr_texture: Arc<Mutex<Option<egui::TextureHandle>>>,
 }
 

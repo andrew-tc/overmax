@@ -1,7 +1,7 @@
 use overmax_app::bin_utils::load_frame;
 use overmax_core::SceneType;
 use overmax_engine::capture::frame_utils::crop_roi;
-use overmax_engine::detector::ocr_engine::OcrDetector;
+
 use overmax_engine::detector::roi::RoiManager;
 use std::fs;
 use std::path::Path;
@@ -93,7 +93,6 @@ fn main() {
     #[cfg(target_os = "windows")]
     let _ = unsafe { RoInitialize(RO_INIT_MULTITHREADED) };
 
-    let ocr = OcrDetector::new();
     let mut rois = RoiManager::new(1920, 1080);
 
     let mut total_evaluated = 0;
@@ -147,11 +146,7 @@ fn main() {
                 Some(roi) => roi,
                 None => continue,
             };
-            let logo_img = match crop_roi(&frame, logo_roi) {
-                Some(img) => img,
-                None => continue,
-            };
-            let (mut s, _, _) = ocr.detect_logo(&logo_img);
+            let (mut s, _, _) = (SceneType::Unknown, String::new(), String::new());
 
             // 씬 Unknown 이면 파일명으로 유추
             if s == SceneType::Unknown {
@@ -186,7 +181,7 @@ fn main() {
             };
 
             // Windows OCR로 예상 텍스트 추출 (Ground Truth)
-            let (rate_val, raw_txt, _) = ocr.detect_rate(&img);
+            let (rate_val, raw_txt, _) = overmax_engine::detector::templates::detect_rate(&img);
             let Some(v) = rate_val else {
                 total_skipped += 1;
                 continue;

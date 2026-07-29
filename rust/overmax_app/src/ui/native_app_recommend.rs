@@ -11,7 +11,7 @@ impl NativeApp {
         let mut changed = false;
         while let Ok(output) = self.detection_rx.try_recv() {
             if let Ok(mut rate_ocr) = self.debug_state.rate_ocr.lock() {
-                *rate_ocr = output.ocr_telemetry.clone();
+                *rate_ocr = output.rate_telemetry.clone();
             }
             if let Ok(mut r) = self.game_rect.lock() {
                 *r = output.game_rect;

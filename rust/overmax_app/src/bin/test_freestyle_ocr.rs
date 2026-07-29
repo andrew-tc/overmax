@@ -2,7 +2,6 @@ use overmax_app::bin_utils::load_frame;
 use overmax_core::SceneType;
 use overmax_engine::capture::frame::CapturedFrame;
 use overmax_engine::capture::frame_utils::crop_roi;
-use overmax_engine::detector::ocr_engine::OcrDetector;
 use overmax_engine::detector::roi::RoiManager;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -92,11 +91,6 @@ fn main() {
         return;
     }
 
-    let ocr = OcrDetector::new();
-    if !ocr.is_available() {
-        println!("Windows OCR Engine is NOT available! Check your OS language settings.");
-    }
-
     let mut analysis_report = String::new();
     analysis_report.push_str("==================================================\n");
     analysis_report.push_str("FREESTYLE RESULT SCREENSHOTS OCR ANALYSIS REPORT\n");
@@ -126,7 +120,8 @@ fn main() {
 
             if let Some(rate_img) = crop_roi(&frame, rate_roi) {
                 // 기존 파이프라인의 detect_rate 실행
-                let (parsed_val, matched_str, telemetry_opt) = ocr.detect_rate(&rate_img);
+                let (parsed_val, matched_str, telemetry_opt) =
+                    overmax_engine::detector::templates::detect_rate(&rate_img);
 
                 img_report.push_str("  [Rate ROI]\n");
                 img_report.push_str(&format!(
@@ -161,28 +156,6 @@ fn main() {
                         if saved_bin { "OK" } else { "Failed" }
                     ));
                 }
-
-                // 추가 개별 테스트 (Windows OCR fallback 분석)
-                let color_ocr = ocr.recognize_text_color(&rate_img).unwrap_or_default();
-                let binarized_ocr = ocr
-                    .recognize_text_binarized(&rate_img, false)
-                    .unwrap_or_default();
-                let binarized_invert_ocr = ocr
-                    .recognize_text_binarized(&rate_img, true)
-                    .unwrap_or_default();
-
-                img_report.push_str(&format!(
-                    "    - Windows OCR Color: '{}'\n",
-                    color_ocr.trim()
-                ));
-                img_report.push_str(&format!(
-                    "    - Windows OCR Binarized (Normal): '{}'\n",
-                    binarized_ocr.trim()
-                ));
-                img_report.push_str(&format!(
-                    "    - Windows OCR Binarized (Inverted): '{}'\n",
-                    binarized_invert_ocr.trim()
-                ));
             } else {
                 img_report.push_str("  [Rate ROI] Crop failed.\n");
             }
@@ -197,7 +170,7 @@ fn main() {
 
             if let Some(score_img) = crop_roi(&frame, score_roi) {
                 // 기존 파이프라인의 detect_score 실행
-                let parsed_val = ocr.detect_score(&score_img);
+                let parsed_val = overmax_engine::detector::templates::detect_score(&score_img);
 
                 img_report.push_str("  [Score ROI]\n");
                 img_report.push_str(&format!(
@@ -215,7 +188,6 @@ fn main() {
                 ));
 
                 // score 이진화 테스트를 모사하여 binary 파일 저장
-                // ocr_engine.rs 의 match_digits_template 이진화 로직 적용
                 let (binary, threshold, max_y) = overmax_cv::binarize_by_luminance(
                     &score_img.bgra,
                     score_img.width as usize,
@@ -247,28 +219,6 @@ fn main() {
                     score_bin_path.display(),
                     if saved_bin { "OK" } else { "Failed" }
                 ));
-
-                // 추가 개별 테스트
-                let color_ocr = ocr.recognize_text_color(&score_img).unwrap_or_default();
-                let binarized_ocr = ocr
-                    .recognize_text_binarized(&score_img, false)
-                    .unwrap_or_default();
-                let binarized_invert_ocr = ocr
-                    .recognize_text_binarized(&score_img, true)
-                    .unwrap_or_default();
-
-                img_report.push_str(&format!(
-                    "    - Windows OCR Color: '{}'\n",
-                    color_ocr.trim()
-                ));
-                img_report.push_str(&format!(
-                    "    - Windows OCR Binarized (Normal): '{}'\n",
-                    binarized_ocr.trim()
-                ));
-                img_report.push_str(&format!(
-                    "    - Windows OCR Binarized (Inverted): '{}'\n",
-                    binarized_invert_ocr.trim()
-                ));
             } else {
                 img_report.push_str("  [Score ROI] Crop failed.\n");
             }
@@ -279,7 +229,8 @@ fn main() {
             let saved_raw = save_crop(&frame, mode_roi, &mode_raw_path);
 
             if let Some(mode_img) = crop_roi(&frame, mode_roi) {
-                let detected_mode = ocr.detect_freestyle_mode(&mode_img);
+                let detected_mode =
+                    overmax_engine::detector::templates::detect_freestyle_mode(&mode_img);
                 img_report.push_str("  [Mode Digit ROI]\n");
                 img_report.push_str(&format!(
                     "    - Raw Crop Saved: {} ({})\n",
@@ -329,7 +280,8 @@ fn main() {
             let saved_raw = save_crop(&frame, diff_roi, &diff_raw_path);
 
             if let Some(diff_img) = crop_roi(&frame, diff_roi) {
-                let detected_diff = ocr.detect_result_difficulty(&diff_img);
+                let detected_diff =
+                    overmax_engine::detector::templates::detect_result_difficulty(&diff_img);
                 img_report.push_str("  [Diff Panel ROI]\n");
                 img_report.push_str(&format!(
                     "    - Raw Crop Saved: {} ({})\n",

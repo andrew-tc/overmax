@@ -2,9 +2,9 @@ use crate::capture::frame::CapturedFrame;
 use crate::capture::frame_utils::{make_thumbnail, thumbnail_changed};
 use crate::capture::window_tracker::WindowSnapshot;
 use crate::detector::hysteresis::HysteresisBuffer;
-use crate::detector::ocr_engine::{OcrDetector, OcrTelemetry};
 use crate::detector::play_state::PlayStateDetector;
 use crate::detector::roi::RoiManager;
+use crate::detector::RateTelemetry;
 use overmax_core::{GameSessionState, SceneType};
 use overmax_data::ImageIndexDb;
 
@@ -29,7 +29,7 @@ pub struct DetectionOutput {
     pub game_rect: Option<crate::capture::window_tracker::WindowRect>,
     pub window_snapshot: Option<WindowSnapshot>,
     pub capture_fatal: Option<String>,
-    pub ocr_telemetry: Option<OcrTelemetry>,
+    pub rate_telemetry: Option<RateTelemetry>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -52,7 +52,6 @@ pub struct DetectionPipeline {
     rois: RoiManager,
     hysteresis: HysteresisBuffer,
     play_state: PlayStateDetector,
-    ocr: OcrDetector,
     current_song_id: Option<i32>,
     last_logo_ocr_ts: f64,
     last_logo_scene: SceneType,
@@ -73,7 +72,6 @@ impl DetectionPipeline {
             rois: RoiManager::new(1920, 1080),
             hysteresis: HysteresisBuffer::new(4, 0.5, 2, 0.25, 2),
             play_state: PlayStateDetector::new(5),
-            ocr: OcrDetector::new(),
             current_song_id: None,
             last_logo_ocr_ts: 0.0,
             last_logo_scene: SceneType::Unknown,
@@ -100,10 +98,6 @@ impl DetectionPipeline {
         self.play_state.reset();
         self.play_state.clear_detected_cache();
         self.rois.set_scene(SceneType::Unknown);
-    }
-
-    pub fn ocr_available(&self) -> bool {
-        self.ocr.is_available()
     }
 
     pub fn detect(&mut self, frame: &CapturedFrame, now: f64) -> DetectionOutput {
@@ -190,7 +184,7 @@ impl DetectionPipeline {
         let jacket_status = self.update_song_id_from_jacket(frame, now);
         let (state, telemetry) =
             self.play_state
-                .detect(frame, &self.rois, self.current_song_id, &self.ocr, now);
+                .detect(frame, &self.rois, self.current_song_id, now);
 
         self.output(
             logo_detected,
@@ -231,7 +225,7 @@ impl DetectionPipeline {
         }
 
         let Some((scene, raw_text, matched_song_id)) =
-            parse_static_scene(frame, &self.ocr, &self.rois, &self.jacket_matcher)
+            parse_static_scene(frame, &self.rois, &self.jacket_matcher)
         else {
             debug_println!("    [detect_logo_if_due] logo crop failed! now={}", now);
             self.last_logo_scene = SceneType::Unknown;
@@ -407,7 +401,7 @@ impl DetectionPipeline {
         confidence: f32,
         state: GameSessionState,
         jacket_status: JacketMatchStatus,
-        ocr_telemetry: Option<OcrTelemetry>,
+        rate_telemetry: Option<RateTelemetry>,
     ) -> DetectionOutput {
         DetectionOutput {
             logo_detected,
@@ -422,7 +416,7 @@ impl DetectionPipeline {
             game_rect: None,
             window_snapshot: None,
             capture_fatal: None,
-            ocr_telemetry,
+            rate_telemetry,
         }
     }
 }
@@ -632,7 +626,6 @@ fn detect_openmatch_scene_via_edge(
 
 fn parse_static_scene(
     frame: &CapturedFrame,
-    _ocr: &OcrDetector,
     rois: &RoiManager,
     matcher: &overmax_data::JacketMatcher,
 ) -> Option<(SceneType, String, Option<i32>)> {
@@ -664,11 +657,10 @@ fn parse_static_scene(
 
 pub fn detect_scene_from_logo(
     frame: &CapturedFrame,
-    ocr: &OcrDetector,
     rois: &RoiManager,
     matcher: &overmax_data::JacketMatcher,
 ) -> SceneType {
-    parse_static_scene(frame, ocr, rois, matcher)
+    parse_static_scene(frame, rois, matcher)
         .map(|(scene, _, _)| scene)
         .unwrap_or(SceneType::Unknown)
 }
