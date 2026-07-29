@@ -56,6 +56,7 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
 - [x] [완료] Rate OCR과 Score 역산 값 불일치 시 템플릿 매칭 기반 Score 역산 값(`Score / 10,000`)을 우선 반영하도록 Rate 책정 로직 개선
 - [x] [완료] Windows OCR 의존성 및 WinRT C++ COM 연동을 완전히 제거하고 Pure Rust Native CV 템플릿 매칭 엔진으로 전면 단일화
 - [x] [완료] OcrDetector 껍데기 구조체 및 ocr_engine 모듈 전면 삭제, 템플릿 매칭 로직을 detector::templates 모듈의 순수 함수로 일원화하여 OCR 단어 및 레거시 잔재 코드 완전 소거
+- [x] [완료] 모드 및 난이도 관련 문자열 리터럴("4B"~"8B", "NM"~"SC")을 Mode 및 Difficulty Enum 기반 타입 안전 시스템으로 코드베이스 전반 전면 리팩토링 및 템플릿 매칭 힙 할당 제거 완료
 
 
 ## 6. 다국어 (i18n) 지원
