@@ -5,87 +5,14 @@ use std::path::Path;
 use std::sync::Arc;
 use strsim::normalized_damerau_levenshtein;
 
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Mode {
-    #[serde(rename = "4B")]
-    B4 = 0,
-    #[serde(rename = "5B")]
-    B5 = 1,
-    #[serde(rename = "6B")]
-    B6 = 2,
-    #[serde(rename = "8B")]
-    B8 = 3,
-}
-
-impl Mode {
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "4B" | "4b" => Some(Self::B4),
-            "5B" | "5b" => Some(Self::B5),
-            "6B" | "6b" => Some(Self::B6),
-            "8B" | "8b" => Some(Self::B8),
-            _ => None,
-        }
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::B4 => "4B",
-            Self::B5 => "5B",
-            Self::B6 => "6B",
-            Self::B8 => "8B",
-        }
-    }
-
-    pub fn button_count(&self) -> i32 {
-        match self {
-            Self::B4 => 4,
-            Self::B5 => 5,
-            Self::B6 => 6,
-            Self::B8 => 8,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Difficulty {
-    #[serde(rename = "NM")]
-    NM = 0,
-    #[serde(rename = "HD")]
-    HD = 1,
-    #[serde(rename = "MX")]
-    MX = 2,
-    #[serde(rename = "SC")]
-    SC = 3,
-}
-
-impl Difficulty {
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.trim().to_uppercase().as_str() {
-            "NM" | "NORMAL" => Some(Self::NM),
-            "HD" | "HARD" => Some(Self::HD),
-            "MX" | "MAXIMUM" => Some(Self::MX),
-            "SC" => Some(Self::SC),
-            _ => None,
-        }
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::NM => "NM",
-            Self::HD => "HD",
-            Self::MX => "MX",
-            Self::SC => "SC",
-        }
-    }
-}
+pub use overmax_core::{Difficulty, Mode};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PatternInfo {
     pub level: Option<u32>,
     pub floor: Option<f64>,
     #[serde(rename = "floorName")]
-    pub floor_name: Option<String>,
+    pub floor_name: Option<Arc<str>>,
     pub rating: Option<u32>,
 }
 
@@ -101,7 +28,7 @@ pub struct Dlc {
 pub struct Song {
     #[serde(deserialize_with = "deserialize_string_id")]
     pub title: String, // Actually song_id
-    pub name: String,
+    pub name: Arc<str>,
     pub composer: Arc<str>,
     #[serde(default, rename = "dlcCode")]
     pub dlc_code: Arc<str>,
@@ -114,22 +41,8 @@ pub struct Song {
 }
 
 impl Song {
-    pub fn get_pattern(&self, mode: &str, diff: &str) -> Option<&PatternInfo> {
-        let m_idx = match mode {
-            "4B" => 0,
-            "5B" => 1,
-            "6B" => 2,
-            "8B" => 3,
-            _ => return None,
-        };
-        let d_idx = match diff {
-            "NM" => 0,
-            "HD" => 1,
-            "MX" => 2,
-            "SC" => 3,
-            _ => return None,
-        };
-        self.patterns[m_idx][d_idx].as_ref()
+    pub fn get_pattern(&self, mode: Mode, diff: Difficulty) -> Option<&PatternInfo> {
+        self.patterns[mode as usize][diff as usize].as_ref()
     }
 }
 
@@ -508,7 +421,7 @@ mod tests {
     fn create_mock_song(title: &str, name: &str, composer: &str) -> Song {
         Song {
             title: title.to_string(),
-            name: name.to_string(),
+            name: Arc::from(name),
             composer: Arc::from(composer),
             dlc_code: Arc::from(""),
             patterns: Default::default(),
@@ -523,7 +436,7 @@ mod tests {
 
         let song = db.find_exact("kamui", "");
         assert!(song.is_some());
-        assert_eq!(song.unwrap().name, "Kamui");
+        assert_eq!(song.unwrap().name.as_ref(), "Kamui");
     }
 
     #[test]
@@ -535,7 +448,7 @@ mod tests {
         // typo "oblvion"
         let song = db.find_fuzzy("oblvion", "", 80);
         assert!(song.is_some());
-        assert_eq!(song.unwrap().name, "OBLIVION");
+        assert_eq!(song.unwrap().name.as_ref(), "OBLIVION");
     }
 
     #[test]
@@ -570,7 +483,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(song.title, "0");
-        assert_eq!(song.name, "비상 ~Stay With Me~");
+        assert_eq!(song.name.as_ref(), "비상 ~Stay With Me~");
     }
 
     #[test]

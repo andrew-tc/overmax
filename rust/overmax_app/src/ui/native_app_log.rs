@@ -28,7 +28,7 @@ impl NativeApp {
 }
 
 fn drain_pending_logs(
-    lines: &Arc<Mutex<VecDeque<String>>>,
+    lines: &Arc<Mutex<VecDeque<Arc<str>>>>,
     rx: &Receiver<String>,
     max_lines: usize,
     paused: &Arc<AtomicBool>,

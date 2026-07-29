@@ -1,6 +1,7 @@
 use rusqlite::types::ValueRef;
 use rusqlite::{Connection, Result};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImageMatch {
@@ -14,8 +15,6 @@ pub struct ImageEntry {
     pub phash: u64,
     pub dhash: u64,
     pub ahash: u64,
-    pub hog: Vec<f32>,
-    pub hog_norm: f32,
     pub grid_hist: Option<[u8; 384]>,
 }
 
@@ -25,7 +24,7 @@ pub struct ImageIndexDb {
     similarity_threshold: f32,
     pub disable_hog: bool,
     pub margin_threshold: f32,
-    entries: Vec<ImageEntry>,
+    entries: Arc<Vec<ImageEntry>>,
 }
 
 impl ImageIndexDb {
@@ -35,7 +34,7 @@ impl ImageIndexDb {
             similarity_threshold,
             disable_hog: true,
             margin_threshold: 3.0,
-            entries: Vec::new(),
+            entries: Arc::new(Vec::new()),
         }
     }
 
@@ -65,8 +64,10 @@ impl ImageIndexDb {
     pub fn load(&mut self) -> Result<usize> {
         let conn = Connection::open(&self.db_path)?;
         let _ = conn.execute("ALTER TABLE images ADD COLUMN metadata TEXT", []);
-        self.entries = load_entries(&conn)?;
-        Ok(self.entries.len())
+        let loaded = load_entries(&conn)?;
+        let len = loaded.len();
+        self.entries = Arc::new(loaded);
+        Ok(len)
     }
 
     pub fn song_count(&self) -> usize {
@@ -133,13 +134,7 @@ fn parse_entry(
         return None;
     }
 
-    // HOG 매칭이 100% 제거되었으므로, 메모리 절약을 위해 HOG 파싱을 완전히 스킵하고 빈 벡터로 상주량을 100% 절감
-    let hog_data = Vec::new();
-    let norm_val = 1.0;
-
     // metadata 파싱 (히스토그램 데이터 획득)
-    // 어제 철회되었던 대용량 마스크별 해시 적재와 달리, 이번 구조는 단 32바이트의 히스토그램 u8 배열만
-    // JSON 문자열(~100바이트)로 파싱하므로 I/O 및 파싱 오버헤드가 극도로 미미함.
     let mut grid_hist = None;
     if let Some(meta_str) = metadata_str {
         if let Ok(meta_json) = serde_json::from_str::<serde_json::Value>(meta_str) {
@@ -160,8 +155,6 @@ fn parse_entry(
         phash: orig_phash,
         dhash: orig_dhash,
         ahash: orig_ahash,
-        hog: hog_data,
-        hog_norm: norm_val,
         grid_hist,
     })
 }

@@ -86,7 +86,7 @@ pub struct PatternMetaEntry {
     pub meta: PatternSheetMetaItem,
 }
 
-type LookupKey = (String, Mode, Difficulty);
+type LookupKey = (i32, Mode, Difficulty);
 
 #[derive(Clone, Debug, Default)]
 pub struct PatternSheetMeta {
@@ -107,7 +107,10 @@ impl PatternSheetMeta {
         if let Ok(entries) = serde_json::from_str::<Vec<PatternMetaEntry>>(&text) {
             let items = entries
                 .into_iter()
-                .map(|e| ((e.song_id, e.mode, e.diff), e.meta))
+                .filter_map(|e| {
+                    let id = e.song_id.parse::<i32>().ok()?;
+                    Some(((id, e.mode, e.diff), e.meta))
+                })
                 .collect();
             return Self { items };
         }
@@ -140,7 +143,9 @@ impl PatternSheetMeta {
             if let Some(song) =
                 varchive_db.find_best_match(title, &mode_str, &diff_str, None, "", &item.note)
             {
-                items.insert((song.title.to_string(), mode, diff), item);
+                if let Ok(id) = song.title.parse::<i32>() {
+                    items.insert((id, mode, diff), item);
+                }
             }
         }
 
@@ -151,8 +156,15 @@ impl PatternSheetMeta {
     }
 
     pub fn get(&self, song_id: &str, mode: Mode, diff: Difficulty) -> PatternSheetMetaItem {
+        let Ok(id) = song_id.parse::<i32>() else {
+            return PatternSheetMetaItem::default();
+        };
+        self.get_by_id(id, mode, diff)
+    }
+
+    pub fn get_by_id(&self, song_id: i32, mode: Mode, diff: Difficulty) -> PatternSheetMetaItem {
         self.items
-            .get(&(song_id.to_string(), mode, diff))
+            .get(&(song_id, mode, diff))
             .cloned()
             .unwrap_or_default()
     }
@@ -162,7 +174,7 @@ impl PatternSheetMeta {
             .items
             .iter()
             .map(|((song_id, mode, diff), meta)| PatternMetaEntry {
-                song_id: song_id.clone(),
+                song_id: song_id.to_string(),
                 mode: *mode,
                 diff: *diff,
                 meta: meta.clone(),
@@ -182,7 +194,7 @@ mod tests {
     fn lookup_uses_tuple_key() {
         let mut items = HashMap::new();
         items.insert(
-            ("123".to_string(), Mode::B5, Difficulty::SC),
+            (123, Mode::B5, Difficulty::SC),
             PatternSheetMetaItem {
                 gold: GoldMeta::Random,
                 note: "개인차".into(),

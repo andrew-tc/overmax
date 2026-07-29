@@ -1,7 +1,105 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-pub type RecordKey = (i32, String, String);
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum Mode {
+    #[serde(rename = "4B")]
+    B4 = 0,
+    #[serde(rename = "5B")]
+    B5 = 1,
+    #[serde(rename = "6B")]
+    B6 = 2,
+    #[serde(rename = "8B")]
+    B8 = 3,
+}
+
+impl Mode {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.trim() {
+            "4B" | "4b" => Some(Self::B4),
+            "5B" | "5b" => Some(Self::B5),
+            "6B" | "6b" => Some(Self::B6),
+            "8B" | "8b" => Some(Self::B8),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::B4 => "4B",
+            Self::B5 => "5B",
+            Self::B6 => "6B",
+            Self::B8 => "8B",
+        }
+    }
+
+    pub const ALL: [Self; 4] = [Self::B4, Self::B5, Self::B6, Self::B8];
+
+    pub fn button_count(&self) -> i32 {
+        match self {
+            Self::B4 => 4,
+            Self::B5 => 5,
+            Self::B6 => 6,
+            Self::B8 => 8,
+        }
+    }
+}
+
+impl fmt::Display for Mode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum Difficulty {
+    #[serde(rename = "NM")]
+    NM = 0,
+    #[serde(rename = "HD")]
+    HD = 1,
+    #[serde(rename = "MX")]
+    MX = 2,
+    #[serde(rename = "SC")]
+    SC = 3,
+}
+
+impl Difficulty {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.trim().to_uppercase().as_str() {
+            "NM" | "NORMAL" => Some(Self::NM),
+            "HD" | "HARD" => Some(Self::HD),
+            "MX" | "MAXIMUM" => Some(Self::MX),
+            "SC" => Some(Self::SC),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::NM => "NM",
+            Self::HD => "HD",
+            Self::MX => "MX",
+            Self::SC => "SC",
+        }
+    }
+}
+
+impl fmt::Display for Difficulty {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl Difficulty {
+    pub const ALL: [Self; 4] = [Self::NM, Self::HD, Self::MX, Self::SC];
+
+    /// SC 계열 여부
+    pub fn is_sc(&self) -> bool {
+        matches!(self, Self::SC)
+    }
+}
+
+pub type RecordKey = (i32, Mode, Difficulty);
 pub type RecordValue = (f32, bool);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -29,8 +127,8 @@ impl SceneType {
 #[derive(Clone, Debug, PartialEq)]
 pub struct PlayContext {
     pub song_id: i32,
-    pub mode: String,
-    pub diff: String,
+    pub mode: Mode,
+    pub diff: Difficulty,
     pub rate: f32,
     pub is_max_combo: bool,
 }
@@ -100,7 +198,7 @@ impl fmt::Display for GameSessionState {
 
 #[cfg(test)]
 mod tests {
-    use super::{GameSessionState, PlayContext, SceneType};
+    use super::{Difficulty, GameSessionState, Mode, PlayContext, SceneType};
 
     #[test]
     fn song_id_zero_is_valid_when_state_is_stable() {
@@ -108,8 +206,8 @@ mod tests {
             scene: SceneType::Freestyle,
             context: Some(PlayContext {
                 song_id: 0,
-                mode: "4B".to_string(),
-                diff: "MX".to_string(),
+                mode: Mode::B4,
+                diff: Difficulty::MX,
                 rate: 0.0,
                 is_max_combo: false,
             }),
@@ -126,8 +224,8 @@ mod tests {
             scene: SceneType::Freestyle,
             context: Some(PlayContext {
                 song_id: 1,
-                mode: "4B".to_string(),
-                diff: "MX".to_string(),
+                mode: Mode::B4,
+                diff: Difficulty::MX,
                 rate: 99.1,
                 is_max_combo: false,
             }),
@@ -145,8 +243,8 @@ mod tests {
 
         state.context = Some(PlayContext {
             song_id: 1,
-            mode: "4B".to_string(),
-            diff: "MX".to_string(),
+            mode: Mode::B4,
+            diff: Difficulty::MX,
             rate: 0.0,
             is_max_combo: false,
         });

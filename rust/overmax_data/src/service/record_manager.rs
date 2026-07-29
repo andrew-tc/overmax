@@ -1,5 +1,5 @@
 use crate::store::record_db::RecordDB;
-use overmax_core::{RecordKey, RecordValue};
+use overmax_core::{Difficulty, Mode, RecordKey, RecordValue};
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -65,8 +65,8 @@ impl RecordManager {
     pub fn upsert(
         &self,
         song_id: i32,
-        button_mode: &str,
-        difficulty: &str,
+        button_mode: Mode,
+        difficulty: Difficulty,
         rate: f32,
         is_max_combo: bool,
         only_if_improved: bool,
@@ -80,7 +80,7 @@ impl RecordManager {
             only_if_improved,
         ) {
             if let Ok(mut guard) = self.dirty_record_keys.lock() {
-                guard.insert((song_id, button_mode.to_string(), difficulty.to_string()));
+                guard.insert((song_id, button_mode, difficulty));
             }
             self.data_revision.fetch_add(1, Ordering::SeqCst);
             return true;
@@ -88,13 +88,14 @@ impl RecordManager {
         false
     }
 
-    pub fn delete(&self, song_id: i32, button_mode: &str, difficulty: &str) -> bool {
+    pub fn delete(&self, song_id: i32, button_mode: Mode, difficulty: Difficulty) -> bool {
         if self.record_db.delete(song_id, button_mode, difficulty) {
+            let key = (song_id, button_mode, difficulty);
             if let Ok(mut guard) = self.varchive_cache.lock() {
-                guard.remove(&(song_id, button_mode.to_string(), difficulty.to_string()));
+                guard.remove(&key);
             }
             if let Ok(mut guard) = self.dirty_record_keys.lock() {
-                guard.insert((song_id, button_mode.to_string(), difficulty.to_string()));
+                guard.insert(key);
             }
             self.data_revision.fetch_add(1, Ordering::SeqCst);
             return true;
@@ -118,8 +119,8 @@ impl RecordManager {
     pub fn get_local_record(
         &self,
         song_id: i32,
-        button_mode: &str,
-        difficulty: &str,
+        button_mode: Mode,
+        difficulty: Difficulty,
     ) -> Option<RecordValue> {
         self.record_db.get(song_id, button_mode, difficulty)
     }
@@ -127,13 +128,11 @@ impl RecordManager {
     pub fn get_varchive_cache_record(
         &self,
         song_id: i32,
-        button_mode: &str,
-        difficulty: &str,
+        button_mode: Mode,
+        difficulty: Difficulty,
     ) -> Option<RecordValue> {
         let guard = overmax_core::lock_or_recover(&self.varchive_cache);
-        guard
-            .get(&(song_id, button_mode.to_string(), difficulty.to_string()))
-            .copied()
+        guard.get(&(song_id, button_mode, difficulty)).copied()
     }
 
     fn merge_varchive_cache(&self, result: &mut HashMap<RecordKey, RecordValue>, song_ids: &[i32]) {
@@ -193,7 +192,7 @@ mod tests {
 
         let mut db = RecordDB::new(&db_path, Some(steam_id));
         assert!(db.initialize());
-        assert!(db.upsert(42, "4B", "MX", 98.0, false, false));
+        assert!(db.upsert(42, overmax_core::Mode::B4, overmax_core::Difficulty::MX, 98.0, false, false));
         write_cache(&cache_root, steam_id);
         db.migrate_json_cache_to_db(&cache_root).unwrap();
 
@@ -204,11 +203,11 @@ mod tests {
         let map = manager.get_rate_map(&[42, 99]);
 
         assert_eq!(
-            map.get(&(42, "4B".into(), "MX".into())),
+            map.get(&(42, overmax_core::Mode::B4, overmax_core::Difficulty::MX)),
             Some(&(99.5, true))
         );
         assert_eq!(
-            map.get(&(99, "4B".into(), "SC".into())),
+            map.get(&(99, overmax_core::Mode::B4, overmax_core::Difficulty::SC)),
             Some(&(97.0, false))
         );
 
@@ -284,8 +283,8 @@ mod tests {
         let mut db = RecordDB::new(&db_path, None);
         assert!(db.initialize());
 
-        assert!(db.upsert(1, "4B", "MX", 99.0, false, false));
-        assert!(db.upsert(2, "4B", "MX", 97.0, false, false));
+        assert!(db.upsert(1, overmax_core::Mode::B4, overmax_core::Difficulty::MX, 99.0, false, false));
+        assert!(db.upsert(2, overmax_core::Mode::B4, overmax_core::Difficulty::MX, 97.0, false, false));
 
         let record_db = Arc::new(db);
         let record_manager = Arc::new(RecordManager::new(record_db));
@@ -293,7 +292,7 @@ mod tests {
 
         let recommender = Recommender::new(Arc::new(vdb), record_manager);
 
-        let result = recommender.recommend(1, "4B", "MX", 0.1, 10, true);
+        let result = recommender.recommend(1, overmax_core::Mode::B4, overmax_core::Difficulty::MX, 0.1, 10, true);
 
         assert_eq!(result.entries.len(), 1);
         assert_eq!(result.entries[0].song_id, 2);
@@ -315,7 +314,7 @@ mod tests {
 
         let mut db = RecordDB::new(&db_path, Some(steam_id));
         assert!(db.initialize());
-        assert!(db.upsert(123, "5B", "SC", 99.80, true, false));
+        assert!(db.upsert(123, overmax_core::Mode::B5, overmax_core::Difficulty::SC, 99.80, true, false));
         write_cache(&cache_root, steam_id); // Writes MX/SC cache: MX=99.5, SC=97.0 for song 42/99
         db.migrate_json_cache_to_db(&cache_root).unwrap();
 
@@ -325,18 +324,18 @@ mod tests {
 
         // 1. Verify get_local_record
         assert_eq!(
-            manager.get_local_record(123, "5B", "SC"),
+            manager.get_local_record(123, overmax_core::Mode::B5, overmax_core::Difficulty::SC),
             Some((99.80, true))
         );
-        assert_eq!(manager.get_local_record(999, "4B", "NM"), None);
+        assert_eq!(manager.get_local_record(999, overmax_core::Mode::B4, overmax_core::Difficulty::NM), None);
 
         // 2. Verify get_varchive_cache_record
         // Write cache has MX 99.5 for song 42
         assert_eq!(
-            manager.get_varchive_cache_record(42, "4B", "MX"),
+            manager.get_varchive_cache_record(42, overmax_core::Mode::B4, overmax_core::Difficulty::MX),
             Some((99.5, true))
         );
-        assert_eq!(manager.get_varchive_cache_record(42, "4B", "NM"), None);
+        assert_eq!(manager.get_varchive_cache_record(42, overmax_core::Mode::B4, overmax_core::Difficulty::NM), None);
 
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -351,13 +350,16 @@ mod tests {
         let db = Arc::new(db);
         let manager = RecordManager::new(db);
 
-        assert_eq!(manager.get_varchive_cache_record(50, "6B", "MX"), None);
+        assert_eq!(manager.get_varchive_cache_record(50, overmax_core::Mode::B6, overmax_core::Difficulty::MX), None);
 
         // Perform O(1) incremental update
-        manager.upsert_varchive_record((50, "6B".into(), "MX".into()), (99.85, true));
+        manager.upsert_varchive_record(
+            (50, overmax_core::Mode::B6, overmax_core::Difficulty::MX),
+            (99.85, true),
+        );
 
         assert_eq!(
-            manager.get_varchive_cache_record(50, "6B", "MX"),
+            manager.get_varchive_cache_record(50, overmax_core::Mode::B6, overmax_core::Difficulty::MX),
             Some((99.85, true))
         );
 
