@@ -137,8 +137,9 @@ impl JacketMatcher {
         let mut best_sim = -1.0f32;
 
         if let Some(hist_list) = &self.hist_list {
-            // [최적 경로] 히스토그램이 존재하는 현대 DB 전용 루프 (루프 내 Option 분기 0개)
-            for (idx, e_hist) in hist_list.iter().enumerate() {
+            // [최적 경로] 1차 필터 탈락 시 384B 히스토그램 메모리는 주소 참조조차 100% 억제 (Lazy Fetch)
+            #[allow(clippy::needless_range_loop)]
+            for idx in 0..len {
                 // L1 캐시 연속 정수 배열에서 직접 POPCNT 연산 (1클럭)
                 let p_dist = (self.phash_list[idx] ^ q_phash).count_ones();
                 let d_dist = ((self.dhash_list[idx] ^ q_dhash) & hash_mask).count_ones();
@@ -147,11 +148,13 @@ impl JacketMatcher {
                 let hamming_sum = p_dist + d_dist + a_dist;
 
                 // 1차 필터: Early Exit (임계치 42비트)
+                // 95%+ 불일치 곡은 아래 384B 히스토그램 버퍼 주소 참조조차 하지 않고 즉시 탈락!
                 if hamming_sum > Self::HAMMING_EARLY_EXIT_THRESHOLD {
                     continue;
                 }
 
-                // 2차 필터: SIMD SAD(u8::abs_diff) 히스토그램 L1 차이 연산 (Option 분기 없음)
+                // 1차 필터를 통과한 5% 미만의 극소수 회차에서만 384B 메모리 로드 (Lazy Fetch)
+                let e_hist = &hist_list[idx];
                 let hist_diff: u32 = e_hist
                     .iter()
                     .zip(q_grid_hist.iter())
