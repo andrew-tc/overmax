@@ -612,9 +612,7 @@ mod tests {
         for y in y1..y2 {
             for x in x1..x2 {
                 let idx = ((y * frame.width + x) * 4) as usize;
-                frame.bgra[idx] = bgr.b;
-                frame.bgra[idx + 1] = bgr.g;
-                frame.bgra[idx + 2] = bgr.r;
+                bgr.write_to_bgra(&mut frame.bgra[idx..idx + 4], 255);
             }
         }
     }

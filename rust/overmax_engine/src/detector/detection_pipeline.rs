@@ -913,10 +913,8 @@ mod tests {
 
             for (x, y, pixel) in img.pixels() {
                 let idx = ((y * w + x) * 4) as usize;
-                bgra[idx] = pixel[2]; // B
-                bgra[idx + 1] = pixel[1]; // G
-                bgra[idx + 2] = pixel[0]; // R
-                bgra[idx + 3] = pixel[3]; // A
+                overmax_cv::Bgr::new(pixel[2], pixel[1], pixel[0])
+                    .write_to_bgra(&mut bgra[idx..idx + 4], pixel[3]);
             }
 
             let frame = CapturedFrame {

@@ -45,6 +45,14 @@ impl<T> From<Bgr<T>> for (T, T, T) {
 
 impl Bgr<u8> {
     #[inline]
+    pub fn write_to_bgra(self, slice: &mut [u8], alpha: u8) {
+        slice[0] = self.b;
+        slice[1] = self.g;
+        slice[2] = self.r;
+        slice[3] = alpha;
+    }
+
+    #[inline]
     pub fn swap_rb_slice(slice: &mut [u8]) {
         for chunk in slice.chunks_exact_mut(4) {
             chunk.swap(0, 2);
@@ -158,7 +166,6 @@ impl Bgr<f64> {
     pub fn distance(self, other: Self) -> f64 {
         self.distance_sq(other).sqrt()
     }
-
 }
 
 impl Add for Bgr<f64> {
@@ -233,5 +240,9 @@ mod tests {
         assert_eq!(f1.average(), 20.0);
         assert_eq!(f1.max_channel_diff(), 20.0);
         assert!((f1.distance(f2) - 6.4031242374328485).abs() < 1e-6);
+
+        let mut buf = [0u8; 4];
+        c1.write_to_bgra(&mut buf, 255);
+        assert_eq!(buf, [10, 20, 30, 255]);
     }
 }

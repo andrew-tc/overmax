@@ -71,10 +71,7 @@ fn save_segment_as_png(
             let src_x = x1 + x;
             let val = binary[y * full_width + src_x];
             let idx = (y * width + x) * 4;
-            bgra[idx] = val; // B
-            bgra[idx + 1] = val; // G
-            bgra[idx + 2] = val; // R
-            bgra[idx + 3] = 255; // A
+            overmax_cv::Bgr::new(val, val, val).write_to_bgra(&mut bgra[idx..idx + 4], 255);
         }
     }
 

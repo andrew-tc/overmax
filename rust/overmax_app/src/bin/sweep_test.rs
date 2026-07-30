@@ -58,10 +58,8 @@ fn evaluate_sweep(
                         let idx = (y * w + x) * 4;
                         let mask_val = t.mask[y * w + x];
                         let pixel_color = if mask_val == 1 { fg_color } else { bg_color };
-                        bgra[idx] = pixel_color; // B
-                        bgra[idx + 1] = pixel_color; // G
-                        bgra[idx + 2] = pixel_color; // R
-                        bgra[idx + 3] = 255; // A
+                        overmax_cv::Bgr::new(pixel_color, pixel_color, pixel_color)
+                            .write_to_bgra(&mut bgra[idx..idx + 4], 255);
                     }
                 }
 
