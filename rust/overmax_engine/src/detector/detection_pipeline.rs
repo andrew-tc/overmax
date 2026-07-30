@@ -710,28 +710,21 @@ fn check_category_band_solid(
                 return Some(false);
             }
 
-            let mut sum_b = 0.0;
-            let mut sum_g = 0.0;
-            let mut sum_r = 0.0;
+            let mut sum_bgr = overmax_cv::Bgr::new(0.0, 0.0, 0.0);
 
             for y in 0..band_img.height as usize {
                 for x in 0..band_img.width as usize {
                     let idx = (y * band_img.width as usize + x) * 4;
                     if idx + 2 < band_img.bgra.len() {
-                        sum_b += band_img.bgra[idx] as f64;
-                        sum_g += band_img.bgra[idx + 1] as f64;
-                        sum_r += band_img.bgra[idx + 2] as f64;
+                        sum_bgr += overmax_cv::Bgr::from_bgra_slice_f64(&band_img.bgra[idx..]);
                     }
                 }
             }
 
-            let mean_b = sum_b / total_pixels as f64;
-            let mean_g = sum_g / total_pixels as f64;
-            let mean_r = sum_r / total_pixels as f64;
+            let mean = sum_bgr / total_pixels as f64;
 
             // 1. Brightness 가드 (>= 60.0)
-            let brightness =
-                overmax_cv::LumaMethod::Weighted.calculate_luma_f64(mean_b, mean_g, mean_r);
+            let brightness = mean.luma(overmax_cv::LumaMethod::Weighted);
             if brightness < 60.0 {
                 return Some(false);
             }
@@ -742,10 +735,8 @@ fn check_category_band_solid(
                 for x in 0..band_img.width as usize {
                     let idx = (y * band_img.width as usize + x) * 4;
                     if idx + 2 < band_img.bgra.len() {
-                        let b = band_img.bgra[idx] as f64;
-                        let g = band_img.bgra[idx + 1] as f64;
-                        let r = band_img.bgra[idx + 2] as f64;
-                        diff_sum += (b - mean_b).abs() + (g - mean_g).abs() + (r - mean_r).abs();
+                        let px = overmax_cv::Bgr::from_bgra_slice_f64(&band_img.bgra[idx..]);
+                        diff_sum += px.abs_diff(mean).sum_channels();
                     }
                 }
             }
@@ -756,8 +747,8 @@ fn check_category_band_solid(
             }
 
             // 3. Saturation 및 무채색(Gray) 채널 균등성 검증
-            let max_c = mean_r.max(mean_g).max(mean_b);
-            let min_c = mean_r.min(mean_g).min(mean_b);
+            let max_c = mean.max_channel();
+            let min_c = mean.min_channel();
             let saturation = if max_c > 0.0 {
                 (max_c - min_c) / max_c
             } else {
@@ -765,9 +756,9 @@ fn check_category_band_solid(
             };
 
             if saturation < 0.15 {
-                let diff_rg = (mean_r - mean_g).abs();
-                let diff_gb = (mean_g - mean_b).abs();
-                let diff_rb = (mean_r - mean_b).abs();
+                let diff_rg = (mean.r - mean.g).abs();
+                let diff_gb = (mean.g - mean.b).abs();
+                let diff_rb = (mean.r - mean.b).abs();
                 if diff_rg > 15.0 || diff_gb > 15.0 || diff_rb > 15.0 {
                     return Some(false);
                 }

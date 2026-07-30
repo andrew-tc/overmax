@@ -1,8 +1,10 @@
+pub mod color;
 pub mod error;
 pub mod hog;
 pub mod image;
 pub mod ocr;
 
+pub use color::Bgr;
 pub use ocr::OcrPreprocessResult;
 
 pub fn compute_hashes_gray(
