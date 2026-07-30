@@ -730,7 +730,8 @@ fn check_category_band_solid(
             let mean_r = sum_r / total_pixels as f64;
 
             // 1. Brightness 가드 (>= 60.0)
-            let brightness = 0.114 * mean_b + 0.587 * mean_g + 0.299 * mean_r;
+            let brightness =
+                overmax_cv::LumaMethod::Weighted.calculate_luma_f64(mean_b, mean_g, mean_r);
             if brightness < 60.0 {
                 return Some(false);
             }

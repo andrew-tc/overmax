@@ -427,6 +427,26 @@ pub enum LumaMethod {
     MaxRGB,   // max(R, G, B)
 }
 
+impl LumaMethod {
+    #[inline]
+    pub fn calculate_luma(self, b: u8, g: u8, r: u8) -> u8 {
+        match self {
+            LumaMethod::Weighted => ((77 * r as u32 + 150 * g as u32 + 29 * b as u32) >> 8) as u8,
+            LumaMethod::Average => ((r as u32 + g as u32 + b as u32) / 3) as u8,
+            LumaMethod::MaxRGB => r.max(g).max(b),
+        }
+    }
+
+    #[inline]
+    pub fn calculate_luma_f64(self, b: f64, g: f64, r: f64) -> f64 {
+        match self {
+            LumaMethod::Weighted => 0.114 * b + 0.587 * g + 0.299 * r,
+            LumaMethod::Average => (b + g + r) / 3.0,
+            LumaMethod::MaxRGB => b.max(g).max(r),
+        }
+    }
+}
+
 pub fn binarize_by_luminance(
     bgra: &[u8],
     width: usize,
@@ -446,13 +466,7 @@ pub fn binarize_by_luminance(
             let g = bgra[idx + 1];
             let r = bgra[idx + 2];
 
-            let luma = match method {
-                LumaMethod::Weighted => {
-                    ((77 * r as u32 + 150 * g as u32 + 29 * b as u32) >> 8) as u8
-                }
-                LumaMethod::Average => ((r as u32 + g as u32 + b as u32) / 3) as u8,
-                LumaMethod::MaxRGB => r.max(g).max(b),
-            };
+            let luma = method.calculate_luma(b, g, r);
 
             luma_vals[y * width + x] = luma;
             if luma > max_y {

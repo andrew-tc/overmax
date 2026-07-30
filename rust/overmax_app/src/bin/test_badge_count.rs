@@ -107,7 +107,11 @@ fn analyze_folder(dir_path: &Path, default_scene: SceneType, threshold: f32) -> 
         let avg_r = r_sum / total_pixels;
         let avg_g = g_sum / total_pixels;
         let avg_b = b_sum / total_pixels;
-        let brightness = 0.299 * avg_r + 0.587 * avg_g + 0.114 * avg_b;
+        let brightness = overmax_cv::LumaMethod::Weighted.calculate_luma_f64(
+            avg_b as f64,
+            avg_g as f64,
+            avg_r as f64,
+        );
 
         let score_perfect = calculate_hash_score(
             phash,
