@@ -73,16 +73,6 @@ impl JacketMatcher {
         self.config.similarity_threshold
     }
 
-    pub fn match_jacket(
-        &self,
-        data: &[u8],
-        width: usize,
-        height: usize,
-        channels: usize,
-    ) -> Option<ImageMatch> {
-        self.match_jacket_with_top_k(data, width, height, channels, 10)
-    }
-
     fn update_cache(&self, idx: usize) {
         if let Ok(mut guard) = self.cache.lock() {
             if let Some(pos) = guard.recent_indices.iter().position(|&x| x == idx) {
@@ -95,16 +85,14 @@ impl JacketMatcher {
         }
     }
 
-    /// 구버전 매칭 엔진의 public API 시그니처 호환성을 유지하기 위한 메서드입니다.
     /// 100% 무상태(Stateless) 단일 패스 스캔으로 이전 곡 캐시 고착/Invalidation 오류를 0% 차단하며,
-    /// Option을 루프 밖으로 1회 분기 추출하여 루프 내부 분기(0개) 및 SIMD SAD(u8::abs_diff) 고속 스캔을 수행합니다.
-    pub fn match_jacket_with_top_k(
+    /// SoA 평탄화 해시 및 SIMD SAD(u8::abs_diff) 히스토그램 대조로 고속 스캔을 수행합니다.
+    pub fn match_jacket(
         &self,
         data: &[u8],
         width: usize,
         height: usize,
         channels: usize,
-        _top_k: usize,
     ) -> Option<ImageMatch> {
         if self.phash_list.is_empty() {
             return None;
