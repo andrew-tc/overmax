@@ -437,11 +437,9 @@ const OPENMATCH_COLORS: [(u8, u8, u8); 4] = [
 
 fn get_min_color_distance(mean: (u8, u8, u8), colors: &[(u8, u8, u8)]) -> f32 {
     let mut min_dist = f32::MAX;
+    let mean_bgr = overmax_cv::Bgr::from(mean);
     for color in colors {
-        let db = f32::from(mean.0) - f32::from(color.0);
-        let dg = f32::from(mean.1) - f32::from(color.1);
-        let dr = f32::from(mean.2) - f32::from(color.2);
-        let dist = (db * db + dg * dg + dr * dr).sqrt();
+        let dist = mean_bgr.distance_f32(overmax_cv::Bgr::from(*color));
         if dist < min_dist {
             min_dist = dist;
         }
@@ -756,10 +754,11 @@ fn check_category_band_solid(
             };
 
             if saturation < 0.15 {
-                let diff_rg = (mean.r - mean.g).abs();
-                let diff_gb = (mean.g - mean.b).abs();
-                let diff_rb = (mean.r - mean.b).abs();
-                if diff_rg > 15.0 || diff_gb > 15.0 || diff_rb > 15.0 {
+                if mean.max_channel_diff() > 15.0 {
+                    debug_println!(
+                        "    [check_category_band_solid] Category band rejected: channel diff {:.1} > 15.0",
+                        mean.max_channel_diff()
+                    );
                     return Some(false);
                 }
             }

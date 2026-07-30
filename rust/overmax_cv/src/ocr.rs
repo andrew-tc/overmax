@@ -1,4 +1,5 @@
-use crate::image::resize_bilinear_u8;
+use crate::color::Bgr;
+use crate::image::{resize_bilinear_u8, LumaMethod};
 
 fn autocontrast_gray(data: &mut [u8]) {
     if data.is_empty() {
@@ -167,13 +168,7 @@ fn to_gray_ocr(data: &[u8], channels: usize) -> Vec<u8> {
     }
     // 표준 ITU-R BT.601 가중치를 적용한 휘도(Luminance) 기반 그레이스케일 변환
     data.chunks_exact(channels)
-        .map(|pixel| {
-            ((77 * u16::from(pixel[2])
-                + 150 * u16::from(pixel[1])
-                + 29 * u16::from(pixel[0])
-                + 128)
-                >> 8) as u8
-        })
+        .map(|pixel| Bgr::from_bgra_slice(pixel).luma(LumaMethod::Weighted))
         .collect()
 }
 

@@ -105,17 +105,17 @@ fn mean_bgr(bgra: &[u8]) -> (u8, u8, u8) {
     if bgra.len() < 4 {
         return (0, 0, 0);
     }
-    let mut b = 0u64;
-    let mut g = 0u64;
-    let mut r = 0u64;
+    let mut acc = overmax_cv::Bgr::<u64>::default();
     let mut count = 0u64;
     for pixel in bgra.chunks_exact(4) {
-        b += u64::from(pixel[0]);
-        g += u64::from(pixel[1]);
-        r += u64::from(pixel[2]);
+        acc += overmax_cv::Bgr::from_bgra_slice(pixel).to_u64();
         count += 1;
     }
-    ((b / count) as u8, (g / count) as u8, (r / count) as u8)
+    (
+        (acc.b / count) as u8,
+        (acc.g / count) as u8,
+        (acc.r / count) as u8,
+    )
 }
 
 fn mean_abs_diff(current: &[u8], previous: &[u8]) -> f32 {

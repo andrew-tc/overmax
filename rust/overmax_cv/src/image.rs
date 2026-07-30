@@ -1,3 +1,4 @@
+use crate::color::Bgr;
 use crate::error::CvError;
 
 pub fn validate_image(
@@ -462,11 +463,7 @@ pub fn binarize_by_luminance(
     for y in 0..height {
         for x in 0..width {
             let idx = (y * width + x) * 4;
-            let b = bgra[idx];
-            let g = bgra[idx + 1];
-            let r = bgra[idx + 2];
-
-            let luma = method.calculate_luma(b, g, r);
+            let luma = Bgr::from_bgra_slice(&bgra[idx..]).luma(method);
 
             luma_vals[y * width + x] = luma;
             if luma > max_y {
@@ -537,18 +534,7 @@ pub fn adaptive_threshold_bradley_roth(
     for y in 0..height {
         for x in 0..width {
             let idx = (y * width + x) * 4;
-            let b = bgra[idx];
-            let g = bgra[idx + 1];
-            let r = bgra[idx + 2];
-
-            let luma = match method {
-                LumaMethod::Weighted => {
-                    ((77 * r as u32 + 150 * g as u32 + 29 * b as u32) >> 8) as u8
-                }
-                LumaMethod::Average => ((r as u32 + g as u32 + b as u32) / 3) as u8,
-                LumaMethod::MaxRGB => r.max(g).max(b),
-            };
-            luma_vals[y * width + x] = luma;
+            luma_vals[y * width + x] = Bgr::from_bgra_slice(&bgra[idx..]).luma(method);
         }
     }
 

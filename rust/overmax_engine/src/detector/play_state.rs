@@ -391,8 +391,8 @@ pub fn detect_difficulty(frame: &CapturedFrame, rois: &RoiManager) -> (Option<Di
         .iter()
         .filter_map(|&diff| {
             let roi = rois.get_diff_panel_roi(diff)?;
-            let (b, g, r) = region_mean_bgr(frame, roi);
-            Some((diff, (f32::from(b) + f32::from(g) + f32::from(r)) / 3.0))
+            let mean = region_mean_bgr(frame, roi);
+            Some((diff, overmax_cv::Bgr::from(mean).to_f64().average() as f32))
         })
         .collect::<Vec<_>>();
     brightnesses.sort_by(|a, b| b.1.total_cmp(&a.1));
@@ -509,10 +509,7 @@ fn openmatch_button_colors() -> [ButtonColorEntry; 4] {
 }
 
 fn color_dist(left: (u8, u8, u8), right: (u8, u8, u8)) -> f32 {
-    let db = f32::from(left.0) - f32::from(right.0);
-    let dg = f32::from(left.1) - f32::from(right.1);
-    let dr = f32::from(left.2) - f32::from(right.2);
-    (db * db + dg * dg + dr * dr).sqrt()
+    overmax_cv::Bgr::from(left).distance_f32(overmax_cv::Bgr::from(right))
 }
 
 pub fn resolve_most_plausible_rate(
