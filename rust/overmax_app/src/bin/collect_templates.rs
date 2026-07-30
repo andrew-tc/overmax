@@ -54,53 +54,6 @@ fn threshold_luminance(bgra: &[u8], width: usize, height: usize) -> Vec<u8> {
     binary
 }
 
-// 수직 프로젝션을 이용한 폰트 영역 슬라이싱 (세그멘테이션)
-// 각 문자의 시작 x 좌표와 끝 x 좌표 목록을 반환
-fn segment_characters(binary: &[u8], width: usize, height: usize) -> Vec<(usize, usize)> {
-    let mut col_proj = vec![0u32; width];
-    for x in 0..width {
-        let mut sum = 0u32;
-        for y in 0..height {
-            if binary[y * width + x] == 255 {
-                sum += 1;
-            }
-        }
-        col_proj[x] = sum;
-    }
-
-    let mut segments = Vec::new();
-    let mut in_char = false;
-    let mut start_x = 0;
-
-    // 켜진 픽셀 임계값 (노이즈 방지를 위해 1열당 최소 1픽셀 초과하여 켜져 있어야 문자로 인정)
-    let col_threshold = 1;
-
-    for (x, &col_sum) in col_proj.iter().enumerate().take(width) {
-        let active = col_sum >= col_threshold;
-        if active && !in_char {
-            start_x = x;
-            in_char = true;
-        } else if !active && in_char {
-            // 문자가 끝남 (공백 구간 진입)
-            let end_x = x;
-            // 너무 좁은 세그먼트는 노이즈로 간주하고 배제 (최소 너비 2픽셀)
-            if end_x - start_x >= 2 {
-                segments.push((start_x, end_x));
-            }
-            in_char = false;
-        }
-    }
-
-    if in_char {
-        let end_x = width;
-        if end_x - start_x >= 2 {
-            segments.push((start_x, end_x));
-        }
-    }
-
-    segments
-}
-
 fn save_segment_as_png(
     binary: &[u8],
     full_width: usize,
@@ -230,8 +183,12 @@ fn main() {
         );
 
         // 3. 수직 프로젝션 분할 실행
-        let segments =
-            segment_characters(&binary, rate_img.width as usize, rate_img.height as usize);
+        let segments = overmax_cv::segment_characters(
+            &binary,
+            rate_img.width as usize,
+            rate_img.height as usize,
+        )
+        .unwrap_or_default();
 
         println!(
             "File: {} -> OCR Rate: {:.2}%, Segment count: {}, Expected Char count: {}",

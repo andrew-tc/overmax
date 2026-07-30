@@ -77,34 +77,6 @@ fn to_bgra(img: &image::DynamicImage) -> Vec<u8> {
     bgra
 }
 
-fn to_gray(img: &image::DynamicImage) -> Vec<u8> {
-    img.to_luma8().into_raw()
-}
-
-fn stretch_contrast(gray: &mut [u8]) {
-    if gray.is_empty() {
-        return;
-    }
-    let mut min = 255u8;
-    let mut max = 0u8;
-    for &val in gray.iter() {
-        if val < min {
-            min = val;
-        }
-        if val > max {
-            max = val;
-        }
-    }
-    let range = max.saturating_sub(min);
-    if range > 15 {
-        let range_f = range as f32;
-        for val in gray.iter_mut() {
-            let stretched = ((*val as f32 - min as f32) / range_f * 255.0).round();
-            *val = stretched.clamp(0.0, 255.0) as u8;
-        }
-    }
-}
-
 // verify_summary_old.md를 파싱하여 테스트 셋 로드
 fn load_test_images_from_markdown(md_path: &str) -> Vec<TestImage> {
     let content = fs::read_to_string(md_path).unwrap_or_default();
