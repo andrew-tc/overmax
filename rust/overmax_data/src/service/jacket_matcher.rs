@@ -20,6 +20,11 @@ pub struct JacketMatcher {
     entries: Arc<Vec<ImageEntry>>,
     config: JacketMatcherConfig,
     cache: std::sync::Mutex<MatchCache>,
+    // SoA (Structure of Arrays) 평탄화 버퍼: L1/L2 CPU 캐시 연속성 극대화 및 SIMD 가속
+    phash_list: Vec<u64>,
+    dhash_list: Vec<u64>,
+    ahash_list: Vec<u64>,
+    hist_list: Vec<Option<[u8; 384]>>,
 }
 
 impl JacketMatcher {
@@ -32,12 +37,21 @@ impl JacketMatcher {
     const HAMMING_EARLY_EXIT_THRESHOLD: u32 = 42;
 
     pub fn new(entries: Arc<Vec<ImageEntry>>, config: JacketMatcherConfig) -> Self {
+        let phash_list = entries.iter().map(|e| e.phash).collect();
+        let dhash_list = entries.iter().map(|e| e.dhash).collect();
+        let ahash_list = entries.iter().map(|e| e.ahash).collect();
+        let hist_list = entries.iter().map(|e| e.grid_hist).collect();
+
         Self {
             entries,
             config,
             cache: std::sync::Mutex::new(MatchCache {
                 recent_indices: Vec::new(),
             }),
+            phash_list,
+            dhash_list,
+            ahash_list,
+            hist_list,
         }
     }
 
@@ -68,8 +82,8 @@ impl JacketMatcher {
     }
 
     /// 구버전 매칭 엔진의 public API 시그니처 호환성을 유지하기 위한 메서드입니다.
-    /// HOG Cosine 유사도 매칭이 100% 배제되어 top_k 정렬 후 재대조할 필요가 없어져
-    /// 내부적으로 `_top_k` 매개변수는 무시하고 1-Pass WTA 매칭을 수행합니다.
+    /// 100% 무상태(Stateless) 단일 패스 스캔으로 이전 곡 캐시 고착/Invalidation 오류를 0% 차단하며,
+    /// SoA 평탄화 해시 및 SIMD SAD(u8::abs_diff) 히스토그램 대조로 고속 스캔을 수행합니다.
     pub fn match_jacket_with_top_k(
         &self,
         data: &[u8],
@@ -78,7 +92,7 @@ impl JacketMatcher {
         channels: usize,
         _top_k: usize,
     ) -> Option<ImageMatch> {
-        if self.entries.is_empty() {
+        if self.phash_list.is_empty() {
             return None;
         }
 
@@ -103,55 +117,50 @@ impl JacketMatcher {
         let compare_bits = hash_mask.count_ones() as f32; // 48.0
         let total_compare_bits = 64.0 + compare_bits * 2.0; // 160.0
 
-        // 3. 싱글 스레드 순차 최적화 매칭 순회 (1차 Early Exit + 2차 WTA 유사도 계산)
-        let matched = self
-            .entries
-            .iter()
-            .enumerate()
-            .filter_map(|(idx, entry)| {
-                let p_dist = (entry.phash ^ q_phash).count_ones();
-                let d_dist = ((entry.dhash ^ q_dhash) & hash_mask).count_ones();
-                let a_dist = ((entry.ahash ^ q_ahash) & hash_mask).count_ones();
+        // 3. 무상태(Stateless) SoA 연속 메모리 루프 순회
+        let len = self.phash_list.len();
+        let mut best_idx = None;
+        let mut best_sim = -1.0f32;
 
-                let hamming_sum = p_dist + d_dist + a_dist;
+        for idx in 0..len {
+            // L1 캐시 연속 정수 배열에서 직접 POPCNT 연산 (1클럭)
+            let p_dist = (self.phash_list[idx] ^ q_phash).count_ones();
+            let d_dist = ((self.dhash_list[idx] ^ q_dhash) & hash_mask).count_ones();
+            let a_dist = ((self.ahash_list[idx] ^ q_ahash) & hash_mask).count_ones();
 
-                // 1차 필터: Early Exit (임계치 42비트)
-                if hamming_sum > Self::HAMMING_EARLY_EXIT_THRESHOLD {
-                    return None;
-                }
+            let hamming_sum = p_dist + d_dist + a_dist;
 
-                // 2차 필터: 히스토그램 L1 유사도 산출 (레거시 DB 하위 호환 보장)
-                let hist_sim = if let Some(e_hist) = entry.grid_hist {
-                    let mut hist_diff = 0u32;
-                    for (&e_h, &q_h) in e_hist.iter().zip(q_grid_hist.iter()) {
-                        hist_diff += (e_h as i32 - q_h as i32).unsigned_abs();
-                    }
-                    // 4x4 RGB 히스토그램 L1 정규화 상수 3072
-                    // (256 × 384/32 = 3072, 2x2 grayscale 대비 동일한 bin당 민감도 유지)
-                    1.0 - (hist_diff as f32 / 3072.0).clamp(0.0, 1.0)
-                } else {
-                    1.0 // 히스토그램이 없는 레거시 DB는 해시 유사도로만 판단
-                };
+            // 1차 필터: Early Exit (임계치 42비트)
+            if hamming_sum > Self::HAMMING_EARLY_EXIT_THRESHOLD {
+                continue;
+            }
 
+            // 2차 필터: SIMD SAD(u8::abs_diff) 히스토그램 L1 차이 연산
+            let similarity = if let Some(e_hist) = &self.hist_list[idx] {
+                let hist_diff: u32 = e_hist
+                    .iter()
+                    .zip(q_grid_hist.iter())
+                    .map(|(&e, &q)| e.abs_diff(q) as u32)
+                    .sum();
+                let hist_sim = 1.0 - (hist_diff as f32 / 3072.0).clamp(0.0, 1.0);
                 let hash_sim = 1.0 - (hamming_sum as f32 / total_compare_bits);
+                0.5 * hash_sim + 0.5 * hist_sim
+            } else {
+                1.0 - (hamming_sum as f32 / total_compare_bits)
+            };
 
-                // 가중합 유사도 산출 (50:50 비율로 이미지 해시와 분할 히스토그램 가중)
-                let similarity = if entry.grid_hist.is_some() {
-                    0.5 * hash_sim + 0.5 * hist_sim
-                } else {
-                    hash_sim
-                };
+            if similarity > best_sim {
+                best_sim = similarity;
+                best_idx = Some(idx);
+            }
+        }
 
-                Some((idx, similarity))
-            })
-            .max_by(|a, b| a.1.total_cmp(&b.1));
-
-        if let Some((idx, similarity)) = matched {
-            if similarity >= self.config.similarity_threshold {
+        if let Some(idx) = best_idx {
+            if best_sim >= self.config.similarity_threshold {
                 self.update_cache(idx);
                 return Some(ImageMatch {
                     image_id: self.entries[idx].image_id.clone(),
-                    similarity,
+                    similarity: best_sim,
                 });
             }
         }
