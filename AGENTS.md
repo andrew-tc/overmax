@@ -123,7 +123,7 @@
 - 디텍션 파이프라인: `rust/overmax_engine/src/detector/detection_pipeline.rs`
 - 디텍션 워커: `rust/overmax_engine/src/detector/detection_worker.rs`
 - PlayState 감지: `rust/overmax_engine/src/detector/play_state.rs`
-- OCR 엔진: `rust/overmax_engine/src/detector/ocr_engine.rs`
+- 템플릿 매칭 엔진: `rust/overmax_engine/src/detector/templates/`
 - CV 코어: `rust/overmax_cv/src/lib.rs`
 
 ## 설정 파일

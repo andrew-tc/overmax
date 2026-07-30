@@ -4,7 +4,7 @@ DJMAX RESPECT V 선곡 화면에서 V-Archive 기반 비공식 난이도 정보�
 
 > **🚀 Rust 네이티브 앱**: Overmax는 Rust 네이티브 기반으로 제작되어 가볍고 빠른 성능을 제공합니다.
 > - **가볍고 빠른 성능**: 메모리 사용량과 실행 파일 크기가 최소화되었으며, 전반적인 런타임 성능이 뛰어납니다.
-> - **외부 의존성 최소화**: 무거운 OpenCV 라이브러리를 사용하지 않고, 순수 Rust 기반 HOG 자켓 이미지 매칭과 Windows 내장 OCR을 활용합니다.
+> - **외부 의존성 최소화**: 무거운 OpenCV나 OS OCR 의존성 없이, 순수 Rust 기반 Perceptual Hash/히스토그램 자켓 매칭과 Pure Rust CV 템플릿 매칭 엔진을 활용합니다.
 > - **완벽한 하위 호환성**: 기존 사용자의 설정(`settings.json`) 및 로컬 기록(`record.db`)과 호환되며, 기존의 포터블(Portable) 환경을 그대로 유지합니다.
 
 ---
@@ -34,7 +34,7 @@ DJMAX RESPECT V 선곡 화면에서 V-Archive 기반 비공식 난이도 정보�
 
 ### 요구사항
 
-- Windows 10 1809 이상 (64bit) — Windows OCR 필수
+- Windows 10 이상 (64bit)
 - DJMAX RESPECT V (Steam)
 - 실행 중 인터넷 연결 (V-Archive 데이터 다운로드, 앱 및 DB 자동 업데이트 확인)
 
@@ -68,7 +68,7 @@ cargo build --release -p overmax-app
 - `rust/overmax_app`: 메인 어플리케이션 (egui/winit 기반 UI 및 이벤트 루프)
 - `rust/overmax_core`: 핵심 상태 모델 및 공통 로직
 - `rust/overmax_data`: 설정, DB(SQLite), V-Archive API 연동
-- `rust/overmax_cv`: 이미지 처리 핵심 알고리즘 (HOG, OCR 전처리 등)
+- `rust/overmax_cv`: 이미지 처리 핵심 알고리즘 (Perceptual Hash, 히스토그램, 엣지 감지, 템플릿 매칭 전처리 등)
 
 ### 빌드 및 배포 스크립트
 

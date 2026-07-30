@@ -98,14 +98,14 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 
 - **Window Tracker 동적 폴링**: DJMAX Respect V 창의 위치 및 포커스를 조회하는 Win32 시스템 콜 오버헤드를 막기 위해 `WindowQueryScheduler`가 주기적으로 호출을 차단합니다. 창 드래그 중인 경우 `16ms`(60FPS), 창이 정지 상태인 경우 `300ms`, 창 미발견 시 `1000ms`로 주기를 자동 변환합니다.
 - **DXGI 재생성 쿨다운**: `AdaptiveCaptureEngine`이 DXGI 캡처에 실패하여 GDI로 폴백할 시, 매 프레임 재생성을 시도하지 않고 최소 **3초**의 쿨다운 간격을 보장하여 CPU 스팸 루프를 차단합니다.
-- **OCR 픽셀 체크섬 조기 리턴 (Early Return)**: `PlayStateDetector`가 `rate` 영역을 인식할 때 매 프레임 `crop_roi` 및 썸네일을 힙에 생성하지 않고, 원본 버퍼 상에서 즉각 픽셀 값을 건너뛰어 합산하는 `compute_pixel_checksum`을 호출합니다. 이전 체크섬과 차이가 50 이하이고 캐시 강제 만료 시간(5초)이 지나지 않았다면 OCR API와 이미지 크롭 호출 자체를 바이패스합니다. 실제 OCR 분석은 값이 바뀌었을 때 최소 **200ms** 간격으로만 실행됩니다.
+- **템플릿 매칭 픽셀 체크섬 조기 리턴 (Early Return)**: `PlayStateDetector`가 `rate` 영역을 인식할 때 매 프레임 `crop_roi` 및 썸네일을 힙에 생성하지 않고, 원본 버퍼 상에서 즉각 픽셀 값을 건너뛰어 합산하는 `compute_pixel_checksum`을 호출합니다. 이전 체크섬과 차이가 50 이하이고 캐시 강제 만료 시간(5초)이 지나지 않았다면 템플릿 매칭과 이미지 크롭 호출 자체를 바이패스합니다. 실제 템플릿 매칭 분석은 값이 바뀌었을 때 최소 **200ms** 간격으로만 실행됩니다.
 - **분석 루프 Sleep 제어 및 설정 연동**: `DetectionWorker` 분석 스레드는 활성 송셀렉트 시 기본 `120ms` (`active_sleep_ms`), 백그라운드 시 기본 `500ms` (`background_sleep_ms`) 동안 sleep하도록 설정에 연동되어 조율됩니다.
 - **egui 마우스 호버 렌더링 스팸 억제**: 비활성 창 상태에서 십자선 소프트웨어 커서 렌더링을 위해 마우스 호버 시 매 프레임 `request_repaint()`를 스팸하던 문제를 해결하여, 마우스 이동 또는 드래그가 감지된 경우에만 repainting하도록 억제했습니다.
 
 ## 2. 씬 감지 및 동적 ROI (Scene-Aware ROI)
 
-- **재킷 엣지/유사도 기반 씬 우선 판독 (Bypass logo OCR)**: 결과창(Result), 오픈매치(OpenMatch), 프리스타일(Freestyle) 씬의 경우, 상단 로고의 Windows OCR을 수행하기 전에 재킷 영역의 엣지 강도(JACKET_EDGE_THRESHOLD = 15.0) 또는 우측의 곡 카테고리 띠(5x60) 영역의 단색 감지(check_category_band_solid)가 활성화되는 경우에 한해 재킷 이미지 매칭을 시도합니다. 이때 사용되는 재킷 매칭 임계값은 설정 파일의 `similarity_threshold` 값을 모든 씬에서 오프셋 없이 100% 동일하게 일관되게 연동하여 사용합니다. 매칭에 성공하면 Windows OCR을 전혀 호출하지 않고 즉시 해당 씬과 곡 ID를 확정하여 씬 감지 반응성을 대폭 개선하고 CPU 부하를 경감합니다.
-- **로고 OCR 감지 (비활성화됨)**: 씬 감지의 정확성과 반응 속도를 엣지/재킷 이미지 매칭으로 100% 보장함에 따라, 최종 폴백으로 수행되던 `logo` ROI 영역에 대한 Windows OCR 분석은 완전히 비활성화되었습니다. (씬 판독 시 의존성 100% 제거)
+- **재킷 엣지/유사도 기반 씬 우선 판독**: 결과창(Result), 오픈매치(OpenMatch), 프리스타일(Freestyle) 씬의 경우, 재킷 영역의 엣지 강도(JACKET_EDGE_THRESHOLD = 15.0) 또는 우측의 곡 카테고리 띠(5x60) 영역의 단색 감지(check_category_band_solid)가 활성화되는 경우에 한해 재킷 이미지 매칭을 시도합니다. 이때 사용되는 재킷 매칭 임계값은 설정 파일의 `similarity_threshold` 값을 모든 씬에서 오프셋 없이 100% 동일하게 연동하여 사용합니다. 매칭에 성공하면 즉시 해당 씬과 곡 ID를 확정하여 씬 감지 반응성을 대폭 개선하고 CPU 부하를 경감합니다.
+- **100% Pure Rust CV 템플릿 매칭 (Windows OCR 완전 제거)**: Windows OCR 및 WinRT COM 의존성을 전면 삭제하고 Pure Rust Native 템플릿 매칭(`detector::templates`)으로 로고 및 씬 판별을 단일화하여 무의미한 OS 의존성과 오버헤드를 완전히 차단했습니다.
 - **동적 ROI 전환**: `RoiManager`가 감지된 씬(`SceneType`)에 따라 최적의 ROI 세트(Freestyle / Online)를 동적으로 전환.
   - `logo` ROI는 씬과 독립적으로 상단 고정 좌표를 가지며, 씬 판별의 트리거 역할을 수행.
 - **히스테리시스 버퍼**: `HysteresisBuffer`를 통해 선곡 화면 진입/이탈 판정 및 신뢰도(Confidence) 계산.
@@ -119,11 +119,11 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 ## 3. 원자적 상태 감지 및 안정화 (Atomic Play Context Sync)
 
 - **PlayState 감지**:
-  - **버튼 모드 (Button Mode)**: 선곡창에서는 `btn_mode` ROI의 평균 BGR 색상과 미리 정의된 대표색의 Euclidean 거리가 60 이하인 모드 중 최적 매칭값을 선택하고, 결과창에서는 선곡창 캐시 폴백 없이 오직 결과창 자체의 픽셀들로만 독립적으로 모드 템플릿 매칭을 수행합니다.
-  - **난이도 (Difficulty)**: 선곡창에서는 각 난이도 패널 ROI의 평균 밝기를 계산해 상위 1위 밝기가 최소 밝기(45) 이상이고 2위와의 차이가 15.0 이상일 때 판정하며, 결과창에서는 선곡창 캐시 폴백 없이 오직 결과창 난이도 패널의 템플릿 매칭만을 수행합니다.
+  - **버튼 모드 (Button Mode)**: `Mode` enum (`B4`, `B5`, `B6`, `B8`) 활용. 선곡창에서는 `btn_mode` ROI의 평균 BGR 색상과 대표색의 Euclidean 거리가 60 이하인 모드를 선택하고, 결과창에서는 독립적인 모드 템플릿 매칭을 수행합니다.
+  - **난이도 (Difficulty)**: `Difficulty` enum (`Normal`, `Hard`, `Maximum`, `SC`) 활용. 선곡창에서는 난이도 패널 ROI의 상대 밝기를 판정하고, 결과창에서는 독립적인 난이도 패널 템플릿 매칭을 수행합니다.
   - **Max Combo**: 결과창 및 선곡창의 `max_combo_badge` ROI 영역에 대해 사전에 수집된 대표 뱃지 이미지 템플릿과의 이미지 해시(pHash, dHash, ahash) 비교를 수행. 결과창의 경우 가중 해밍 거리가 20.0 이하(선곡창은 10.0 이하)인 경우에 한해 True로 판정하여, 연출 그래픽 변화나 노이즈에 의한 Jitter 및 오인식을 완벽하게 차단.
-  - **Rate**: `rate` ROI 영역의 Windows OCR 멀티패스(Color → Grayscale → Grayscale Inverted) 결과를 실수값(`f32`)으로 실시간 수집. 유효 파싱값이 나온 첫 번째 패스 결과를 채택.
-  - **Score & Rate Cross-Validation**: 결과창 및 선곡창에서 `score` ROI 영역을 단일 패스 템플릿 매칭/OCR로 추출하여 판정율을 역산(`Rate = Score / 10,000`)합니다. 두 결과(Rate OCR vs. Score 역산값) 간에 불일치가 발생할 경우, 템플릿 매칭 기반으로 신뢰도가 매우 높은 스코어 역산 값을 우선적으로 적용하여 Rate를 책정합니다. 추가로 선곡창 자릿수 오인식에 대비해 신뢰 범위 가드(MIN_VALID_RATE인 80% ~ 100%)를 둡니다.
+  - **Rate**: `rate` ROI 영역에 대해 `detector::templates::digit` 모듈의 Pure Rust 템플릿 매칭으로 실수값(`f32`) 판정률을 실시간 수집.
+  - **Score & Rate Cross-Validation**: 결과창 및 선곡창에서 `score` ROI 영역을 템플릿 매칭으로 추출하여 판정율을 역산(`Rate = Score / 10,000`)합니다. 두 결과(Rate 템플릿 매칭 vs. Score 역산값) 간에 불일치가 발생할 경우, 신뢰도가 매우 높은 스코어 역산 값을 우선적으로 적용하여 Rate를 책정합니다. 추가로 선곡창 자릿수 오인식에 대비해 신뢰 범위 가드(MIN_VALID_RATE인 80% ~ 100%)를 둡니다.
 
 - **원자적 안정화**:
   - 곡 ID, 버튼 모드, 난이도, Rate, Max Combo 전체를 하나의 `PlayContext`로 묶어 관리.
@@ -161,7 +161,7 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 3. **명시적 Null 처리**: `rate` 수집값로 `Option<f32>`를 사용하여 미플레이(`0.0` 또는 `None` 처리)와 명시적으로 구분해야 한다.
 4. **곡 ID 예외**: `song_id == 0`은 유효한 곡 ID로 처리한다. 곡 정보가 아예 없는 경우는 `Option::None`이어야 한다.
 5. **설정값 유효성 검증**: 사용자 설정 저장 시 반드시 delta 형식을 유지하고 값의 범위를 normalize/clamp 처리한다.
-6. **OCR 1-Pass 강제**: 모든 OCR(Rate, Score 등)은 단일 패스(1-Pass) 실행만 허용한다. 인게임 성능 보호를 위해 3-pass 등의 다중 패스 루프 생성을 절대 금지하며, 오인식 대응은 HysteresisBuffer 기반의 프레임 히스토리 다수결 안정화로 해결해야 한다.
+6. **템플릿 매칭 1-Pass 최적화**: Rate, Score 등 모든 템플릿 매칭은 단일 패스(1-Pass) 실행만 허용한다. 인게임 성능 보호를 위해 다중 패스 루프 생성을 금지하며, 오인식 대응은 HysteresisBuffer 기반의 프레임 히스토리 다수결 안정화로 해결해야 한다. (Windows OCR 의존성은 완전히 제거됨)
 
 ---
 
@@ -250,8 +250,9 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 | 2026-07-21 | Category Band 4px 코어 폭 및 3단계 통계 판정 고도화 | 카테고리 띠 판정 폭을 배경 노이즈가 차단되는 4px(x1=jacket.x2, width=4)로 변경하고, 최소 밝기(>=60), 수직 단색성(<=20), 채도/무채색 정합성 3단계 판정 가드를 적용하여 오탐율 0% 및 신규 DLC 자동 대응 구조 확립 | [detection_pipeline.rs](rust/overmax_engine/src/detector/detection_pipeline.rs) |
 | 2026-07-22 | 디텍션 파이프라인 아키텍처 문서화 | 4단계 파이프라인, ROI 사양, 단일 프레임 원자성 및 5중 DB 오기록 방지 가드 체계화 | [detection_pipeline.md](docs/architecture/detection_pipeline.md) |
 | 2026-07-22 | Windows OCR Fallback의 Cargo Feature Flag(`ocr-fallback`) 분리 | OS 의존성 및 WinRT COM DLL 초기화 수명 오버헤드를 선택적으로 소거할 수 있는 Pure Rust Native 컴파일 옵션 제공 | [Cargo.toml](rust/overmax_engine/Cargo.toml) / [ocr_engine.rs](rust/overmax_engine/src/detector/ocr_engine.rs) |
-| 2026-07-28 | Windows OCR 의존성 및 WinRT C++ COM 연동 완전 제거 | 씬 감지의 100% OCR-Free 전환 및 Rate/Score 템플릿 매칭 고도화에 따라, 무거운 WinRT Windows OCR 의존성(`Media_Ocr` 등)과 feature flag(`ocr-fallback`)를 전면 삭제하여 Pure Rust Native 엔진으로 완벽 단일화 | [Cargo.toml](rust/overmax_engine/Cargo.toml) / [ocr_engine.rs](rust/overmax_engine/src/detector/ocr_engine.rs) |
+| 2026-07-28 | Windows OCR 의존성 및 WinRT C++ COM 연동 완전 제거 | 씬 감지의 100% OCR-Free 전환 및 Rate/Score 템플릿 매칭 고도화에 따라, 무거운 WinRT Windows OCR 의존성(`Media_Ocr` 등)과 feature flag(`ocr-fallback`)를 전면 삭제하여 Pure Rust Native 엔진으로 완벽 단일화 | [Cargo.toml](rust/overmax_engine/Cargo.toml) / [play_state.rs](rust/overmax_engine/src/detector/play_state.rs) |
 | 2026-07-28 | OcrDetector 구조체 및 ocr_engine 모듈 전면 삭제, detector::templates 통합 | 상태 없는 0B 껍데기 구조체와 쓸모없던 로고 OCR 잔재 코드(350+줄)를 완전히 삭제하고, Rate/Score/모드/난이도 템플릿 매칭 로직을 detector::templates 모듈의 순수 함수로 전면 재배치하여 깔끔한 모듈 구조 달성 | [templates/mod.rs](rust/overmax_engine/src/detector/templates/mod.rs) / [templates/matching.rs](rust/overmax_engine/src/detector/templates/matching.rs) / [play_state.rs](rust/overmax_engine/src/detector/play_state.rs) |
+| 2026-07-29 | Mode 및 Difficulty Enum 워크스페이스 전면 전용 | 문자열 리터럴 기반 판정으로 인한 오류 방지를 위해 모드(`Mode`) 및 난이도(`Difficulty`)를 전용 Enum 타입으로 전면화하고 RecordKey 및 API 레이어에 전파 | [types.rs](rust/overmax_core/src/types.rs) / [play_state.rs](rust/overmax_engine/src/detector/play_state.rs) |
 
 ## Linux Port
 

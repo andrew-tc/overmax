@@ -1,5 +1,11 @@
 # DJMAX RESPECT V Overlay Detection Pipeline Architecture & Recognition Logic
 
+> [!NOTE]
+> **히스토리 문서 안내 (Historical Document)**  
+> 본 문서는 2026년 6월 당시에 작성된 **레거시 설계 문서**입니다.  
+> 현재(2026년 7월 이후) 파이프라인은 Windows OCR 및 Anchor OCR이 완전히 제거되고, Pure Rust CV 템플릿 매칭 엔진(`detector::templates`)과 Perceptual Hash + Fast Histogram 자켓 매칭, 그리고 `Mode`/`Difficulty` Enum 체계로 100% OCR-Free 전면 전환되었습니다.  
+> 최신 아키텍처 사양은 [docs/architecture/detection_pipeline.md](docs/architecture/detection_pipeline.md) 및 [CONTEXT.md](CONTEXT.md)를 참고하시기 바랍니다.
+
 이 문서는 DJMAX RESPECT V 오버레이 추천 시스템에서 화면 캡처 장치를 통해 입력받은 프레임을 해석하고, 플레이 컨텍스트(`PlayContext`)를 빌드하여 로컬 데이터베이스(`record.db`)에 누수 없이 저장하는 전체 디텍션 파이프라인의 아키텍처와 상세 인식 로직을 설명한다.
 
 ---
