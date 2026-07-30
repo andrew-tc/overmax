@@ -55,9 +55,9 @@ pub fn crop_roi(frame: &CapturedFrame, roi: RoiRect) -> Option<ImageRegion> {
     })
 }
 
-pub fn region_mean_bgr(frame: &CapturedFrame, roi: RoiRect) -> (u8, u8, u8) {
+pub fn region_mean_bgr(frame: &CapturedFrame, roi: RoiRect) -> overmax_cv::Bgr {
     let Some(region) = crop_roi(frame, roi) else {
-        return (0, 0, 0);
+        return overmax_cv::Bgr::new(0, 0, 0);
     };
     mean_bgr(&region.bgra)
 }
@@ -101,9 +101,9 @@ pub fn compute_pixel_checksum(frame: &CapturedFrame, roi: RoiRect) -> Option<u64
     Some(sum)
 }
 
-fn mean_bgr(bgra: &[u8]) -> (u8, u8, u8) {
+fn mean_bgr(bgra: &[u8]) -> overmax_cv::Bgr {
     if bgra.len() < 4 {
-        return (0, 0, 0);
+        return overmax_cv::Bgr::new(0, 0, 0);
     }
     let mut acc = overmax_cv::Bgr::<u64>::default();
     let mut count = 0u64;
@@ -111,7 +111,7 @@ fn mean_bgr(bgra: &[u8]) -> (u8, u8, u8) {
         acc += overmax_cv::Bgr::from_bgra_slice(pixel).to_u64();
         count += 1;
     }
-    (
+    overmax_cv::Bgr::new(
         (acc.b / count) as u8,
         (acc.g / count) as u8,
         (acc.r / count) as u8,
@@ -170,7 +170,7 @@ mod tests {
                     y2: 2
                 }
             ),
-            (20, 30, 40)
+            overmax_cv::Bgr::new(20, 30, 40)
         );
     }
 

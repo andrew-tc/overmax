@@ -48,7 +48,7 @@ impl Bgr<u8> {
 
     #[inline]
     pub fn luma(self, method: LumaMethod) -> u8 {
-        method.calculate_luma(self.b, self.g, self.r)
+        method.calculate_luma(self)
     }
 
     #[inline]
@@ -100,7 +100,7 @@ impl Bgr<f64> {
 
     #[inline]
     pub fn luma(self, method: LumaMethod) -> f64 {
-        method.calculate_luma_f64(self.b, self.g, self.r)
+        method.calculate_luma_f64(self)
     }
 
     #[inline]

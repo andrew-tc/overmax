@@ -5,13 +5,15 @@ use crate::detector::templates::{self, RateTelemetry};
 use overmax_core::{Changed, Difficulty, GameSessionState, Mode, PlayContext};
 use std::collections::VecDeque;
 
+use overmax_cv::Bgr;
+
 pub const MIN_VALID_RATE: f32 = 80.0;
 
 const BTN_MODE_MAX_DIST: f32 = 60.0;
 const DIFF_MIN_BRIGHTNESS: f32 = 45.0;
 const DIFF_CONFIDENT_MARGIN: f32 = 15.0;
 
-type ButtonColorEntry = (Mode, &'static [(u8, u8, u8)]);
+type ButtonColorEntry = (Mode, &'static [Bgr]);
 
 #[derive(Clone, Debug, PartialEq)]
 struct RawPlayState {
@@ -392,7 +394,7 @@ pub fn detect_difficulty(frame: &CapturedFrame, rois: &RoiManager) -> (Option<Di
         .filter_map(|&diff| {
             let roi = rois.get_diff_panel_roi(diff)?;
             let mean = region_mean_bgr(frame, roi);
-            Some((diff, overmax_cv::Bgr::from(mean).to_f64().average() as f32))
+            Some((diff, mean.to_f64().average() as f32))
         })
         .collect::<Vec<_>>();
     brightnesses.sort_by(|a, b| b.1.total_cmp(&a.1));
@@ -490,26 +492,36 @@ pub fn detect_max_combo_result(frame: &CapturedFrame, rois: &RoiManager) -> bool
     score_perfect <= 20.0 || score_mc <= 20.0
 }
 
+const BTN_B4_COLORS: &[Bgr] = &[Bgr::new(0x55, 0x4F, 0x2D), Bgr::new(0x5A, 0x47, 0x0C)];
+const BTN_B5_COLORS: &[Bgr] = &[Bgr::new(0xC6, 0xA9, 0x44)];
+const BTN_B6_COLORS: &[Bgr] = &[Bgr::new(0x30, 0x94, 0xED)];
+const BTN_B8_COLORS: &[Bgr] = &[Bgr::new(0x31, 0x14, 0x1D)];
+
+const OPENMATCH_B4_COLORS: &[Bgr] = &[Bgr::new(102, 118, 46)];
+const OPENMATCH_B5_COLORS: &[Bgr] = &[Bgr::new(147, 136, 95)];
+const OPENMATCH_B6_COLORS: &[Bgr] = &[Bgr::new(61, 137, 192)];
+const OPENMATCH_B8_COLORS: &[Bgr] = &[Bgr::new(153, 90, 88)];
+
 fn button_colors() -> [ButtonColorEntry; 4] {
     [
-        (Mode::B4, &[(0x55, 0x4F, 0x2D), (0x5A, 0x47, 0x0C)]),
-        (Mode::B5, &[(0xC6, 0xA9, 0x44)]),
-        (Mode::B6, &[(0x30, 0x94, 0xED)]),
-        (Mode::B8, &[(0x31, 0x14, 0x1D)]),
+        (Mode::B4, BTN_B4_COLORS),
+        (Mode::B5, BTN_B5_COLORS),
+        (Mode::B6, BTN_B6_COLORS),
+        (Mode::B8, BTN_B8_COLORS),
     ]
 }
 
 fn openmatch_button_colors() -> [ButtonColorEntry; 4] {
     [
-        (Mode::B4, &[(102, 118, 46)]),
-        (Mode::B5, &[(147, 136, 95)]),
-        (Mode::B6, &[(61, 137, 192)]),
-        (Mode::B8, &[(153, 90, 88)]),
+        (Mode::B4, OPENMATCH_B4_COLORS),
+        (Mode::B5, OPENMATCH_B5_COLORS),
+        (Mode::B6, OPENMATCH_B6_COLORS),
+        (Mode::B8, OPENMATCH_B8_COLORS),
     ]
 }
 
-fn color_dist(left: (u8, u8, u8), right: (u8, u8, u8)) -> f32 {
-    overmax_cv::Bgr::from(left).distance_f32(overmax_cv::Bgr::from(right))
+fn color_dist(left: Bgr, right: Bgr) -> f32 {
+    left.distance_f32(right)
 }
 
 pub fn resolve_most_plausible_rate(
@@ -549,11 +561,12 @@ mod tests {
     use crate::capture::frame::CapturedFrame;
     use crate::detector::roi::RoiManager;
     use overmax_core::SceneType;
+    use overmax_cv::Bgr;
 
     #[test]
     fn detects_button_mode_from_reference_color() {
         let mut frame = blank_frame();
-        paint_rect(&mut frame, 80, 130, 85, 135, (0x55, 0x4F, 0x2D));
+        paint_rect(&mut frame, 80, 130, 85, 135, Bgr::new(0x55, 0x4F, 0x2D));
         let mut rois = RoiManager::new(1920, 1080);
         rois.set_scene(SceneType::Freestyle);
         assert_eq!(detect_button_mode(&frame, &rois), Some(super::Mode::B4));
@@ -563,8 +576,8 @@ mod tests {
     fn marks_state_stable_after_repeated_valid_frames() {
         let mut detector = PlayStateDetector::new(3);
         let mut frame = blank_frame();
-        paint_rect(&mut frame, 80, 130, 85, 135, (0x55, 0x4F, 0x2D));
-        paint_rect(&mut frame, 98, 488, 208, 516, (220, 220, 220));
+        paint_rect(&mut frame, 80, 130, 85, 135, Bgr::new(0x55, 0x4F, 0x2D));
+        paint_rect(&mut frame, 98, 488, 208, 516, Bgr::new(220, 220, 220));
         let mut rois = RoiManager::new(1920, 1080);
         rois.set_scene(SceneType::Freestyle);
 
@@ -595,20 +608,13 @@ mod tests {
         }
     }
 
-    fn paint_rect(
-        frame: &mut CapturedFrame,
-        x1: i32,
-        y1: i32,
-        x2: i32,
-        y2: i32,
-        bgr: (u8, u8, u8),
-    ) {
+    fn paint_rect(frame: &mut CapturedFrame, x1: i32, y1: i32, x2: i32, y2: i32, bgr: Bgr) {
         for y in y1..y2 {
             for x in x1..x2 {
                 let idx = ((y * frame.width + x) * 4) as usize;
-                frame.bgra[idx] = bgr.0;
-                frame.bgra[idx + 1] = bgr.1;
-                frame.bgra[idx + 2] = bgr.2;
+                frame.bgra[idx] = bgr.b;
+                frame.bgra[idx + 1] = bgr.g;
+                frame.bgra[idx + 2] = bgr.r;
             }
         }
     }

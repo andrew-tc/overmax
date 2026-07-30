@@ -421,25 +421,26 @@ impl DetectionPipeline {
     }
 }
 
-const FREESTYLE_COLORS: [(u8, u8, u8); 4] = [
-    (118, 212, 52),  // 4B
-    (225, 188, 72),  // 5B
-    (59, 146, 223),  // 6B
-    (244, 146, 133), // 8B
+use overmax_cv::Bgr;
+
+const FREESTYLE_COLORS: [Bgr; 4] = [
+    Bgr::new(118, 212, 52),  // 4B
+    Bgr::new(225, 188, 72),  // 5B
+    Bgr::new(59, 146, 223),  // 6B
+    Bgr::new(244, 146, 133), // 8B
 ];
 
-const OPENMATCH_COLORS: [(u8, u8, u8); 4] = [
-    (102, 118, 46), // 4B
-    (147, 136, 95), // 5B
-    (61, 137, 192), // 6B
-    (153, 90, 88),  // 8B
+const OPENMATCH_COLORS: [Bgr; 4] = [
+    Bgr::new(102, 118, 46), // 4B
+    Bgr::new(147, 136, 95), // 5B
+    Bgr::new(61, 137, 192), // 6B
+    Bgr::new(153, 90, 88),  // 8B
 ];
 
-fn get_min_color_distance(mean: (u8, u8, u8), colors: &[(u8, u8, u8)]) -> f32 {
+fn get_min_color_distance(mean: Bgr, colors: &[Bgr]) -> f32 {
     let mut min_dist = f32::MAX;
-    let mean_bgr = overmax_cv::Bgr::from(mean);
     for color in colors {
-        let dist = mean_bgr.distance_f32(overmax_cv::Bgr::from(*color));
+        let dist = mean.distance_f32(*color);
         if dist < min_dist {
             min_dist = dist;
         }
@@ -447,11 +448,11 @@ fn get_min_color_distance(mean: (u8, u8, u8), colors: &[(u8, u8, u8)]) -> f32 {
     min_dist
 }
 
-pub fn detect_freestyle_color_match(mean: (u8, u8, u8)) -> bool {
+pub fn detect_freestyle_color_match(mean: Bgr) -> bool {
     get_min_color_distance(mean, &FREESTYLE_COLORS) <= 30.0f32
 }
 
-pub fn detect_openmatch_color_match(mean: (u8, u8, u8)) -> bool {
+pub fn detect_openmatch_color_match(mean: Bgr) -> bool {
     get_min_color_distance(mean, &OPENMATCH_COLORS) <= 30.0f32
 }
 
