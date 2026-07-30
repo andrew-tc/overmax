@@ -424,17 +424,17 @@ impl DetectionPipeline {
 use overmax_cv::Bgr;
 
 const FREESTYLE_COLORS: [Bgr; 4] = [
-    Bgr::new(118, 212, 52),  // 4B
-    Bgr::new(225, 188, 72),  // 5B
-    Bgr::new(59, 146, 223),  // 6B
-    Bgr::new(244, 146, 133), // 8B
+    Bgr::from_rgb_hex(0x34D476), // 4B #34D476
+    Bgr::from_rgb_hex(0x48BCE1), // 5B #48BCE1
+    Bgr::from_rgb_hex(0xDF923B), // 6B #DF923B
+    Bgr::from_rgb_hex(0x8592F4), // 8B #8592F4
 ];
 
 const OPENMATCH_COLORS: [Bgr; 4] = [
-    Bgr::new(102, 118, 46), // 4B
-    Bgr::new(147, 136, 95), // 5B
-    Bgr::new(61, 137, 192), // 6B
-    Bgr::new(153, 90, 88),  // 8B
+    Bgr::from_rgb_hex(0x2E7666), // 4B #2E7666
+    Bgr::from_rgb_hex(0x5F8893), // 5B #5F8893
+    Bgr::from_rgb_hex(0xC0893D), // 6B #C0893D
+    Bgr::from_rgb_hex(0x585A99), // 8B #585A99
 ];
 
 fn get_min_color_distance(mean: Bgr, colors: &[Bgr]) -> f32 {

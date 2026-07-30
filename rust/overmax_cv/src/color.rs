@@ -44,6 +44,27 @@ impl<T> From<Bgr<T>> for (T, T, T) {
 }
 
 impl Bgr<u8> {
+    /// 24-bit RGB 헥스 값(예: 0x2D4F55 -> R:0x2D, G:0x4F, B:0x55)으로부터 Bgr<u8> 생성.
+    /// 단일 6자리 Hex 리터럴을 활용하여 IDE 색상 미리보기(Color Preview/Swatch) 지원.
+    #[inline]
+    pub const fn from_rgb_hex(hex: u32) -> Self {
+        Self {
+            r: ((hex >> 16) & 0xFF) as u8,
+            g: ((hex >> 8) & 0xFF) as u8,
+            b: (hex & 0xFF) as u8,
+        }
+    }
+
+    /// 24-bit BGR 헥스 값(예: 0x554F2D -> B:0x55, G:0x4F, R:0x2D)으로부터 Bgr<u8> 생성.
+    #[inline]
+    pub const fn from_bgr_hex(hex: u32) -> Self {
+        Self {
+            b: ((hex >> 16) & 0xFF) as u8,
+            g: ((hex >> 8) & 0xFF) as u8,
+            r: (hex & 0xFF) as u8,
+        }
+    }
+
     #[inline]
     pub fn write_to_bgra(self, slice: &mut [u8], alpha: u8) {
         slice[0] = self.b;
@@ -244,5 +265,8 @@ mod tests {
         let mut buf = [0u8; 4];
         c1.write_to_bgra(&mut buf, 255);
         assert_eq!(buf, [10, 20, 30, 255]);
+
+        let hex_c = Bgr::from_rgb_hex(0x1E140A); // R:0x1E(30), G:0x14(20), B:0x0A(10)
+        assert_eq!(hex_c, Bgr::new(10, 20, 30));
     }
 }

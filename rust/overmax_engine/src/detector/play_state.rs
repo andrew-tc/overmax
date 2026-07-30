@@ -492,15 +492,18 @@ pub fn detect_max_combo_result(frame: &CapturedFrame, rois: &RoiManager) -> bool
     score_perfect <= 20.0 || score_mc <= 20.0
 }
 
-const BTN_B4_COLORS: &[Bgr] = &[Bgr::new(0x55, 0x4F, 0x2D), Bgr::new(0x5A, 0x47, 0x0C)];
-const BTN_B5_COLORS: &[Bgr] = &[Bgr::new(0xC6, 0xA9, 0x44)];
-const BTN_B6_COLORS: &[Bgr] = &[Bgr::new(0x30, 0x94, 0xED)];
-const BTN_B8_COLORS: &[Bgr] = &[Bgr::new(0x31, 0x14, 0x1D)];
+const BTN_B4_COLORS: &[Bgr] = &[
+    Bgr::from_rgb_hex(0x2D4F55), // #2D4F55
+    Bgr::from_rgb_hex(0x0C475A), // #0C475A
+];
+const BTN_B5_COLORS: &[Bgr] = &[Bgr::from_rgb_hex(0x44A9C6)]; // #44A9C6
+const BTN_B6_COLORS: &[Bgr] = &[Bgr::from_rgb_hex(0xED9430)]; // #ED9430
+const BTN_B8_COLORS: &[Bgr] = &[Bgr::from_rgb_hex(0x1D1431)]; // #1D1431
 
-const OPENMATCH_B4_COLORS: &[Bgr] = &[Bgr::new(102, 118, 46)];
-const OPENMATCH_B5_COLORS: &[Bgr] = &[Bgr::new(147, 136, 95)];
-const OPENMATCH_B6_COLORS: &[Bgr] = &[Bgr::new(61, 137, 192)];
-const OPENMATCH_B8_COLORS: &[Bgr] = &[Bgr::new(153, 90, 88)];
+const OPENMATCH_B4_COLORS: &[Bgr] = &[Bgr::from_rgb_hex(0x2E7666)]; // #2E7666
+const OPENMATCH_B5_COLORS: &[Bgr] = &[Bgr::from_rgb_hex(0x5F8893)]; // #5F8893
+const OPENMATCH_B6_COLORS: &[Bgr] = &[Bgr::from_rgb_hex(0xC0893D)]; // #C0893D
+const OPENMATCH_B8_COLORS: &[Bgr] = &[Bgr::from_rgb_hex(0x585A99)]; // #585A99
 
 fn button_colors() -> [ButtonColorEntry; 4] {
     [
@@ -566,7 +569,7 @@ mod tests {
     #[test]
     fn detects_button_mode_from_reference_color() {
         let mut frame = blank_frame();
-        paint_rect(&mut frame, 80, 130, 85, 135, Bgr::new(0x55, 0x4F, 0x2D));
+        paint_rect(&mut frame, 80, 130, 85, 135, Bgr::from_rgb_hex(0x2D4F55)); // #2D4F55
         let mut rois = RoiManager::new(1920, 1080);
         rois.set_scene(SceneType::Freestyle);
         assert_eq!(detect_button_mode(&frame, &rois), Some(super::Mode::B4));
@@ -576,8 +579,8 @@ mod tests {
     fn marks_state_stable_after_repeated_valid_frames() {
         let mut detector = PlayStateDetector::new(3);
         let mut frame = blank_frame();
-        paint_rect(&mut frame, 80, 130, 85, 135, Bgr::new(0x55, 0x4F, 0x2D));
-        paint_rect(&mut frame, 98, 488, 208, 516, Bgr::new(220, 220, 220));
+        paint_rect(&mut frame, 80, 130, 85, 135, Bgr::from_rgb_hex(0x2D4F55)); // #2D4F55
+        paint_rect(&mut frame, 98, 488, 208, 516, Bgr::from_rgb_hex(0xDCDCDC)); // #DCDCDC
         let mut rois = RoiManager::new(1920, 1080);
         rois.set_scene(SceneType::Freestyle);
 
