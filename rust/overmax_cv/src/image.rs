@@ -299,6 +299,9 @@ pub struct CvTemplate<'a> {
 }
 
 pub fn resize_binary_nearest(src: &[u8], sw: usize, sh: usize, dw: usize, dh: usize) -> Vec<u8> {
+    if sw == dw && sh == dh {
+        return src.to_vec();
+    }
     let mut dst = vec![0u8; dw * dh];
     if sw == 0 || sh == 0 || dw == 0 || dh == 0 {
         return dst;

@@ -143,7 +143,7 @@ fn render_ocr_telemetry(
         return;
     }
 
-    let mut texture_guard = rate_ocr_texture.lock().unwrap();
+    let mut texture_guard = overmax_core::sync::lock_or_recover(rate_ocr_texture);
     update_ocr_texture(ui.ctx(), &info, &mut texture_guard);
 
     ui.group(|ui| {
@@ -284,7 +284,7 @@ fn log_scroll(
         lines_guard.iter().cloned().collect()
     };
 
-    let filters_lock = filters.lock().unwrap();
+    let filters_lock = overmax_core::sync::lock_or_recover(filters);
 
     let tags = [
         "[ScreenCapture]",

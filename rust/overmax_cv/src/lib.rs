@@ -214,8 +214,8 @@ pub fn binarize_by_global_contrast(
 }
 
 pub use image::{
-    adaptive_threshold_bradley_roth, binarize_by_luminance, diff_panel_threshold, stretch_contrast,
-    to_gray, LumaMethod,
+    adaptive_threshold_bradley_roth, binarize_by_luminance, diff_panel_threshold,
+    resize_binary_nearest, stretch_contrast, to_gray, LumaMethod,
 };
 
 /// 4x4 그리드 × RGB 3채널 × 8-bin 히스토그램 (총 384바이트).

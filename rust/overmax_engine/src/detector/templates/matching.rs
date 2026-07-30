@@ -106,7 +106,7 @@ pub fn detect_freestyle_mode(mode_img: &ImageRegion) -> Option<Mode> {
         return None;
     }
     let (target_w, target_h) = (50usize, 68usize);
-    let resized_binary = resize_binary(&binary, w, h, target_w, target_h);
+    let resized_binary = overmax_cv::resize_binary_nearest(&binary, w, h, target_w, target_h);
 
     let t_infos: Vec<MatchTemplateInfo<Mode>> =
         super::result_mode::RESULT_MODE_TEMPLATES
@@ -145,7 +145,7 @@ pub fn detect_result_difficulty(diff_img: &ImageRegion) -> Option<Difficulty> {
         return None;
     }
     let (target_w, target_h) = (90usize, 18usize);
-    let resized_binary = resize_binary(&binary, w, h, target_w, target_h);
+    let resized_binary = overmax_cv::resize_binary_nearest(&binary, w, h, target_w, target_h);
 
     let t_infos: Vec<MatchTemplateInfo<Difficulty>> =
         super::result_diff::RESULT_DIFF_TEMPLATES
@@ -179,7 +179,7 @@ pub fn detect_openmatch_result_difficulty(diff_img: &ImageRegion) -> Option<Diff
         1,
     );
     let (target_w, target_h) = (106usize, 18usize);
-    let resized_binary = resize_binary(&binary, w, h, target_w, target_h);
+    let resized_binary = overmax_cv::resize_binary_nearest(&binary, w, h, target_w, target_h);
 
     let t_infos: Vec<MatchTemplateInfo<Difficulty>> =
         super::result_diff::RESULT_DIFF_OPEN_TEMPLATES
@@ -248,23 +248,6 @@ fn match_digits_template(
     }
 
     Ok((matched_str, binary, threshold, max_y))
-}
-
-fn resize_binary(binary: &[u8], w: usize, h: usize, target_w: usize, target_h: usize) -> Vec<u8> {
-    if w == target_w && h == target_h {
-        return binary.to_vec();
-    }
-    let mut dst = vec![0u8; target_w * target_h];
-    for dy in 0..target_h {
-        let sy = (dy * h) / target_h;
-        let sy_clamped = sy.min(h - 1);
-        for dx in 0..target_w {
-            let sx = (dx * w) / target_w;
-            let sx_clamped = sx.min(w - 1);
-            dst[dy * target_w + dx] = binary[sy_clamped * w + sx_clamped];
-        }
-    }
-    dst
 }
 
 fn get_digit_templates() -> Vec<overmax_cv::CvTemplate<'static>> {
