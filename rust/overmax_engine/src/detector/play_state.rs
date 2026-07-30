@@ -5,15 +5,11 @@ use crate::detector::templates::{self, RateTelemetry};
 use overmax_core::{Changed, Difficulty, GameSessionState, Mode, PlayContext};
 use std::collections::VecDeque;
 
-use overmax_cv::Bgr;
-
 pub const MIN_VALID_RATE: f32 = 80.0;
 
 const BTN_MODE_MAX_DIST: f32 = 60.0;
 const DIFF_MIN_BRIGHTNESS: f32 = 45.0;
 const DIFF_CONFIDENT_MARGIN: f32 = 15.0;
-
-type ButtonColorEntry = (Mode, &'static [Bgr]);
 
 #[derive(Clone, Debug, PartialEq)]
 struct RawPlayState {
@@ -368,17 +364,15 @@ pub fn detect_button_mode_from_roi(
     let mut best = (None, f32::INFINITY);
 
     let colors_table = if roi_name == "openmatch_mode" {
-        openmatch_button_colors()
+        &templates::OPENMATCH_COLOR_TABLE
     } else {
-        button_colors()
+        &templates::FREESTYLE_COLOR_TABLE
     };
 
-    for (mode, colors) in colors_table {
-        for color in colors {
-            let dist = mean.distance_f32(*color);
-            if dist < best.1 {
-                best = (Some(mode), dist);
-            }
+    for (idx, &color) in colors_table.iter().enumerate() {
+        let dist = mean.distance_f32(color);
+        if dist < best.1 {
+            best = (Some(Mode::ALL[idx]), dist);
         }
     }
     (best.1 <= BTN_MODE_MAX_DIST).then_some(best.0).flatten()
@@ -490,37 +484,6 @@ pub fn detect_max_combo_result(frame: &CapturedFrame, rois: &RoiManager) -> bool
         TEMPLATE_RESULT_MC_AHASH,
     );
     score_perfect <= 20.0 || score_mc <= 20.0
-}
-
-const BTN_B4_COLORS: &[Bgr] = &[
-    Bgr::from_rgb_hex(0x2D4F55), // #2D4F55
-    Bgr::from_rgb_hex(0x0C475A), // #0C475A
-];
-const BTN_B5_COLORS: &[Bgr] = &[Bgr::from_rgb_hex(0x44A9C6)]; // #44A9C6
-const BTN_B6_COLORS: &[Bgr] = &[Bgr::from_rgb_hex(0xED9430)]; // #ED9430
-const BTN_B8_COLORS: &[Bgr] = &[Bgr::from_rgb_hex(0x1D1431)]; // #1D1431
-
-const OPENMATCH_B4_COLORS: &[Bgr] = &[Bgr::from_rgb_hex(0x2E7666)]; // #2E7666
-const OPENMATCH_B5_COLORS: &[Bgr] = &[Bgr::from_rgb_hex(0x5F8893)]; // #5F8893
-const OPENMATCH_B6_COLORS: &[Bgr] = &[Bgr::from_rgb_hex(0xC0893D)]; // #C0893D
-const OPENMATCH_B8_COLORS: &[Bgr] = &[Bgr::from_rgb_hex(0x585A99)]; // #585A99
-
-fn button_colors() -> [ButtonColorEntry; 4] {
-    [
-        (Mode::B4, BTN_B4_COLORS),
-        (Mode::B5, BTN_B5_COLORS),
-        (Mode::B6, BTN_B6_COLORS),
-        (Mode::B8, BTN_B8_COLORS),
-    ]
-}
-
-fn openmatch_button_colors() -> [ButtonColorEntry; 4] {
-    [
-        (Mode::B4, OPENMATCH_B4_COLORS),
-        (Mode::B5, OPENMATCH_B5_COLORS),
-        (Mode::B6, OPENMATCH_B6_COLORS),
-        (Mode::B8, OPENMATCH_B8_COLORS),
-    ]
 }
 
 pub fn resolve_most_plausible_rate(

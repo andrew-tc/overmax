@@ -421,21 +421,8 @@ impl DetectionPipeline {
     }
 }
 
+use crate::detector::templates::{FREESTYLE_MODE_COLORS, OPENMATCH_MODE_COLORS};
 use overmax_cv::Bgr;
-
-const FREESTYLE_COLORS: [Bgr; 4] = [
-    Bgr::from_rgb_hex(0x34D476), // 4B #34D476
-    Bgr::from_rgb_hex(0x48BCE1), // 5B #48BCE1
-    Bgr::from_rgb_hex(0xDF923B), // 6B #DF923B
-    Bgr::from_rgb_hex(0x8592F4), // 8B #8592F4
-];
-
-const OPENMATCH_COLORS: [Bgr; 4] = [
-    Bgr::from_rgb_hex(0x2E7666), // 4B #2E7666
-    Bgr::from_rgb_hex(0x5F8893), // 5B #5F8893
-    Bgr::from_rgb_hex(0xC0893D), // 6B #C0893D
-    Bgr::from_rgb_hex(0x585A99), // 8B #585A99
-];
 
 fn get_min_color_distance(mean: Bgr, colors: &[Bgr]) -> f32 {
     let mut min_dist = f32::MAX;
@@ -449,11 +436,11 @@ fn get_min_color_distance(mean: Bgr, colors: &[Bgr]) -> f32 {
 }
 
 pub fn detect_freestyle_color_match(mean: Bgr) -> bool {
-    get_min_color_distance(mean, &FREESTYLE_COLORS) <= 30.0f32
+    get_min_color_distance(mean, &FREESTYLE_MODE_COLORS) <= 30.0f32
 }
 
 pub fn detect_openmatch_color_match(mean: Bgr) -> bool {
-    get_min_color_distance(mean, &OPENMATCH_COLORS) <= 30.0f32
+    get_min_color_distance(mean, &OPENMATCH_MODE_COLORS) <= 30.0f32
 }
 
 pub fn check_open_match_badge(frame: &CapturedFrame, rois: &RoiManager) -> Option<SceneType> {
