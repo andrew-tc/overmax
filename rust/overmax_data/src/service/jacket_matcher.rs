@@ -24,7 +24,9 @@ pub struct JacketMatcher {
     phash_list: Vec<u64>,
     dhash_list: Vec<u64>,
     ahash_list: Vec<u64>,
-    hist_list: Vec<Option<[u8; 384]>>,
+    /// 만약 모든 곡에 히스토그램이 존재하는 DB라면 `Some(Vec<[u8; 384]>)`로 촘촘하게 평탄화하여
+    /// 루프 내부의 Option 분기 체크(Discriminant Branching)를 100% 제거
+    hist_list: Option<Vec<[u8; 384]>>,
 }
 
 impl JacketMatcher {
@@ -40,7 +42,19 @@ impl JacketMatcher {
         let phash_list = entries.iter().map(|e| e.phash).collect();
         let dhash_list = entries.iter().map(|e| e.dhash).collect();
         let ahash_list = entries.iter().map(|e| e.ahash).collect();
-        let hist_list = entries.iter().map(|e| e.grid_hist).collect();
+
+        // 모든 entry에 grid_hist가 존재하면 Option을 루프 밖으로 빼내어 촘촘한 연속 메모리 버퍼 생성
+        let has_all_hist = !entries.is_empty() && entries.iter().all(|e| e.grid_hist.is_some());
+        let hist_list = if has_all_hist {
+            Some(
+                entries
+                    .iter()
+                    .filter_map(|e| e.grid_hist)
+                    .collect::<Vec<[u8; 384]>>(),
+            )
+        } else {
+            None
+        };
 
         Self {
             entries,
@@ -83,7 +97,7 @@ impl JacketMatcher {
 
     /// 구버전 매칭 엔진의 public API 시그니처 호환성을 유지하기 위한 메서드입니다.
     /// 100% 무상태(Stateless) 단일 패스 스캔으로 이전 곡 캐시 고착/Invalidation 오류를 0% 차단하며,
-    /// SoA 평탄화 해시 및 SIMD SAD(u8::abs_diff) 히스토그램 대조로 고속 스캔을 수행합니다.
+    /// Option을 루프 밖으로 1회 분기 추출하여 루프 내부 분기(0개) 및 SIMD SAD(u8::abs_diff) 고속 스캔을 수행합니다.
     pub fn match_jacket_with_top_k(
         &self,
         data: &[u8],
@@ -117,26 +131,27 @@ impl JacketMatcher {
         let compare_bits = hash_mask.count_ones() as f32; // 48.0
         let total_compare_bits = 64.0 + compare_bits * 2.0; // 160.0
 
-        // 3. 무상태(Stateless) SoA 연속 메모리 루프 순회
+        // 3. 무상태(Stateless) SoA 연속 메모리 루프 순회 (루프 외곽 Option 1회 분기)
         let len = self.phash_list.len();
         let mut best_idx = None;
         let mut best_sim = -1.0f32;
 
-        for idx in 0..len {
-            // L1 캐시 연속 정수 배열에서 직접 POPCNT 연산 (1클럭)
-            let p_dist = (self.phash_list[idx] ^ q_phash).count_ones();
-            let d_dist = ((self.dhash_list[idx] ^ q_dhash) & hash_mask).count_ones();
-            let a_dist = ((self.ahash_list[idx] ^ q_ahash) & hash_mask).count_ones();
+        if let Some(hist_list) = &self.hist_list {
+            // [최적 경로] 히스토그램이 존재하는 현대 DB 전용 루프 (루프 내 Option 분기 0개)
+            for (idx, e_hist) in hist_list.iter().enumerate() {
+                // L1 캐시 연속 정수 배열에서 직접 POPCNT 연산 (1클럭)
+                let p_dist = (self.phash_list[idx] ^ q_phash).count_ones();
+                let d_dist = ((self.dhash_list[idx] ^ q_dhash) & hash_mask).count_ones();
+                let a_dist = ((self.ahash_list[idx] ^ q_ahash) & hash_mask).count_ones();
 
-            let hamming_sum = p_dist + d_dist + a_dist;
+                let hamming_sum = p_dist + d_dist + a_dist;
 
-            // 1차 필터: Early Exit (임계치 42비트)
-            if hamming_sum > Self::HAMMING_EARLY_EXIT_THRESHOLD {
-                continue;
-            }
+                // 1차 필터: Early Exit (임계치 42비트)
+                if hamming_sum > Self::HAMMING_EARLY_EXIT_THRESHOLD {
+                    continue;
+                }
 
-            // 2차 필터: SIMD SAD(u8::abs_diff) 히스토그램 L1 차이 연산
-            let similarity = if let Some(e_hist) = &self.hist_list[idx] {
+                // 2차 필터: SIMD SAD(u8::abs_diff) 히스토그램 L1 차이 연산 (Option 분기 없음)
                 let hist_diff: u32 = e_hist
                     .iter()
                     .zip(q_grid_hist.iter())
@@ -144,14 +159,32 @@ impl JacketMatcher {
                     .sum();
                 let hist_sim = 1.0 - (hist_diff as f32 / 3072.0).clamp(0.0, 1.0);
                 let hash_sim = 1.0 - (hamming_sum as f32 / total_compare_bits);
-                0.5 * hash_sim + 0.5 * hist_sim
-            } else {
-                1.0 - (hamming_sum as f32 / total_compare_bits)
-            };
+                let similarity = 0.5 * hash_sim + 0.5 * hist_sim;
 
-            if similarity > best_sim {
-                best_sim = similarity;
-                best_idx = Some(idx);
+                if similarity > best_sim {
+                    best_sim = similarity;
+                    best_idx = Some(idx);
+                }
+            }
+        } else {
+            // [폴백 경로] 히스토그램이 없는 레거시 DB 전용 루프 (루프 내 Option 분기 0개)
+            for idx in 0..len {
+                let p_dist = (self.phash_list[idx] ^ q_phash).count_ones();
+                let d_dist = ((self.dhash_list[idx] ^ q_dhash) & hash_mask).count_ones();
+                let a_dist = ((self.ahash_list[idx] ^ q_ahash) & hash_mask).count_ones();
+
+                let hamming_sum = p_dist + d_dist + a_dist;
+
+                if hamming_sum > Self::HAMMING_EARLY_EXIT_THRESHOLD {
+                    continue;
+                }
+
+                let similarity = 1.0 - (hamming_sum as f32 / total_compare_bits);
+
+                if similarity > best_sim {
+                    best_sim = similarity;
+                    best_idx = Some(idx);
+                }
             }
         }
 
