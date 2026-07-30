@@ -92,9 +92,9 @@ pub fn compute_pixel_checksum(frame: &CapturedFrame, roi: RoiRect) -> Option<u64
         for x in (x1..x2).step_by(step) {
             let idx = ((y * frame.width + x) * 4) as usize;
             if idx + 2 < frame.bgra.len() {
-                sum += frame.bgra[idx] as u64; // B
-                sum += frame.bgra[idx + 1] as u64; // G
-                sum += frame.bgra[idx + 2] as u64; // R
+                sum += overmax_cv::Bgr::from_bgra_slice(&frame.bgra[idx..])
+                    .to_u64()
+                    .sum_channels();
             }
         }
     }

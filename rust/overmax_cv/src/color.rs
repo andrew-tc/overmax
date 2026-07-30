@@ -18,6 +18,13 @@ impl<T> Bgr<T> {
     }
 }
 
+impl<T: Add<Output = T> + Copy> Bgr<T> {
+    #[inline]
+    pub fn sum_channels(self) -> T {
+        self.b + self.g + self.r
+    }
+}
+
 impl<T> From<(T, T, T)> for Bgr<T> {
     #[inline]
     fn from(tuple: (T, T, T)) -> Self {
@@ -37,6 +44,13 @@ impl<T> From<Bgr<T>> for (T, T, T) {
 }
 
 impl Bgr<u8> {
+    #[inline]
+    pub fn swap_rb_slice(slice: &mut [u8]) {
+        for chunk in slice.chunks_exact_mut(4) {
+            chunk.swap(0, 2);
+        }
+    }
+
     #[inline]
     pub fn from_bgra_slice(slice: &[u8]) -> Self {
         Self {
@@ -145,10 +159,6 @@ impl Bgr<f64> {
         self.distance_sq(other).sqrt()
     }
 
-    #[inline]
-    pub fn sum_channels(self) -> f64 {
-        self.b + self.g + self.r
-    }
 }
 
 impl Add for Bgr<f64> {

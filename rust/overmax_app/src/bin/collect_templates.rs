@@ -79,9 +79,7 @@ fn save_segment_as_png(
     }
 
     let mut rgba = bgra;
-    for chunk in rgba.chunks_exact_mut(4) {
-        chunk.swap(0, 2); // BGR -> RGB
-    }
+    overmax_cv::Bgr::swap_rb_slice(&mut rgba);
 
     let buf = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(width as u32, height as u32, rgba)
         .ok_or_else(|| "failed to create image buffer".to_string())?;

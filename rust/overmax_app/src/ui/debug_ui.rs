@@ -107,7 +107,8 @@ fn update_ocr_texture(
             info.image_pixels
                 .chunks_exact(4)
                 .map(|chunk| {
-                    egui::Color32::from_rgba_unmultiplied(chunk[2], chunk[1], chunk[0], chunk[3])
+                    let color = overmax_cv::Bgr::from_bgra_slice(chunk);
+                    egui::Color32::from_rgba_unmultiplied(color.r, color.g, color.b, chunk[3])
                 })
                 .collect()
         } else {
