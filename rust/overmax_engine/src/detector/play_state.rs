@@ -375,7 +375,7 @@ pub fn detect_button_mode_from_roi(
 
     for (mode, colors) in colors_table {
         for color in colors {
-            let dist = color_dist(mean, *color);
+            let dist = mean.distance_f32(*color);
             if dist < best.1 {
                 best = (Some(mode), dist);
             }
@@ -521,10 +521,6 @@ fn openmatch_button_colors() -> [ButtonColorEntry; 4] {
         (Mode::B6, OPENMATCH_B6_COLORS),
         (Mode::B8, OPENMATCH_B8_COLORS),
     ]
-}
-
-fn color_dist(left: Bgr, right: Bgr) -> f32 {
-    left.distance_f32(right)
 }
 
 pub fn resolve_most_plausible_rate(

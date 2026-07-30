@@ -26,7 +26,7 @@ pub fn to_gray(data: &[u8], channels: usize) -> Vec<u8> {
 
     data.chunks_exact(channels)
         .map(Bgr::from_bgra_slice)
-        .map(bgr_to_gray)
+        .map(|bgr| bgr.luma(LumaMethod::Weighted))
         .collect()
 }
 
@@ -66,10 +66,6 @@ pub fn resize_bilinear_u8(src: &[u8], sw: usize, sh: usize, dw: usize, dh: usize
         }
     }
     dst
-}
-
-fn bgr_to_gray(bgr: Bgr) -> u8 {
-    ((29 * u16::from(bgr.b) + 150 * u16::from(bgr.g) + 77 * u16::from(bgr.r) + 128) >> 8) as u8
 }
 
 fn ahash(gray: &[u8], width: usize, height: usize) -> u64 {
@@ -433,7 +429,10 @@ impl LumaMethod {
     #[inline]
     pub fn calculate_luma(self, bgr: Bgr) -> u8 {
         match self {
-            LumaMethod::Weighted => bgr_to_gray(bgr),
+            LumaMethod::Weighted => {
+                ((29 * u16::from(bgr.b) + 150 * u16::from(bgr.g) + 77 * u16::from(bgr.r) + 128)
+                    >> 8) as u8
+            }
             LumaMethod::Average => bgr.average(),
             LumaMethod::MaxRGB => bgr.r.max(bgr.g).max(bgr.b),
         }

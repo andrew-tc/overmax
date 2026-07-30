@@ -1,5 +1,4 @@
-use crate::color::Bgr;
-use crate::image::{resize_bilinear_u8, LumaMethod};
+use crate::image::resize_bilinear_u8;
 
 fn autocontrast_gray(data: &mut [u8]) {
     if data.is_empty() {
@@ -32,7 +31,7 @@ pub fn preprocess_logo_bgra(
     force_invert: bool,
     binarize: bool,
 ) -> Vec<u8> {
-    let mut gray = to_gray_ocr(data, 4);
+    let mut gray = crate::image::to_gray(data, 4);
     autocontrast_gray(&mut gray);
 
     // Dynamic scaling: target height ~120px, minimum 5x scale
@@ -86,7 +85,7 @@ pub fn preprocess_bgra_with_telemetry(
     force_invert: bool,
     binarize: bool,
 ) -> OcrPreprocessResult {
-    let mut gray = to_gray_ocr(data, 4);
+    let mut gray = crate::image::to_gray(data, 4);
     autocontrast_gray(&mut gray);
 
     // Dynamic scaling: target height ~120px, minimum 5x scale
@@ -160,16 +159,6 @@ pub fn preprocess_color_bgra_with_telemetry(
         padded_width: upscaled_w + 20,
         padded_height: upscaled_h + 20,
     }
-}
-
-fn to_gray_ocr(data: &[u8], channels: usize) -> Vec<u8> {
-    if channels == 1 {
-        return data.to_vec();
-    }
-    // 표준 ITU-R BT.601 가중치를 적용한 휘도(Luminance) 기반 그레이스케일 변환
-    data.chunks_exact(channels)
-        .map(|pixel| Bgr::from_bgra_slice(pixel).luma(LumaMethod::Weighted))
-        .collect()
 }
 
 fn box_blur_3x3(data: &[u8], width: usize, height: usize) -> Vec<u8> {
