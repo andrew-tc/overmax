@@ -171,19 +171,12 @@ fn main() {
         }
 
         // 2. 고휘도 이진화 전처리 실행
-        let binary = threshold_luminance(
-            &rate_img.bgra,
-            rate_img.width as usize,
-            rate_img.height as usize,
-        );
+        let rate_region = rate_img.to_image_region();
+        let binary = threshold_luminance(&rate_region.bgra, rate_img.width, rate_img.height);
 
         // 3. 수직 프로젝션 분할 실행
-        let segments = overmax_cv::segment_characters(
-            &binary,
-            rate_img.width as usize,
-            rate_img.height as usize,
-        )
-        .unwrap_or_default();
+        let segments = overmax_cv::segment_characters(&binary, rate_img.width, rate_img.height)
+            .unwrap_or_default();
 
         println!(
             "File: {} -> OCR Rate: {:.2}%, Segment count: {}, Expected Char count: {}",
@@ -212,15 +205,8 @@ fn main() {
                 );
                 let out_path = output_dir.join(out_name);
 
-                if save_segment_as_png(
-                    &binary,
-                    rate_img.width as usize,
-                    rate_img.height as usize,
-                    x1,
-                    x2,
-                    &out_path,
-                )
-                .is_ok()
+                if save_segment_as_png(&binary, rate_img.width, rate_img.height, x1, x2, &out_path)
+                    .is_ok()
                 {
                     total_saved += 1;
                 }

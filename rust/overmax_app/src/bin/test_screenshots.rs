@@ -42,7 +42,8 @@ fn save_badge_crop(
     // 확장자가 png가 아니면 png로 강제 변경
     let dst_path = dst_dir.join(dst_name).with_extension("png");
 
-    let mut bgra = badge_img.bgra.clone();
+    let badge_region = badge_img.to_image_region();
+    let mut bgra = badge_region.bgra.clone();
     overmax_cv::Bgr::swap_rb_slice(&mut bgra);
     let rgba = bgra;
 
@@ -57,12 +58,9 @@ fn save_badge_crop(
         .save(&dst_path)
         .expect("failed to save badge crop image");
     println!("      Saved badge crop to: {}", dst_path.display());
-    if let Ok((phash, dhash, ahash)) = overmax_cv::compute_image_hashes(
-        &badge_img.bgra,
-        badge_img.width as usize,
-        badge_img.height as usize,
-        4,
-    ) {
+    if let Ok((phash, dhash, ahash)) =
+        overmax_cv::compute_image_hashes(&badge_region.bgra, badge_img.width, badge_img.height, 4)
+    {
         println!(
             "      [Badge Hash] phash={:016x}, dhash={:016x}, ahash={:016x}",
             phash, dhash, ahash
@@ -247,8 +245,9 @@ fn run_roi_test(
     // 1. Jacket Matching (song_id) 테스트
     if let Some(jacket_roi) = rois.get_roi("jacket") {
         if let Some(jacket_img) = crop_roi(frame, jacket_roi) {
+            let jacket_region = jacket_img.to_image_region();
             // 디버그 이미지 저장
-            let mut bgra = jacket_img.bgra.clone();
+            let mut bgra = jacket_region.bgra.clone();
             overmax_cv::Bgr::swap_rb_slice(&mut bgra);
             if let Some(buf) = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
                 jacket_img.width as u32,
@@ -261,12 +260,9 @@ fn run_roi_test(
                     .ok();
             }
 
-            if let Some(match_res) = matcher.match_jacket(
-                &jacket_img.bgra,
-                jacket_img.width as usize,
-                jacket_img.height as usize,
-                4,
-            ) {
+            if let Some(match_res) =
+                matcher.match_jacket(&jacket_region.bgra, jacket_img.width, jacket_img.height, 4)
+            {
                 println!(
                     "    Jacket Matching Result: song_id={:?}, similarity={:.4}",
                     match_res.image_id.parse::<u32>().ok(),
@@ -302,8 +298,9 @@ fn run_roi_test(
             SceneType::ResultFreestyle => {
                 if let Some(mode_roi) = rois.get_roi("mode_digit") {
                     if let Some(mode_img) = crop_roi(frame, mode_roi) {
+                        let mode_region = mode_img.to_image_region();
                         // 디버그 이미지 저장
-                        let mut bgra = mode_img.bgra.clone();
+                        let mut bgra = mode_region.bgra.clone();
                         overmax_cv::Bgr::swap_rb_slice(&mut bgra);
                         if let Some(buf) = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
                             mode_img.width as u32,
@@ -323,8 +320,9 @@ fn run_roi_test(
                 }
                 if let Some(diff_roi) = rois.get_roi("diff_panel") {
                     if let Some(diff_img) = crop_roi(frame, diff_roi) {
+                        let diff_region = diff_img.to_image_region();
                         // 디버그 이미지 저장
-                        let mut bgra = diff_img.bgra.clone();
+                        let mut bgra = diff_region.bgra.clone();
                         overmax_cv::Bgr::swap_rb_slice(&mut bgra);
                         if let Some(buf) = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
                             diff_img.width as u32,
@@ -384,7 +382,8 @@ fn run_roi_test(
 
         if let Some(diff_roi) = rois.get_roi("diff_panel") {
             if let Some(diff_img) = crop_roi(frame, diff_roi) {
-                let mut bgra = diff_img.bgra.clone();
+                let diff_region = diff_img.to_image_region();
+                let mut bgra = diff_region.bgra.clone();
                 overmax_cv::Bgr::swap_rb_slice(&mut bgra);
                 if let Some(buf) = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
                     diff_img.width as u32,

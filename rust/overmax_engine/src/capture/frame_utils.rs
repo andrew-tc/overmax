@@ -141,41 +141,19 @@ impl<'a> ImageView<'a> {
     }
 }
 
-pub fn crop_roi(frame: &CapturedFrame, roi: RoiRect) -> Option<ImageRegion> {
-    let view = ImageView::from_frame(frame);
-    view.crop(roi).map(|v| v.to_image_region())
-}
-
-pub fn crop_roi_view<'a>(frame: &'a CapturedFrame, roi: RoiRect) -> Option<ImageView<'a>> {
+pub fn crop_roi<'a>(frame: &'a CapturedFrame, roi: RoiRect) -> Option<ImageView<'a>> {
     let view = ImageView::from_frame(frame);
     view.crop(roi)
 }
 
 pub fn region_mean_bgr(frame: &CapturedFrame, roi: RoiRect) -> overmax_cv::Bgr {
-    let Some(region) = crop_roi(frame, roi) else {
+    let Some(view) = crop_roi(frame, roi) else {
         return overmax_cv::Bgr::new(0, 0, 0);
     };
-    if region.bgra.len() < 4 {
-        return overmax_cv::Bgr::new(0, 0, 0);
-    }
-    let mut acc = overmax_cv::Bgr::<u64>::default();
-    let mut count = 0u64;
-    for pixel in region.bgra.chunks_exact(4) {
-        acc += overmax_cv::Bgr::from_bgra_slice(pixel).to_u64();
-        count += 1;
-    }
-    overmax_cv::Bgr::new(
-        (acc.b / count) as u8,
-        (acc.g / count) as u8,
-        (acc.r / count) as u8,
-    )
+    view.region_mean_bgr()
 }
 
-pub fn make_thumbnail(region: &ImageRegion) -> Option<Vec<u8>> {
-    make_thumbnail_view(&region.as_view())
-}
-
-pub fn make_thumbnail_view(view: &ImageView) -> Option<Vec<u8>> {
+pub fn make_thumbnail(view: &ImageView) -> Option<Vec<u8>> {
     let region = view.to_image_region();
     overmax_cv::make_thumbnail_bgra_32(&region.bgra, region.width as usize, region.height as usize)
         .ok()
@@ -247,7 +225,7 @@ mod tests {
             },
         )
         .unwrap();
-        assert_eq!(crop.bgra, vec![4, 5, 6, 0, 10, 11, 12, 0]);
+        assert_eq!(crop.to_image_region().bgra, vec![4, 5, 6, 0, 10, 11, 12, 0]);
     }
 
     #[test]
