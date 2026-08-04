@@ -2,18 +2,13 @@ use overmax_cv::CvTemplate;
 use overmax_engine::detector::templates::digit::DIGIT_TEMPLATES;
 use std::time::Instant;
 
+use overmax_cv::LumaMethod;
+
 // BGRA format image region replica
 struct SyntheticImage {
     width: usize,
     height: usize,
     bgra: Vec<u8>,
-}
-
-#[derive(Copy, Clone, Debug)]
-enum LumaMethod {
-    Weighted, // Standard ITU-R BT.601: 0.299R + 0.587G + 0.114B
-    MaxRGB,   // max(R, G, B)
-    Average,  // (R + G + B) / 3
 }
 
 fn binarize_by_luminance(
@@ -22,16 +17,11 @@ fn binarize_by_luminance(
     threshold_calc: impl FnOnce(u8, u8) -> u8,
     foreground_value: u8,
 ) -> (Vec<u8>, u8, u8) {
-    let cv_method = match method {
-        LumaMethod::Weighted => overmax_cv::LumaMethod::Weighted,
-        LumaMethod::MaxRGB => overmax_cv::LumaMethod::MaxRGB,
-        LumaMethod::Average => overmax_cv::LumaMethod::Average,
-    };
     overmax_cv::binarize_by_luminance(
         &img.bgra,
         img.width,
         img.height,
-        cv_method,
+        method,
         threshold_calc,
         foreground_value,
     )
@@ -68,10 +58,8 @@ fn evaluate_sweep(
                         let idx = (y * w + x) * 4;
                         let mask_val = t.mask[y * w + x];
                         let pixel_color = if mask_val == 1 { fg_color } else { bg_color };
-                        bgra[idx] = pixel_color; // B
-                        bgra[idx + 1] = pixel_color; // G
-                        bgra[idx + 2] = pixel_color; // R
-                        bgra[idx + 3] = 255; // A
+                        overmax_cv::Bgr::new(pixel_color, pixel_color, pixel_color)
+                            .write_to_bgra(&mut bgra[idx..idx + 4], 255);
                     }
                 }
 
@@ -180,9 +168,7 @@ fn main() {
                 if let Ok(img_data) = image::open(path) {
                     let (w, h) = img_data.dimensions();
                     let mut bgra = img_data.to_rgba8().into_raw();
-                    for chunk in bgra.chunks_exact_mut(4) {
-                        chunk.swap(0, 2);
-                    }
+                    overmax_cv::Bgr::swap_rb_slice(&mut bgra);
 
                     let img = SyntheticImage {
                         width: w as usize,
@@ -235,9 +221,7 @@ fn main() {
                 if let Ok(img_data) = image::open(path) {
                     let (w, h) = img_data.dimensions();
                     let mut bgra = img_data.to_rgba8().into_raw();
-                    for chunk in bgra.chunks_exact_mut(4) {
-                        chunk.swap(0, 2);
-                    }
+                    overmax_cv::Bgr::swap_rb_slice(&mut bgra);
 
                     let img = SyntheticImage {
                         width: w as usize,

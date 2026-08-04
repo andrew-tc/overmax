@@ -15,9 +15,7 @@ fn save_crop(
         return false;
     };
     let mut bgra = cropped.bgra.clone();
-    for chunk in bgra.chunks_exact_mut(4) {
-        chunk.swap(0, 2); // BGRA to RGBA
-    }
+    overmax_cv::Bgr::swap_rb_slice(&mut bgra);
     let rgba = bgra;
     if let Some(buf) = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
         cropped.width as u32,

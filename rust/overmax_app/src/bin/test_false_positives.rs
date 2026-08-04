@@ -121,9 +121,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Crop ROI
             let cropped = img_resized.crop_imm(rx, ry, rw, rh);
             let mut rgba = cropped.to_rgba8().into_raw();
-            for chunk in rgba.chunks_exact_mut(4) {
-                chunk.swap(0, 2); // RGBA to BGRA
-            }
+            overmax_cv::Bgr::swap_rb_slice(&mut rgba);
 
             // Run jacket matcher (similarity_threshold = 0.0 이므로 무조건 매칭 성공값 리턴)
             let match_res = raw_matcher.match_jacket(&rgba, rw as usize, rh as usize, 4);

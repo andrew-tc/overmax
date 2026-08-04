@@ -1,8 +1,10 @@
+pub mod color;
 pub mod error;
 pub mod hog;
 pub mod image;
 pub mod ocr;
 
+pub use color::Bgr;
 pub use ocr::OcrPreprocessResult;
 
 pub fn compute_hashes_gray(
@@ -254,10 +256,10 @@ pub fn compute_grid_histogram(
                 let row_offset = y * width;
                 for x in start_x..end_x {
                     let px = (row_offset + x) * channels;
-                    // BGRA 채널 순서: B=0, G=1, R=2
-                    let b = data[px] as usize;
-                    let g = data[px + 1] as usize;
-                    let r = data[px + 2] as usize;
+                    let color = crate::color::Bgr::from_bgra_slice(&data[px..]);
+                    let b = color.b as usize;
+                    let g = color.g as usize;
+                    let r = color.r as usize;
                     b_bins[(b / 32).min(7)] += 1;
                     g_bins[(g / 32).min(7)] += 1;
                     r_bins[(r / 32).min(7)] += 1;

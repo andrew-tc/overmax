@@ -43,9 +43,7 @@ fn save_badge_crop(
     let dst_path = dst_dir.join(dst_name).with_extension("png");
 
     let mut bgra = badge_img.bgra.clone();
-    for chunk in bgra.chunks_exact_mut(4) {
-        chunk.swap(0, 2);
-    }
+    overmax_cv::Bgr::swap_rb_slice(&mut bgra);
     let rgba = bgra;
 
     let buf = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
@@ -251,9 +249,7 @@ fn run_roi_test(
         if let Some(jacket_img) = crop_roi(frame, jacket_roi) {
             // 디버그 이미지 저장
             let mut bgra = jacket_img.bgra.clone();
-            for chunk in bgra.chunks_exact_mut(4) {
-                chunk.swap(0, 2);
-            }
+            overmax_cv::Bgr::swap_rb_slice(&mut bgra);
             if let Some(buf) = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
                 jacket_img.width as u32,
                 jacket_img.height as u32,
@@ -308,9 +304,7 @@ fn run_roi_test(
                     if let Some(mode_img) = crop_roi(frame, mode_roi) {
                         // 디버그 이미지 저장
                         let mut bgra = mode_img.bgra.clone();
-                        for chunk in bgra.chunks_exact_mut(4) {
-                            chunk.swap(0, 2);
-                        }
+                        overmax_cv::Bgr::swap_rb_slice(&mut bgra);
                         if let Some(buf) = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
                             mode_img.width as u32,
                             mode_img.height as u32,
@@ -331,9 +325,7 @@ fn run_roi_test(
                     if let Some(diff_img) = crop_roi(frame, diff_roi) {
                         // 디버그 이미지 저장
                         let mut bgra = diff_img.bgra.clone();
-                        for chunk in bgra.chunks_exact_mut(4) {
-                            chunk.swap(0, 2);
-                        }
+                        overmax_cv::Bgr::swap_rb_slice(&mut bgra);
                         if let Some(buf) = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
                             diff_img.width as u32,
                             diff_img.height as u32,
@@ -393,9 +385,7 @@ fn run_roi_test(
         if let Some(diff_roi) = rois.get_roi("diff_panel") {
             if let Some(diff_img) = crop_roi(frame, diff_roi) {
                 let mut bgra = diff_img.bgra.clone();
-                for chunk in bgra.chunks_exact_mut(4) {
-                    chunk.swap(0, 2);
-                }
+                overmax_cv::Bgr::swap_rb_slice(&mut bgra);
                 if let Some(buf) = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
                     diff_img.width as u32,
                     diff_img.height as u32,

@@ -1,3 +1,4 @@
+use crate::color::Bgr;
 use crate::error::CvError;
 
 pub fn validate_image(
@@ -24,7 +25,8 @@ pub fn to_gray(data: &[u8], channels: usize) -> Vec<u8> {
     }
 
     data.chunks_exact(channels)
-        .map(|pixel| bgr_to_gray(pixel[0], pixel[1], pixel[2]))
+        .map(Bgr::from_bgra_slice)
+        .map(|bgr| bgr.luma(LumaMethod::Weighted))
         .collect()
 }
 
@@ -64,10 +66,6 @@ pub fn resize_bilinear_u8(src: &[u8], sw: usize, sh: usize, dw: usize, dh: usize
         }
     }
     dst
-}
-
-fn bgr_to_gray(b: u8, g: u8, r: u8) -> u8 {
-    ((29 * u16::from(b) + 150 * u16::from(g) + 77 * u16::from(r) + 128) >> 8) as u8
 }
 
 fn ahash(gray: &[u8], width: usize, height: usize) -> u64 {
@@ -429,20 +427,23 @@ pub enum LumaMethod {
 
 impl LumaMethod {
     #[inline]
-    pub fn calculate_luma(self, b: u8, g: u8, r: u8) -> u8 {
+    pub fn calculate_luma(self, bgr: Bgr) -> u8 {
         match self {
-            LumaMethod::Weighted => ((77 * r as u32 + 150 * g as u32 + 29 * b as u32) >> 8) as u8,
-            LumaMethod::Average => ((r as u32 + g as u32 + b as u32) / 3) as u8,
-            LumaMethod::MaxRGB => r.max(g).max(b),
+            LumaMethod::Weighted => {
+                ((29 * u16::from(bgr.b) + 150 * u16::from(bgr.g) + 77 * u16::from(bgr.r) + 128)
+                    >> 8) as u8
+            }
+            LumaMethod::Average => bgr.average(),
+            LumaMethod::MaxRGB => bgr.r.max(bgr.g).max(bgr.b),
         }
     }
 
     #[inline]
-    pub fn calculate_luma_f64(self, b: f64, g: f64, r: f64) -> f64 {
+    pub fn calculate_luma_f64(self, bgr: Bgr<f64>) -> f64 {
         match self {
-            LumaMethod::Weighted => 0.114 * b + 0.587 * g + 0.299 * r,
-            LumaMethod::Average => (b + g + r) / 3.0,
-            LumaMethod::MaxRGB => b.max(g).max(r),
+            LumaMethod::Weighted => 0.114 * bgr.b + 0.587 * bgr.g + 0.299 * bgr.r,
+            LumaMethod::Average => bgr.average(),
+            LumaMethod::MaxRGB => bgr.max_channel(),
         }
     }
 }
@@ -462,11 +463,7 @@ pub fn binarize_by_luminance(
     for y in 0..height {
         for x in 0..width {
             let idx = (y * width + x) * 4;
-            let b = bgra[idx];
-            let g = bgra[idx + 1];
-            let r = bgra[idx + 2];
-
-            let luma = method.calculate_luma(b, g, r);
+            let luma = Bgr::from_bgra_slice(&bgra[idx..]).luma(method);
 
             luma_vals[y * width + x] = luma;
             if luma > max_y {
@@ -537,18 +534,7 @@ pub fn adaptive_threshold_bradley_roth(
     for y in 0..height {
         for x in 0..width {
             let idx = (y * width + x) * 4;
-            let b = bgra[idx];
-            let g = bgra[idx + 1];
-            let r = bgra[idx + 2];
-
-            let luma = match method {
-                LumaMethod::Weighted => {
-                    ((77 * r as u32 + 150 * g as u32 + 29 * b as u32) >> 8) as u8
-                }
-                LumaMethod::Average => ((r as u32 + g as u32 + b as u32) / 3) as u8,
-                LumaMethod::MaxRGB => r.max(g).max(b),
-            };
-            luma_vals[y * width + x] = luma;
+            luma_vals[y * width + x] = Bgr::from_bgra_slice(&bgra[idx..]).luma(method);
         }
     }
 

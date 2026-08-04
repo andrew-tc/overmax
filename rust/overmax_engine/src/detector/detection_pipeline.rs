@@ -421,27 +421,13 @@ impl DetectionPipeline {
     }
 }
 
-const FREESTYLE_COLORS: [(u8, u8, u8); 4] = [
-    (118, 212, 52),  // 4B
-    (225, 188, 72),  // 5B
-    (59, 146, 223),  // 6B
-    (244, 146, 133), // 8B
-];
+use crate::detector::templates::{FREESTYLE_MODE_COLORS, OPENMATCH_MODE_COLORS};
+use overmax_cv::Bgr;
 
-const OPENMATCH_COLORS: [(u8, u8, u8); 4] = [
-    (102, 118, 46), // 4B
-    (147, 136, 95), // 5B
-    (61, 137, 192), // 6B
-    (153, 90, 88),  // 8B
-];
-
-fn get_min_color_distance(mean: (u8, u8, u8), colors: &[(u8, u8, u8)]) -> f32 {
+fn get_min_color_distance(mean: Bgr, colors: &[Bgr]) -> f32 {
     let mut min_dist = f32::MAX;
     for color in colors {
-        let db = f32::from(mean.0) - f32::from(color.0);
-        let dg = f32::from(mean.1) - f32::from(color.1);
-        let dr = f32::from(mean.2) - f32::from(color.2);
-        let dist = (db * db + dg * dg + dr * dr).sqrt();
+        let dist = mean.distance_f32(*color);
         if dist < min_dist {
             min_dist = dist;
         }
@@ -449,12 +435,12 @@ fn get_min_color_distance(mean: (u8, u8, u8), colors: &[(u8, u8, u8)]) -> f32 {
     min_dist
 }
 
-pub fn detect_freestyle_color_match(mean: (u8, u8, u8)) -> bool {
-    get_min_color_distance(mean, &FREESTYLE_COLORS) <= 30.0f32
+pub fn detect_freestyle_color_match(mean: Bgr) -> bool {
+    get_min_color_distance(mean, &FREESTYLE_MODE_COLORS) <= 30.0f32
 }
 
-pub fn detect_openmatch_color_match(mean: (u8, u8, u8)) -> bool {
-    get_min_color_distance(mean, &OPENMATCH_COLORS) <= 30.0f32
+pub fn detect_openmatch_color_match(mean: Bgr) -> bool {
+    get_min_color_distance(mean, &OPENMATCH_MODE_COLORS) <= 30.0f32
 }
 
 pub fn check_open_match_badge(frame: &CapturedFrame, rois: &RoiManager) -> Option<SceneType> {
@@ -710,28 +696,21 @@ fn check_category_band_solid(
                 return Some(false);
             }
 
-            let mut sum_b = 0.0;
-            let mut sum_g = 0.0;
-            let mut sum_r = 0.0;
+            let mut sum_bgr = overmax_cv::Bgr::new(0.0, 0.0, 0.0);
 
             for y in 0..band_img.height as usize {
                 for x in 0..band_img.width as usize {
                     let idx = (y * band_img.width as usize + x) * 4;
                     if idx + 2 < band_img.bgra.len() {
-                        sum_b += band_img.bgra[idx] as f64;
-                        sum_g += band_img.bgra[idx + 1] as f64;
-                        sum_r += band_img.bgra[idx + 2] as f64;
+                        sum_bgr += overmax_cv::Bgr::from_bgra_slice_f64(&band_img.bgra[idx..]);
                     }
                 }
             }
 
-            let mean_b = sum_b / total_pixels as f64;
-            let mean_g = sum_g / total_pixels as f64;
-            let mean_r = sum_r / total_pixels as f64;
+            let mean = sum_bgr / total_pixels as f64;
 
             // 1. Brightness 가드 (>= 60.0)
-            let brightness =
-                overmax_cv::LumaMethod::Weighted.calculate_luma_f64(mean_b, mean_g, mean_r);
+            let brightness = mean.luma(overmax_cv::LumaMethod::Weighted);
             if brightness < 60.0 {
                 return Some(false);
             }
@@ -742,10 +721,8 @@ fn check_category_band_solid(
                 for x in 0..band_img.width as usize {
                     let idx = (y * band_img.width as usize + x) * 4;
                     if idx + 2 < band_img.bgra.len() {
-                        let b = band_img.bgra[idx] as f64;
-                        let g = band_img.bgra[idx + 1] as f64;
-                        let r = band_img.bgra[idx + 2] as f64;
-                        diff_sum += (b - mean_b).abs() + (g - mean_g).abs() + (r - mean_r).abs();
+                        let px = overmax_cv::Bgr::from_bgra_slice_f64(&band_img.bgra[idx..]);
+                        diff_sum += px.abs_diff(mean).sum_channels();
                     }
                 }
             }
@@ -756,8 +733,8 @@ fn check_category_band_solid(
             }
 
             // 3. Saturation 및 무채색(Gray) 채널 균등성 검증
-            let max_c = mean_r.max(mean_g).max(mean_b);
-            let min_c = mean_r.min(mean_g).min(mean_b);
+            let max_c = mean.max_channel();
+            let min_c = mean.min_channel();
             let saturation = if max_c > 0.0 {
                 (max_c - min_c) / max_c
             } else {
@@ -765,10 +742,11 @@ fn check_category_band_solid(
             };
 
             if saturation < 0.15 {
-                let diff_rg = (mean_r - mean_g).abs();
-                let diff_gb = (mean_g - mean_b).abs();
-                let diff_rb = (mean_r - mean_b).abs();
-                if diff_rg > 15.0 || diff_gb > 15.0 || diff_rb > 15.0 {
+                if mean.max_channel_diff() > 15.0 {
+                    debug_println!(
+                        "    [check_category_band_solid] Category band rejected: channel diff {:.1} > 15.0",
+                        mean.max_channel_diff()
+                    );
                     return Some(false);
                 }
             }
@@ -922,10 +900,8 @@ mod tests {
 
             for (x, y, pixel) in img.pixels() {
                 let idx = ((y * w + x) * 4) as usize;
-                bgra[idx] = pixel[2]; // B
-                bgra[idx + 1] = pixel[1]; // G
-                bgra[idx + 2] = pixel[0]; // R
-                bgra[idx + 3] = pixel[3]; // A
+                overmax_cv::Bgr::new(pixel[2], pixel[1], pixel[0])
+                    .write_to_bgra(&mut bgra[idx..idx + 4], pixel[3]);
             }
 
             let frame = CapturedFrame {

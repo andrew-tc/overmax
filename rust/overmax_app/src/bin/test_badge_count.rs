@@ -92,26 +92,13 @@ fn analyze_folder(dir_path: &Path, default_scene: SceneType, threshold: f32) -> 
             continue;
         };
 
-        let mut r_sum = 0.0;
-        let mut g_sum = 0.0;
-        let mut b_sum = 0.0;
-        let total_pixels = (badge_img.width * badge_img.height) as f32;
+        let mut acc = overmax_cv::Bgr::<f64>::default();
+        let total_pixels = (badge_img.width * badge_img.height) as f64;
         for chunk in badge_img.bgra.chunks_exact(4) {
-            let b = chunk[0] as f32;
-            let g = chunk[1] as f32;
-            let r = chunk[2] as f32;
-            b_sum += b;
-            g_sum += g;
-            r_sum += r;
+            acc += overmax_cv::Bgr::from_bgra_slice_f64(chunk);
         }
-        let avg_r = r_sum / total_pixels;
-        let avg_g = g_sum / total_pixels;
-        let avg_b = b_sum / total_pixels;
-        let brightness = overmax_cv::LumaMethod::Weighted.calculate_luma_f64(
-            avg_b as f64,
-            avg_g as f64,
-            avg_r as f64,
-        );
+        let avg = acc / total_pixels;
+        let brightness = overmax_cv::LumaMethod::Weighted.calculate_luma_f64(avg);
 
         let score_perfect = calculate_hash_score(
             phash,
@@ -146,7 +133,7 @@ fn analyze_folder(dir_path: &Path, default_scene: SceneType, threshold: f32) -> 
 
         println!(
             "  - {}: status={}, perfect_score={:.1}, mc_score={:.1} | AvgRGB=({:.1}, {:.1}, {:.1}) Bright={:.1}",
-            filename, status, score_perfect, score_mc, avg_r, avg_g, avg_b, brightness
+            filename, status, score_perfect, score_mc, avg.r, avg.g, avg.b, brightness
         );
     }
 

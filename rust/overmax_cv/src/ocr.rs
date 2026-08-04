@@ -31,7 +31,7 @@ pub fn preprocess_logo_bgra(
     force_invert: bool,
     binarize: bool,
 ) -> Vec<u8> {
-    let mut gray = to_gray_ocr(data, 4);
+    let mut gray = crate::image::to_gray(data, 4);
     autocontrast_gray(&mut gray);
 
     // Dynamic scaling: target height ~120px, minimum 5x scale
@@ -85,7 +85,7 @@ pub fn preprocess_bgra_with_telemetry(
     force_invert: bool,
     binarize: bool,
 ) -> OcrPreprocessResult {
-    let mut gray = to_gray_ocr(data, 4);
+    let mut gray = crate::image::to_gray(data, 4);
     autocontrast_gray(&mut gray);
 
     // Dynamic scaling: target height ~120px, minimum 5x scale
@@ -159,22 +159,6 @@ pub fn preprocess_color_bgra_with_telemetry(
         padded_width: upscaled_w + 20,
         padded_height: upscaled_h + 20,
     }
-}
-
-fn to_gray_ocr(data: &[u8], channels: usize) -> Vec<u8> {
-    if channels == 1 {
-        return data.to_vec();
-    }
-    // 표준 ITU-R BT.601 가중치를 적용한 휘도(Luminance) 기반 그레이스케일 변환
-    data.chunks_exact(channels)
-        .map(|pixel| {
-            ((77 * u16::from(pixel[2])
-                + 150 * u16::from(pixel[1])
-                + 29 * u16::from(pixel[0])
-                + 128)
-                >> 8) as u8
-        })
-        .collect()
 }
 
 fn box_blur_3x3(data: &[u8], width: usize, height: usize) -> Vec<u8> {

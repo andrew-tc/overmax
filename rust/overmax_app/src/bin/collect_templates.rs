@@ -71,17 +71,12 @@ fn save_segment_as_png(
             let src_x = x1 + x;
             let val = binary[y * full_width + src_x];
             let idx = (y * width + x) * 4;
-            bgra[idx] = val; // B
-            bgra[idx + 1] = val; // G
-            bgra[idx + 2] = val; // R
-            bgra[idx + 3] = 255; // A
+            overmax_cv::Bgr::new(val, val, val).write_to_bgra(&mut bgra[idx..idx + 4], 255);
         }
     }
 
     let mut rgba = bgra;
-    for chunk in rgba.chunks_exact_mut(4) {
-        chunk.swap(0, 2); // BGR -> RGB
-    }
+    overmax_cv::Bgr::swap_rb_slice(&mut rgba);
 
     let buf = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(width as u32, height as u32, rgba)
         .ok_or_else(|| "failed to create image buffer".to_string())?;
