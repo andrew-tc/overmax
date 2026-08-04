@@ -169,15 +169,16 @@ impl PlayStateDetector {
             overmax_core::SceneType::ResultFreestyle => {
                 detected_mode =
                     rois.and_then_roi(frame, "mode_digit", templates::detect_freestyle_mode);
-                detected_diff = rois.and_then_roi(frame, "diff_panel", |img| {
-                    templates::detect_result_difficulty(img)
-                });
+                detected_diff =
+                    rois.and_then_roi(frame, "diff_panel", templates::detect_result_difficulty);
             }
             overmax_core::SceneType::ResultOpen3 | overmax_core::SceneType::ResultOpen2 => {
                 detected_mode = detect_button_mode_from_roi(frame, rois, "openmatch_mode");
-                detected_diff = rois.and_then_roi(frame, "openmatch_diff", |img| {
-                    templates::detect_openmatch_result_difficulty(img)
-                });
+                detected_diff = rois.and_then_roi(
+                    frame,
+                    "openmatch_diff",
+                    templates::detect_openmatch_result_difficulty,
+                );
             }
             _ => {}
         }
