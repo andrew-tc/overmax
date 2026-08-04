@@ -12,6 +12,7 @@ use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 
 pub struct SettingsUiContext {
+    pub root: Arc<std::path::PathBuf>,
     pub current_steam_id: String,
     pub sync_open: Arc<AtomicBool>,
     pub scan_pending: Arc<AtomicBool>,
@@ -59,7 +60,7 @@ pub fn render_settings_form(ui: &mut egui::Ui, draft: &mut Value, ctx: &Settings
         .show(ui, |ui| match active {
             0 => ui_tab(ui, draft),
             1 => varchive_tab(ui, draft, ctx),
-            _ => system_tab(ui, draft),
+            _ => system_tab(ui, draft, ctx),
         });
 }
 
@@ -406,8 +407,34 @@ fn steam_account_rows(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiCont
     });
 }
 
-fn system_tab(ui: &mut egui::Ui, draft: &mut Value) {
+fn system_tab(ui: &mut egui::Ui, draft: &mut Value, _ctx: &SettingsUiContext) {
     section_frame(ui, "업데이트 설정", |ui| update_section(ui, draft));
+    #[cfg(target_os = "linux")]
+    section_frame(ui, "Linux 앱 실행", |ui| {
+        form_row(ui, "앱 메뉴", |ui| {
+            if ui.button("바로가기 생성").clicked() {
+                let result = crate::system::desktop_entry_linux::install(_ctx.root.as_path());
+                let (title, description, level) = match result {
+                    Ok(path) => (
+                        "Overmax",
+                        format!("앱 메뉴 바로가기를 생성했습니다.\n\n{}", path.display()),
+                        rfd::MessageLevel::Info,
+                    ),
+                    Err(error) => (
+                        "Overmax",
+                        format!("바로가기를 생성하지 못했습니다.\n\n{error}"),
+                        rfd::MessageLevel::Error,
+                    ),
+                };
+                let _ = rfd::MessageDialog::new()
+                    .set_title(title)
+                    .set_description(description)
+                    .set_level(level)
+                    .set_buttons(rfd::MessageButtons::Ok)
+                    .show();
+            }
+        });
+    });
 }
 
 fn update_section(ui: &mut egui::Ui, draft: &mut Value) {
