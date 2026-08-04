@@ -8,6 +8,7 @@ on:
       - 'Cargo.lock'
       - 'clippy.toml'
       - 'scripts/package-linux.sh'
+      - 'scripts/package-rust.ps1'
       - '.github/**'
   push:
     branches: [main]
@@ -17,7 +18,19 @@ on:
       - 'Cargo.lock'
       - 'clippy.toml'
       - 'scripts/package-linux.sh'
+      - 'scripts/package-rust.ps1'
       - '.github/**'
+  workflow_dispatch:
+    inputs:
+      package_target:
+        description: 'Target platform for packaging'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - 'windows'
+          - 'linux'
 
 permissions:
   contents: read
@@ -48,8 +61,28 @@ jobs:
         if: runner.os == 'Linux'
         run: cargo clippy --workspace --all-targets --locked
       - name: Package Linux bundle
-        if: runner.os == 'Linux'
+        if: github.event_name == 'workflow_dispatch' && runner.os == 'Linux' && (inputs.package_target == 'all' || inputs.package_target == 'linux')
         run: bash scripts/package-linux.sh
+      - name: Upload Linux artifact
+        if: github.event_name == 'workflow_dispatch' && runner.os == 'Linux' && (inputs.package_target == 'all' || inputs.package_target == 'linux')
+        uses: actions/upload-artifact@v4
+        with:
+          name: overmax-linux
+          path: |
+            dist/overmax-linux-x86_64.tar.gz
+            dist/overmax-linux-x86_64.tar.gz.sha256
+      - name: Package Windows bundle
+        if: github.event_name == 'workflow_dispatch' && runner.os == 'Windows' && (inputs.package_target == 'all' || inputs.package_target == 'windows')
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File scripts/package-rust.ps1
+      - name: Upload Windows artifact
+        if: github.event_name == 'workflow_dispatch' && runner.os == 'Windows' && (inputs.package_target == 'all' || inputs.package_target == 'windows')
+        uses: actions/upload-artifact@v4
+        with:
+          name: overmax-windows
+          path: |
+            dist/overmax.zip
+            dist/release_manifest.json
 
   linux-x11-lifecycle:
     runs-on: ubuntu-24.04
