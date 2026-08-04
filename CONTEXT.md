@@ -85,6 +85,7 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 - **Window Tracker 동적 폴링**: DJMAX Respect V 창의 위치 및 포커스를 조회하는 Win32 시스템 콜 오버헤드를 막기 위해 `WindowQueryScheduler`가 주기적으로 호출을 차단합니다. 창 드래그 중인 경우 `16ms`(60FPS), 창이 정지 상태인 경우 `300ms`, 창 미발견 시 `1000ms`로 주기를 자동 변환합니다.
 - **DXGI 재생성 쿨다운**: `AdaptiveCaptureEngine`이 DXGI 캡처에 실패하여 GDI로 폴백할 시, 매 프레임 재생성을 시도하지 않고 최소 **3초**의 쿨다운 간격을 보장하여 CPU 스팸 루프를 차단합니다.
 - **템플릿 매칭 픽셀 체크섬 조기 리턴 (Early Return)**: `PlayStateDetector`가 `rate` 영역을 인식할 때 매 프레임 `crop_roi` 및 썸네일을 힙에 생성하지 않고, 원본 버퍼 상에서 즉각 픽셀 값을 건너뛰어 합산하는 `compute_pixel_checksum`을 호출합니다. 이전 체크섬과 차이가 50 이하이고 캐시 강제 만료 시간(5초)이 지나지 않았다면 템플릿 매칭과 이미지 크롭 호출 자체를 바이패스합니다. 실제 템플릿 매칭 분석은 값이 바뀌었을 때 최소 **200ms** 간격으로만 실행됩니다.
+- **Zero-Copy `ImageView` 기반 ROI 크롭**: 2D 이미지의 Sub-ROI를 자를 때마다 매 프레임 발생하던 불필요한 `Vec` 힙 할당(`malloc`) 및 픽셀 데이터 복사(`memcpy`) 오버헤드를 소거하기 위해 Stride 기반의 Zero-Copy `ImageView` 인터페이스를 도입했습니다. ROI 산술 연산을 $O(1)$로 처리하고, 소유권이 영속적으로 필요한 시점(썸네일/캐싱/저장)에만 명시적으로 `.to_image_region()`을 구하도록 통일하여 CPU 부하와 메모리 핑퐁을 차단했습니다.
 - **분석 루프 Sleep 제어 및 설정 연동**: `DetectionWorker` 분석 스레드는 활성 송셀렉트 시 기본 `120ms` (`active_sleep_ms`), 백그라운드 시 기본 `500ms` (`background_sleep_ms`) 동안 sleep하도록 설정에 연동되어 조율됩니다.
 - **egui 마우스 호버 렌더링 스팸 억제**: 비활성 창 상태에서 십자선 소프트웨어 커서 렌더링을 위해 마우스 호버 시 매 프레임 `request_repaint()`를 스팸하던 문제를 해결하여, 마우스 이동 또는 드래그가 감지된 경우에만 repainting하도록 억제했습니다.
 
@@ -239,6 +240,7 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 | 2026-07-28 | Windows OCR 의존성 및 WinRT C++ COM 연동 완전 제거 | 씬 감지의 100% OCR-Free 전환 및 Rate/Score 템플릿 매칭 고도화에 따라, 무거운 WinRT Windows OCR 의존성(`Media_Ocr` 등)과 feature flag(`ocr-fallback`)를 전면 삭제하여 Pure Rust Native 엔진으로 완벽 단일화 | [Cargo.toml](rust/overmax_engine/Cargo.toml) / [play_state.rs](rust/overmax_engine/src/detector/play_state.rs) |
 | 2026-07-28 | OcrDetector 구조체 및 ocr_engine 모듈 전면 삭제, detector::templates 통합 | 상태 없는 0B 껍데기 구조체와 쓸모없던 로고 OCR 잔재 코드(350+줄)를 완전히 삭제하고, Rate/Score/모드/난이도 템플릿 매칭 로직을 detector::templates 모듈의 순수 함수로 전면 재배치하여 깔끔한 모듈 구조 달성 | [templates/mod.rs](rust/overmax_engine/src/detector/templates/mod.rs) / [templates/matching.rs](rust/overmax_engine/src/detector/templates/matching.rs) / [play_state.rs](rust/overmax_engine/src/detector/play_state.rs) |
 | 2026-07-29 | Mode 및 Difficulty Enum 워크스페이스 전면 전용 | 문자열 리터럴 기반 판정으로 인한 오류 방지를 위해 모드(`Mode`) 및 난이도(`Difficulty`)를 전용 Enum 타입으로 전면화하고 RecordKey 및 API 레이어에 전파 | [types.rs](rust/overmax_core/src/types.rs) / [play_state.rs](rust/overmax_engine/src/detector/play_state.rs) |
+| 2026-08-04 | Zero-Copy ImageView 인터페이스 도입 및 디텍션 파이프라인 전면 적용 | ROI crop 시 매 프레임 발생하는 불필요한 Vec 힙 할당 및 memcpy 오버헤드를 소거하기 위해 Stride 기반의 ImageView 도입 및 디텍션/템플릿 매칭 함수 전면 적용 | [frame_utils.rs](rust/overmax_engine/src/capture/frame_utils.rs) / [roi.rs](rust/overmax_engine/src/detector/roi.rs) / [matching.rs](rust/overmax_engine/src/detector/templates/matching.rs) / [play_state.rs](rust/overmax_engine/src/detector/play_state.rs) / [detection_pipeline.rs](rust/overmax_engine/src/detector/detection_pipeline.rs) |
 
 ## Linux 지원 결정 기록
 
