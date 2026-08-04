@@ -1,5 +1,5 @@
 use crate::capture::frame::CapturedFrame;
-use crate::capture::frame_utils::{crop_roi, ImageRegion};
+use crate::capture::frame_utils::{crop_roi, ImageView};
 use overmax_core::{Difficulty, SceneType};
 use overmax_data::{GlobalRoiConfig, RoiRect as DataRoiRect};
 
@@ -16,14 +16,14 @@ pub struct RoiRect {
 }
 
 impl RoiRect {
-    pub fn crop(&self, frame: &CapturedFrame) -> Option<ImageRegion> {
+    pub fn crop<'a>(&self, frame: &'a CapturedFrame) -> Option<ImageView<'a>> {
         crop_roi(frame, *self)
     }
 
-    pub fn and_then<T>(
+    pub fn and_then<'a, T>(
         &self,
-        frame: &CapturedFrame,
-        f: impl FnOnce(&ImageRegion) -> Option<T>,
+        frame: &'a CapturedFrame,
+        f: impl FnOnce(&ImageView<'a>) -> Option<T>,
     ) -> Option<T> {
         self.crop(frame).as_ref().and_then(f)
     }
@@ -113,11 +113,11 @@ impl RoiManager {
         self.get_roi_for_scene(name, self.current_scene)
     }
 
-    pub fn and_then_roi<T>(
+    pub fn and_then_roi<'a, T>(
         &self,
-        frame: &CapturedFrame,
+        frame: &'a CapturedFrame,
         name: &str,
-        f: impl FnOnce(&ImageRegion) -> Option<T>,
+        f: impl FnOnce(&ImageView<'a>) -> Option<T>,
     ) -> Option<T> {
         self.get_roi(name).and_then(|roi| roi.and_then(frame, f))
     }

@@ -90,10 +90,11 @@ fn main() {
         std::process::exit(1);
     };
 
-    let Some(logo_region) = crop_roi(&frame, logo_roi) else {
+    let Some(logo_view) = crop_roi(&frame, logo_roi) else {
         eprintln!("에러: 로고 ROI 크롭 실패.");
         std::process::exit(1);
     };
+    let logo_region = logo_view.to_image_region();
 
     // HOG 특징 벡터 추출 (overmax_cv 내의 compute_image_features 호출)
     let features = match overmax_cv::compute_image_features(

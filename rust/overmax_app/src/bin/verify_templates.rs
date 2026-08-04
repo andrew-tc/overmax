@@ -201,8 +201,9 @@ fn main() {
         };
 
         // 2. 픽셀 전처리 및 수직 분할
+        let rate_region = rate_img.to_image_region();
         let binary = threshold_luminance(
-            &rate_img.bgra,
+            &rate_region.bgra,
             rate_img.width as usize,
             rate_img.height as usize,
         );

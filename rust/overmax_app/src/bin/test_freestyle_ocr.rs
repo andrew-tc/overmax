@@ -14,7 +14,7 @@ fn save_crop(
     let Some(cropped) = crop_roi(frame, roi) else {
         return false;
     };
-    let mut bgra = cropped.bgra.clone();
+    let mut bgra = cropped.to_image_region().bgra;
     overmax_cv::Bgr::swap_rb_slice(&mut bgra);
     let rgba = bgra;
     if let Some(buf) = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
@@ -186,10 +186,11 @@ fn main() {
                 ));
 
                 // score 이진화 테스트를 모사하여 binary 파일 저장
+                let score_region = score_img.to_image_region();
                 let (binary, threshold, max_y) = overmax_cv::binarize_by_luminance(
-                    &score_img.bgra,
-                    score_img.width as usize,
-                    score_img.height as usize,
+                    &score_region.bgra,
+                    score_img.width,
+                    score_img.height,
                     overmax_cv::LumaMethod::Average,
                     |max, _| {
                         if max > 80 {
@@ -240,11 +241,12 @@ fn main() {
                     detected_mode
                 ));
 
-                let w = mode_img.width as usize;
-                let h = mode_img.height as usize;
+                let w = mode_img.width;
+                let h = mode_img.height;
                 if w * h > 0 {
+                    let mode_region = mode_img.to_image_region();
                     let (binary, _, _) = overmax_cv::binarize_by_global_contrast(
-                        &mode_img.bgra,
+                        &mode_region.bgra,
                         w,
                         h,
                         overmax_cv::LumaMethod::Average,
@@ -291,11 +293,12 @@ fn main() {
                     detected_diff
                 ));
 
-                let w = diff_img.width as usize;
-                let h = diff_img.height as usize;
+                let w = diff_img.width;
+                let h = diff_img.height;
                 if w * h > 0 {
+                    let diff_region = diff_img.to_image_region();
                     let (binary, _, _) = overmax_cv::binarize_by_global_contrast(
-                        &diff_img.bgra,
+                        &diff_region.bgra,
                         w,
                         h,
                         overmax_cv::LumaMethod::Average,

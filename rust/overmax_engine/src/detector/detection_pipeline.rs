@@ -341,7 +341,8 @@ impl DetectionPipeline {
 
         self.last_jacket_thumb = Some(thumb);
         self.last_jacket_match_ts = now;
-        self.apply_jacket_match(&jacket)
+        let jacket_region = jacket.to_image_region();
+        self.apply_jacket_match(&jacket_region)
     }
 
     fn apply_jacket_match(
@@ -496,10 +497,11 @@ fn detect_result_scene_via_edge(
         // 결과창 재킷 매칭 시도
         let mut song_id = None;
         if let Some(match_res) = jacket_roi.and_then(frame, |jacket_img| {
+            let region = jacket_img.to_image_region();
             matcher.match_jacket(
-                &jacket_img.bgra,
-                jacket_img.width as usize,
-                jacket_img.height as usize,
+                &region.bgra,
+                region.width as usize,
+                region.height as usize,
                 4,
             )
         }) {
@@ -555,10 +557,11 @@ fn detect_freestyle_scene_via_edge(
 
     if edge_ok || band_ok {
         if let Some(match_res) = jacket_roi.and_then(frame, |jacket_img| {
+            let region = jacket_img.to_image_region();
             matcher.match_jacket(
-                &jacket_img.bgra,
-                jacket_img.width as usize,
-                jacket_img.height as usize,
+                &region.bgra,
+                region.width as usize,
+                region.height as usize,
                 4,
             )
         }) {
@@ -587,10 +590,11 @@ fn detect_openmatch_scene_via_edge(
 
     if edge_ok || band_ok {
         if let Some(match_res) = jacket_roi.and_then(frame, |jacket_img| {
+            let region = jacket_img.to_image_region();
             matcher.match_jacket(
-                &jacket_img.bgra,
-                jacket_img.width as usize,
-                jacket_img.height as usize,
+                &region.bgra,
+                region.width as usize,
+                region.height as usize,
                 4,
             )
         }) {
@@ -687,19 +691,17 @@ fn check_category_band_solid(
 
     band_roi
         .and_then(frame, |band_img| {
-            let total_pixels = (band_img.width * band_img.height) as usize;
+            let total_pixels = band_img.width * band_img.height ;
             if total_pixels == 0 {
                 return Some(false);
             }
 
             let mut sum_bgr = overmax_cv::Bgr::new(0.0, 0.0, 0.0);
 
-            for y in 0..band_img.height as usize {
-                for x in 0..band_img.width as usize {
-                    let idx = (y * band_img.width as usize + x) * 4;
-                    if idx + 2 < band_img.bgra.len() {
-                        sum_bgr += overmax_cv::Bgr::from_bgra_slice_f64(&band_img.bgra[idx..]);
-                    }
+            for y in 0..band_img.height {
+                let row = band_img.row(y);
+                for pixel in row.chunks_exact(4) {
+                    sum_bgr += overmax_cv::Bgr::from_bgra_slice_f64(pixel);
                 }
             }
 
@@ -713,13 +715,11 @@ fn check_category_band_solid(
 
             // 2. AvgDiff 수직 단색성 가드 (<= 20.0)
             let mut diff_sum = 0.0;
-            for y in 0..band_img.height as usize {
-                for x in 0..band_img.width as usize {
-                    let idx = (y * band_img.width as usize + x) * 4;
-                    if idx + 2 < band_img.bgra.len() {
-                        let px = overmax_cv::Bgr::from_bgra_slice_f64(&band_img.bgra[idx..]);
-                        diff_sum += px.abs_diff(mean).sum_channels();
-                    }
+            for y in 0..band_img.height {
+                let row = band_img.row(y);
+                for pixel in row.chunks_exact(4) {
+                    let px = overmax_cv::Bgr::from_bgra_slice_f64(pixel);
+                    diff_sum += px.abs_diff(mean).sum_channels();
                 }
             }
 
@@ -737,15 +737,14 @@ fn check_category_band_solid(
                 0.0
             };
 
-            if saturation < 0.15 {
-                if mean.max_channel_diff() > 15.0 {
+            if saturation < 0.15
+                && mean.max_channel_diff() > 15.0 {
                     debug_println!(
                         "    [check_category_band_solid] Category band rejected: channel diff {:.1} > 15.0",
                         mean.max_channel_diff()
                     );
                     return Some(false);
                 }
-            }
 
             debug_println!(
                 "    [check_category_band_solid] Category band solid detected! brightness={:.1}, avg_diff={:.2}",
@@ -955,7 +954,7 @@ mod tests {
                     continue;
                 };
 
-                let mut rgba = cropped.bgra.clone();
+                let mut rgba = cropped.to_image_region().bgra;
                 for chunk in rgba.chunks_exact_mut(4) {
                     chunk.swap(0, 2); // BGR -> RGB
                 }

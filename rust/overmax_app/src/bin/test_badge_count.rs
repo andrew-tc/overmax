@@ -77,10 +77,11 @@ fn analyze_folder(dir_path: &Path, default_scene: SceneType, threshold: f32) -> 
             continue;
         };
 
-        let Some(badge_img) = crop_roi(&frame, roi) else {
+        let Some(badge_view) = crop_roi(&frame, roi) else {
             println!("  - {}: Crop failed", filename);
             continue;
         };
+        let badge_img = badge_view.to_image_region();
 
         let Ok((phash, dhash, ahash)) = overmax_cv::compute_image_hashes(
             &badge_img.bgra,
