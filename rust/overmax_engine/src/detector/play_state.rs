@@ -365,9 +365,9 @@ pub fn detect_button_mode_from_roi(
     let mut best = (None, f32::INFINITY);
 
     let colors_table = if roi_name == "openmatch_mode" {
-        &templates::OPENMATCH_COLOR_TABLE
+        &templates::OPENMATCH_MODE_COLORS
     } else {
-        &templates::FREESTYLE_COLOR_TABLE
+        &templates::FREESTYLE_MODE_COLORS
     };
 
     for (idx, &color) in colors_table.iter().enumerate() {

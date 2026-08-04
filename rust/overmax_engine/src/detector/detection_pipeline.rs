@@ -421,7 +421,7 @@ impl DetectionPipeline {
     }
 }
 
-use crate::detector::templates::{FREESTYLE_MODE_COLORS, OPENMATCH_MODE_COLORS};
+use crate::detector::templates::FREESTYLE_RESULT_MODE_COLORS;
 use overmax_cv::Bgr;
 
 fn get_min_color_distance(mean: Bgr, colors: &[Bgr]) -> f32 {
@@ -435,12 +435,8 @@ fn get_min_color_distance(mean: Bgr, colors: &[Bgr]) -> f32 {
     min_dist
 }
 
-pub fn detect_freestyle_color_match(mean: Bgr) -> bool {
-    get_min_color_distance(mean, &FREESTYLE_MODE_COLORS) <= 30.0f32
-}
-
-pub fn detect_openmatch_color_match(mean: Bgr) -> bool {
-    get_min_color_distance(mean, &OPENMATCH_MODE_COLORS) <= 30.0f32
+pub fn detect_freestyle_result_colorbar_match(mean: Bgr) -> bool {
+    get_min_color_distance(mean, &FREESTYLE_RESULT_MODE_COLORS) <= 30.0f32
 }
 
 pub fn check_open_match_badge(frame: &CapturedFrame, rois: &RoiManager) -> Option<SceneType> {
@@ -528,7 +524,7 @@ fn detect_result_scene_via_edge(
                 "    [detect_result_scene_via_edge] Result screen detected via jacket edge/band. Colorbar mean BGR={:?}",
                 mean
             );
-            if detect_freestyle_color_match(mean)
+            if detect_freestyle_result_colorbar_match(mean)
                 && detect_rect_edges(frame, colorbar_roi)
                     .map(|edge_strength| edge_strength >= STRICT_EDGE_THRESHOLD)
                     .unwrap_or(false)
