@@ -19,12 +19,12 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 
 # Core Constraints
 
-- 메모리 접근 / 프로세스 인젝션 금지 (화면 캡처와 OS 창 API 추적만 허용: Windows는 Win32, Linux는 X11/XWayland)
+- 메모리 접근 / 프로세스 인젝션 금지 (화면 캡처와 OS 창 API 추적만 허용)
 - 인게임 성능 영향 최소화 (최우선 과제)
 - 자가 업데이트 및 락 제어: 업데이트 후 재시작 시 중복 실행 락(Named Mutex) 해제 지연으로 새 인스턴스가 조기 종료되는 것을 방지하기 위해, 부모 프로세스의 락 가드(`SingleInstanceGuard`)를 명시적으로 `drop()`한 후 새 프로세스를 spawn하고 기존 프로세스를 즉시 종료하는 안전한 재시작 워크플로우를 유지함.
 - Python 레거시 코드 완전 제거 및 순수 Rust 코드베이스로 전환 완료 (`rust/` workspace)
 - 스팀(Steam) 경로 탐색 및 계정 연동: V-Archive 연동 등을 위한 스팀 계정 정보(`loginusers.vdf`)를 탐색할 때, 하드코딩된 기본 경로 및 HKCU/HKLM 레지스트리를 먼저 조회합니다. 만약 검색에 실패할 경우 최종 폴백으로 실행 중인 `steam.exe` 프로세스를 Win32 Toolhelp 스냅샷 API로 스캔하여 실행 경로를 동적으로 검출합니다.
-- 현재 릴리스 및 실동작 지원 기준은 Windows 10 (버전 1809) / 11 64-bit이다. Linux는 아래 최초 지원 범위로 포팅 중이며, 최소 수직 슬라이스 완료 전의 Non-Windows 빌드 통과는 실동작 지원을 의미하지 않는다.
+- 현재 Windows 릴리스 및 실동작 지원 기준은 Windows 10 (버전 1809) / 11 64-bit이다.
 - 기존 사용자 파일과의 호환성 유지:
   - `settings.user.json` (사용자 설정 델타 저장)
   - `cache/record.db` (로컬 플레이 기록 SQLite DB)
@@ -33,31 +33,17 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 
 ---
 
-# Linux Port
+# Linux Support
 
-- **현재 상태**: 최소 수직 슬라이스가 완료됐다(2026-07-18). Linux unit/workspace 회귀, Xvfb 21.1.24 + Openbox 3.6.1 lifecycle, hosted Windows build/test, mpv(X11)+native overlay 수동 검증, 실게임(DJMAX RESPECT V, Proton/XWayland, niri) E2E, 출력 off→on 후 앱 생존·degraded panel 전환을 모두 통과했다. 실게임 E2E에서 발견된 XWayland stale backing pixmap 결함은 per-frame `NameWindowPixmap` 재획득으로 수정 후 재검증했다. 다음 단계는 인식 정확도 holdout 검증이다.
-- **최초 지원 범위**: 같은 `DISPLAY`에서 XID가 관측되는 Proton/XWayland 게임을 exact title로 추적하고, XComposite named pixmap + MIT-SHM으로 캡처해 wlr-layer-shell `Layer::Overlay` surface에 표시한다. borderless fullscreen 단일 출력만 지원하며 capability가 부족하거나 대상이 모호하면 fail closed한다.
-- **제외 범위**: Gamescope/Steam Deck Gaming Mode, native Wayland 게임 surface, wlr-layer-shell 또는 XWayland가 없는 세션, windowed/multi-output, non-SHM 캡처 fallback은 최초 포팅에 포함하지 않는다.
-- **Linux 직접 의존성** (`cfg(target_os = "linux")` 한정): 추적·캡처는 `x11rb 0.13`(`composite`, `shm`)와 `memmap2`, overlay는 `smithay-client-toolkit 0.20`, system feature를 켠 `wayland-client 0.31`, `egui-wgpu 0.33.3`, Vulkan 한정 `wgpu 27.0.1`, `raw-window-handle 0.6`, `pollster 0.4`, `rustix 1`을 사용한다. 기존 eframe/Glow와 공용 verified pipeline은 유지한다.
-- **호환 원칙**: Linux 구현은 플랫폼별 신규 코드와 공용 계약의 additive 최소 확장만 허용한다. Windows 기본 동작, OCR 1-Pass, history 기반 안정화, 사용자 파일 호환성은 바꾸지 않는다.
-- **CI**: fork 전용 [ci.yml](.github/workflows/ci.yml)에서 Rust `1.97.0`을 명시하고 Linux build/test/clippy, hosted Windows build/test와 Ubuntu 24.04의 Xvfb+Openbox lifecycle을 모두 `--locked`로 실행한다. Hosted Windows 검증은 실제 DJMAX+GPU의 GDI/DXGI 수동 회귀를 대신하지 않는다.
-
-## 포팅 실행 순서
-
-1. **기술 타당성 검증 — 완료**: XWayland 창 캡처와 native layer overlay가 성능, 캡처 지연, 리소스 사용, Z-order, 입력 및 픽셀 정합 기준을 만족하는지 검증했다.
-2. **최소 수직 슬라이스 — 완료 (2026-07-18)**: `창 추적 → 캡처 → 기존 verified pipeline → native overlay`를 Linux에서 end-to-end로 연결했다.
-   - [x] Linux 지원 범위, 직접 의존성 및 Windows 호환 원칙 확정
-   - [x] Linux build/test/clippy와 hosted Windows build/test workflow 추가
-   - [x] `WindowSnapshot`, 캡처 대상 전달 및 필요한 detection output 필드의 additive 계약 추가
-   - [x] exact-title 창 추적과 단일 snapshot 기반 rect/foreground/fullscreen 판정
-   - [x] XComposite + MIT-SHM 캡처(per-frame named pixmap) 및 Xvfb+Openbox lifecycle/fail-closed 검증
-   - [x] 캡처 실패 시 pipeline full reset 및 `detecting()` 전송으로 stale verified 상태 차단
-   - [x] fontconfig CJK 폰트 로딩과 startup capability probe
-   - [x] capability 기반 compact native layer overlay와 기존 UI 연결
-   - [x] 기존 재킷/엣지 인식 flow 연결 (새 matcher 및 OCR loop 추가 없음)
-   - [x] 완료 조건 충족: Linux unit/lifecycle, hosted Windows 회귀, mpv(X11)+native overlay 수동 검증, 실게임 E2E, 출력 off→on 후 앱 생존·재표시를 모두 통과 (2026-07-18)
-3. **인식 정확도 검증**: 최소 수직 슬라이스 완료 후 독립 holdout으로 기존 공용 인식 flow의 지연·정확도를 평가한다. 실제 실패가 확인되기 전에는 새 matcher를 설계하지 않는다.
-4. **릴리스 보강**: 인식 검증 완료 후 RC 성능 재측정, 사용자 파일 호환, 패키징 및 README를 정리한다.
+- **현재 상태**: Linux 핵심 실행 경로(창 추적 → 캡처 → 기존 디텍션 파이프라인 → native overlay)와 배포 번들 생성, hosted CI 검증이 연결되어 있다. Windows와 같은 범용 Linux 지원은 아니며 아래 범위만 지원 대상으로 본다.
+- **지원 범위**: x86_64, glibc 2.39 이상, Wayland `wlr-layer-shell`, XWayland의 XComposite 0.2 이상과 MIT-SHM 1.2 이상, Vulkan, fontconfig와 한글 글꼴이 필요하다. 게임과 앱은 같은 `DISPLAY`에서 실행하며 borderless fullscreen 단일 출력만 지원한다.
+- **추적 및 캡처**: EWMH exact-title로 단일 X11 window를 선택하고 XComposite redirect와 MIT-SHM buffer는 유지한다. XWayland의 backing pixmap 교체로 frozen frame이 발생하지 않도록 named pixmap은 매 캡처마다 재획득·해제한다.
+- **오버레이**: Linux 전용 layer-shell surface가 공용 overlay snapshot을 렌더링한다. background window와 fullscreen의 `SceneType::Unknown` 상태에서는 숨기며, egui의 즉시·지연 repaint 요청을 Wayland frame callback과 poll timeout으로 처리한다.
+- **오류 처리**: 일시적 window/pixmap 오류는 다음 tick에 재시도하고, X11 transport 오류만 tracker와 capturer를 재연결한다. 지원하지 않는 extension·pixel layout 같은 영구 capability 오류는 fail closed 상태를 표시하고 재연결 루프를 중단한다.
+- **단일 인스턴스**: `XDG_RUNTIME_DIR/overmax.lock`을 프로세스 수명 동안 보유하여 캡처 워커, overlay, 설정 및 SQLite 캐시의 중복 실행을 방지한다.
+- **배포 및 CI**: 공식 x86_64 Linux tarball은 glibc 2.39 ABI 기준의 고정 CI 환경에서 생성한다. Linux/Windows build·test와 Linux clippy를 `--locked`로 실행하고, Xvfb+Openbox에서 window tracker, XComposite/MIT-SHM lifecycle 및 extension 부재 fail-closed 경로를 검증한다.
+- **미지원 범위**: Gamescope/Steam Deck Gaming Mode, native Wayland 게임 surface, XWayland 또는 `wlr-layer-shell`이 없는 세션, 창모드, 다중 출력, non-SHM 캡처 fallback, Linux 앱 자동 업데이트와 시스템 트레이는 현재 지원하지 않는다.
+- **호환 원칙**: Linux 구현은 플랫폼 전용 코드와 공용 계약의 최소 확장만 허용한다. 공용 인식 로직, history 기반 안정화, 사용자 설정과 DB 구조의 기존 호환성을 Linux 검증 목적으로 변경하지 않는다.
 
 ---
 
@@ -254,15 +240,15 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 | 2026-07-28 | OcrDetector 구조체 및 ocr_engine 모듈 전면 삭제, detector::templates 통합 | 상태 없는 0B 껍데기 구조체와 쓸모없던 로고 OCR 잔재 코드(350+줄)를 완전히 삭제하고, Rate/Score/모드/난이도 템플릿 매칭 로직을 detector::templates 모듈의 순수 함수로 전면 재배치하여 깔끔한 모듈 구조 달성 | [templates/mod.rs](rust/overmax_engine/src/detector/templates/mod.rs) / [templates/matching.rs](rust/overmax_engine/src/detector/templates/matching.rs) / [play_state.rs](rust/overmax_engine/src/detector/play_state.rs) |
 | 2026-07-29 | Mode 및 Difficulty Enum 워크스페이스 전면 전용 | 문자열 리터럴 기반 판정으로 인한 오류 방지를 위해 모드(`Mode`) 및 난이도(`Difficulty`)를 전용 Enum 타입으로 전면화하고 RecordKey 및 API 레이어에 전파 | [types.rs](rust/overmax_core/src/types.rs) / [play_state.rs](rust/overmax_engine/src/detector/play_state.rs) |
 
-## Linux Port
+## Linux 지원 결정 기록
 
 | 날짜 | 결정 | 이유 | 참조 |
 |------|------|------|------|
-| 2026-07-17 | Linux 최초 포팅 범위·의존성·fork CI 전제 확정 | Linux 포팅이 Windows 전용 제약과 충돌하지 않도록 최초 지원 범위와 additive 변경 원칙을 SSOT에 명시 | [Linux Port](#linux-port) |
-| 2026-07-17 | Linux/Windows fork CI workflow 추가 | 첫 공용 계약 변경 전에 양 OS의 컴파일·테스트 회귀를 검증하도록 구성 | [ci.yml](.github/workflows/ci.yml) |
-| 2026-07-17 | LINUX 최소 수직 슬라이스를 fail-closed 경계로 조립 | exact-title snapshot을 persistent XComposite/MIT-SHM 캡처와 기존 verified pipeline, native layer overlay에 연결하고 오류 시 stale 상태를 즉시 초기화하기 위함. 수동·hosted 검증 전에는 최소 수직 슬라이스 완료로 승격하지 않음 | |
-| 2026-07-17 | Xvfb+Openbox lifecycle 게이트 추가 | exact-title/EWMH, BGRA 캡처, resize·remap·recreate와 extension 부재 fail-closed를 재현 가능한 단일 스크립트로 고정 | [linux-vertical-slice-lifecycle.sh](.github/scripts/linux-vertical-slice-lifecycle.sh) |
-| 2026-07-18 | 캡처 pixmap을 per-frame 재획득으로 전환 | 실게임 E2E에서 XWayland가 fullscreen 게임의 buffer flip/swapchain 재생성 시 map/resize 이벤트 없이 backing pixmap을 교체해, bind 시점의 persistent named pixmap handle이 에러 없이 frozen frame을 반환하는 결함 확인(첫 곡 인식 후 곡 변경 미반영). 캡처 tick마다 NameWindowPixmap→ShmGetImage→FreePixmap으로 stale handle을 원천 차단, SHM·redirect·인플레이스 버퍼는 persistent 유지 | [linux.rs](rust/overmax_engine/src/capture/capture_engine/linux.rs) |
-| 2026-07-21 | 플랫폼 전용 코드 서브모듈 파사드 패턴 구조화 | scattered #[cfg(target_os)] 인라인 코드들을 ui::platform 및 capture_engine::windows 등의 서브모듈 파사드로 완전 분리하고, handle_ui_command 단일 통로로 이벤트 흐름을 통합하여 플랫폼 컴파일 격리성 및 가독성 대폭 향상 | [platform/mod.rs](rust/overmax_app/src/ui/platform/mod.rs) / [capture_engine/windows/](rust/overmax_engine/src/capture/capture_engine/windows/) / [native_app_viewports.rs](rust/overmax_app/src/ui/native_app_viewports.rs) |
-| 2026-07-24 | Rate/Score 불일치 시 Score 우선 판정 적용 | Rate OCR의 점/소수점 오독 대비 템플릿 매칭 기반 Score 역산값(Score / 10,000)의 정확도가 월등히 높으므로 불일치 시 Score 기준 Rate 선반영 | [play_state.rs](rust/overmax_engine/src/detector/play_state.rs) |
-
+| 2026-07-17 | 초기 Linux 지원 범위와 additive 변경 원칙 확정 | Windows 동작과 공용 인식 파이프라인을 유지하면서 검증 가능한 Proton/XWayland 환경만 지원하기 위함 | [Linux Support](#linux-support) |
+| 2026-07-17 | Linux 핵심 실행 경로 연결 | exact-title window snapshot, XComposite/MIT-SHM 캡처, 기존 디텍션 파이프라인과 native layer overlay를 fail-closed 경계로 연결 | [detection_worker.rs](rust/overmax_engine/src/detector/detection_worker.rs) / [linux_layer_overlay.rs](rust/overmax_app/src/ui/linux_layer_overlay.rs) |
+| 2026-07-17 | Xvfb+Openbox lifecycle 게이트 추가 | window 추적, BGRA 캡처, resize·remap·recreate와 extension 부재 경로를 hosted CI에서 재현하기 위함 | [linux-vertical-slice-lifecycle.sh](.github/scripts/linux-vertical-slice-lifecycle.sh) |
+| 2026-07-18 | named pixmap을 매 캡처마다 재획득 | XWayland가 map/resize 이벤트 없이 backing pixmap을 교체할 때 이전 handle이 frozen frame을 반환하는 문제를 방지 | [linux.rs](rust/overmax_engine/src/capture/capture_engine/linux.rs) |
+| 2026-07-31 | x86_64 tarball과 glibc 2.39 ABI 기준 확정 | 실행 권한과 실행 디렉터리 기준 설정·캐시 계약을 유지하면서 빌드 호스트의 최신 glibc가 배포물에 유입되는 것을 방지 | [package-linux.sh](scripts/package-linux.sh) / [ci.yml](.github/workflows/ci.yml) |
+| 2026-08-03 | Linux 단일 인스턴스 파일 락 추가 | 중복 캡처·overlay와 설정 및 SQLite 캐시 갱신 경합을 방지 | [linux.rs](rust/overmax_app/src/system/single_instance/linux.rs) |
+| 2026-08-03 | layer overlay 지연 repaint 예약 | egui의 `request_repaint_after` 요청을 poll timeout으로 연결해 외부 Wayland 이벤트가 없어도 tooltip 등 지연 UI를 갱신 | [linux_layer_overlay.rs](rust/overmax_app/src/ui/linux_layer_overlay.rs) |
+| 2026-08-03 | 캡처 오류 복구 정책 분리 | transport 오류만 재연결하고 영구 capability 오류의 반복 probe·로그·repaint를 중단해 성능 우선 제약을 유지 | [capture_engine.rs](rust/overmax_engine/src/capture/capture_engine.rs) / [detection_worker.rs](rust/overmax_engine/src/detector/detection_worker.rs) |

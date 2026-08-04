@@ -130,7 +130,6 @@ impl DetectionPipeline {
 
         let logo_detected =
             self.last_logo_scene != SceneType::Unknown && self.last_logo_scene != SceneType::Online;
-        self.hysteresis.update(logo_detected);
         self.process_frame_shared(frame, logo_detected, now)
     }
 
@@ -201,7 +200,8 @@ impl DetectionPipeline {
     fn detect_logo_if_due(&mut self, frame: &CapturedFrame, now: f64) -> Option<SceneType> {
         // 씬이 Unknown인 경우(진입 대기): 빠른 인식을 위해 0.3초 주기로 감시
         // 씬이 이미 확정된 경우(유지 중): CPU 소모 최소화를 위해 2.0초 주기로 완화 (이탈은 픽셀 매칭으로 즉시 처리되므로 반응성 무관)
-        if self.last_logo_scene == SceneType::Unknown {
+        let acquiring = self.last_logo_scene == SceneType::Unknown || !self.hysteresis.is_active;
+        if acquiring {
             if self.unknown_since.is_none() {
                 self.unknown_since = Some(now);
             }
@@ -209,7 +209,7 @@ impl DetectionPipeline {
             self.unknown_since = None;
         }
 
-        let cooldown = if self.last_logo_scene == SceneType::Unknown {
+        let cooldown = if acquiring {
             let unknown_duration = now - self.unknown_since.unwrap_or(now);
             if unknown_duration < 3.0 {
                 0.3
@@ -816,6 +816,41 @@ mod tests {
 
         assert!(output.is_song_select);
         assert!(output.state.context.is_none());
+    }
+
+    #[test]
+    fn cached_frames_do_not_repeat_a_scene_miss() {
+        let mut pipeline = DetectionPipeline::new(ImageIndexDb::new("missing.db", 0.6));
+        let frame = blank_frame();
+        use overmax_core::SceneType;
+
+        pipeline.process_frame_with_logo(&frame, SceneType::Freestyle, 1.0);
+        pipeline.process_frame_with_logo(&frame, SceneType::Freestyle, 2.0);
+        let miss = pipeline.process_frame_with_logo(&frame, SceneType::Unknown, 3.0);
+        assert!(miss.is_song_select);
+        assert!(!miss.is_leaving);
+
+        for now in [3.1, 3.2, 3.3, 3.4] {
+            let cached = pipeline.process_frame_cached(&frame, now);
+            assert!(cached.is_song_select);
+            assert!(!cached.is_leaving);
+        }
+    }
+
+    #[test]
+    fn cached_frames_do_not_complete_scene_entry() {
+        let mut pipeline = DetectionPipeline::new(ImageIndexDb::new("missing.db", 0.6));
+        let frame = blank_frame();
+        use overmax_core::SceneType;
+
+        let fresh = pipeline.process_frame_with_logo(&frame, SceneType::Freestyle, 1.0);
+        pipeline.last_logo_scene = SceneType::Freestyle;
+        let cached = pipeline.process_frame_cached(&frame, 1.1);
+        let second_fresh = pipeline.process_frame_with_logo(&frame, SceneType::Freestyle, 1.2);
+
+        assert!(!fresh.is_song_select);
+        assert!(!cached.is_song_select);
+        assert!(second_fresh.is_song_select);
     }
 
     #[test]
