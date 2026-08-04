@@ -9,6 +9,16 @@ pub struct ImageRegion {
 }
 
 impl ImageRegion {
+    pub fn as_view(&self) -> ImageView<'_> {
+        ImageView {
+            data: &self.bgra,
+            width: self.width as usize,
+            height: self.height as usize,
+            stride: (self.width * 4) as usize,
+            offset: 0,
+        }
+    }
+
     pub fn compute_hashes(
         &self,
         channels: usize,
@@ -31,28 +41,114 @@ impl ImageRegion {
     }
 }
 
-pub fn crop_roi(frame: &CapturedFrame, roi: RoiRect) -> Option<ImageRegion> {
-    let x1 = roi.x1.clamp(0, frame.width);
-    let y1 = roi.y1.clamp(0, frame.height);
-    let x2 = roi.x2.clamp(0, frame.width);
-    let y2 = roi.y2.clamp(0, frame.height);
-    if x2 <= x1 || y2 <= y1 {
-        return None;
+/// Zero-Copy image view representing a 2D rectangular slice of an image buffer.
+#[derive(Clone, Copy, Debug)]
+pub struct ImageView<'a> {
+    pub data: &'a [u8],
+    pub width: usize,
+    pub height: usize,
+    pub stride: usize,
+    pub offset: usize,
+}
+
+impl<'a> ImageView<'a> {
+    pub fn from_frame(frame: &'a CapturedFrame) -> Self {
+        Self {
+            data: &frame.bgra,
+            width: frame.width as usize,
+            height: frame.height as usize,
+            stride: (frame.width * 4) as usize,
+            offset: 0,
+        }
     }
 
-    let width = x2 - x1;
-    let height = y2 - y1;
-    let mut bgra = Vec::with_capacity((width * height * 4) as usize);
-    for y in y1..y2 {
-        let start = ((y * frame.width + x1) * 4) as usize;
-        let end = start + (width * 4) as usize;
-        bgra.extend_from_slice(&frame.bgra[start..end]);
+    pub fn crop(&self, roi: RoiRect) -> Option<ImageView<'a>> {
+        let x1 = roi.x1.clamp(0, self.width as i32) as usize;
+        let y1 = roi.y1.clamp(0, self.height as i32) as usize;
+        let x2 = roi.x2.clamp(0, self.width as i32) as usize;
+        let y2 = roi.y2.clamp(0, self.height as i32) as usize;
+        if x2 <= x1 || y2 <= y1 {
+            return None;
+        }
+
+        let width = x2 - x1;
+        let height = y2 - y1;
+        let offset = self.offset + (y1 * self.stride) + (x1 * 4);
+
+        Some(ImageView {
+            data: self.data,
+            width,
+            height,
+            stride: self.stride,
+            offset,
+        })
     }
-    Some(ImageRegion {
-        width,
-        height,
-        bgra,
-    })
+
+    #[inline]
+    pub fn row(&self, y: usize) -> &'a [u8] {
+        let start = self.offset + (y * self.stride);
+        let end = start + (self.width * 4);
+        &self.data[start..end]
+    }
+
+    /// Converts the strided view into an owned continuous ImageRegion (heap allocation).
+    pub fn to_image_region(&self) -> ImageRegion {
+        let mut bgra = Vec::with_capacity(self.width * self.height * 4);
+        for y in 0..self.height {
+            bgra.extend_from_slice(self.row(y));
+        }
+        ImageRegion {
+            width: self.width as i32,
+            height: self.height as i32,
+            bgra,
+        }
+    }
+
+    pub fn region_mean_bgr(&self) -> overmax_cv::Bgr {
+        if self.width == 0 || self.height == 0 {
+            return overmax_cv::Bgr::new(0, 0, 0);
+        }
+        let mut acc = overmax_cv::Bgr::<u64>::default();
+        let mut count = 0u64;
+        for y in 0..self.height {
+            let row = self.row(y);
+            for pixel in row.chunks_exact(4) {
+                acc += overmax_cv::Bgr::from_bgra_slice(pixel).to_u64();
+                count += 1;
+            }
+        }
+        if count == 0 {
+            return overmax_cv::Bgr::new(0, 0, 0);
+        }
+        overmax_cv::Bgr::new(
+            (acc.b / count) as u8,
+            (acc.g / count) as u8,
+            (acc.r / count) as u8,
+        )
+    }
+
+    pub fn compute_hashes(
+        &self,
+        channels: usize,
+    ) -> Result<(u64, u64, u64), overmax_cv::error::CvError> {
+        let region = self.to_image_region();
+        region.compute_hashes(channels)
+    }
+
+    pub fn detect_edges(&self, margin: usize) -> Result<f32, overmax_cv::error::CvError> {
+        let region = self.to_image_region();
+        region.detect_edges(margin)
+    }
+}
+
+pub fn crop_roi(frame: &CapturedFrame, roi: RoiRect) -> Option<ImageRegion> {
+    let view = ImageView::from_frame(frame);
+    view.crop(roi).map(|v| v.to_image_region())
+}
+
+pub fn crop_roi_view<'a>(frame: &'a CapturedFrame, roi: RoiRect) -> Option<ImageView<'a>> {
+    let view = ImageView::from_frame(frame);
+    view.crop(roi)
 }
 
 pub fn region_mean_bgr(frame: &CapturedFrame, roi: RoiRect) -> overmax_cv::Bgr {
@@ -76,6 +172,11 @@ pub fn region_mean_bgr(frame: &CapturedFrame, roi: RoiRect) -> overmax_cv::Bgr {
 }
 
 pub fn make_thumbnail(region: &ImageRegion) -> Option<Vec<u8>> {
+    make_thumbnail_view(&region.as_view())
+}
+
+pub fn make_thumbnail_view(view: &ImageView) -> Option<Vec<u8>> {
+    let region = view.to_image_region();
     overmax_cv::make_thumbnail_bgra_32(&region.bgra, region.width as usize, region.height as usize)
         .ok()
 }

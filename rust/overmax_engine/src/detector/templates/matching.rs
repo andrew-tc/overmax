@@ -1,4 +1,4 @@
-use crate::capture::frame_utils::ImageRegion;
+use crate::capture::frame_utils::{ImageRegion, ImageView};
 use overmax_core::{Difficulty, Mode};
 use std::fmt;
 
@@ -29,8 +29,12 @@ impl fmt::Debug for RateTelemetry {
 
 /// Rate 영역을 Pure Rust CV 템플릿 매칭으로 감지합니다.
 pub fn detect_rate(rate: &ImageRegion) -> (Option<f32>, String, Option<RateTelemetry>) {
+    detect_rate_view(&rate.as_view())
+}
+
+pub fn detect_rate_view(rate: &ImageView) -> (Option<f32>, String, Option<RateTelemetry>) {
     let cv_templates = get_digit_templates();
-    let matched = match match_digits_template(rate, &cv_templates) {
+    let matched = match match_digits_template_view(rate, &cv_templates) {
         Ok(m) => m,
         Err(_) => return (None, String::new(), None),
     };
@@ -48,8 +52,8 @@ pub fn detect_rate(rate: &ImageRegion) -> (Option<f32>, String, Option<RateTelem
             bg_mean: max_y as f32,
             use_invert: false,
             image_pixels: binary,
-            image_width: rate.width as usize,
-            image_height: rate.height as usize,
+            image_width: rate.width,
+            image_height: rate.height,
         };
         (Some(val), matched_str, Some(telemetry))
     } else {
@@ -59,8 +63,12 @@ pub fn detect_rate(rate: &ImageRegion) -> (Option<f32>, String, Option<RateTelem
 
 /// Score 영역을 템플릿 매칭을 통해 정수로 파싱합니다.
 pub fn detect_score(score: &ImageRegion) -> Option<u32> {
+    detect_score_view(&score.as_view())
+}
+
+pub fn detect_score_view(score: &ImageView) -> Option<u32> {
     let cv_templates = get_digit_templates();
-    match match_digits_template(score, &cv_templates) {
+    match match_digits_template_view(score, &cv_templates) {
         Ok((matched_str, _, _, _)) => {
             let parsed = parse_score_text(&matched_str);
             if parsed.is_none() || matched_str.contains('?') {
@@ -85,14 +93,19 @@ pub fn detect_score(score: &ImageRegion) -> Option<u32> {
 
 /// Freestyle 결과창 모드 영역을 템플릿 매칭으로 판독합니다.
 pub fn detect_freestyle_mode(mode_img: &ImageRegion) -> Option<Mode> {
-    let w = mode_img.width as usize;
-    let h = mode_img.height as usize;
+    detect_freestyle_mode_view(&mode_img.as_view())
+}
+
+pub fn detect_freestyle_mode_view(mode_img: &ImageView) -> Option<Mode> {
+    let w = mode_img.width;
+    let h = mode_img.height;
     if w * h == 0 {
         return None;
     }
 
+    let region = mode_img.to_image_region();
     let (binary, _, _) = match overmax_cv::binarize_by_global_contrast(
-        &mode_img.bgra,
+        &region.bgra,
         w,
         h,
         overmax_cv::LumaMethod::Average,
@@ -124,14 +137,19 @@ pub fn detect_freestyle_mode(mode_img: &ImageRegion) -> Option<Mode> {
 
 /// 결과 화면 전용 난이도 패널 영역을 템플릿 매칭으로 감지합니다.
 pub fn detect_result_difficulty(diff_img: &ImageRegion) -> Option<Difficulty> {
-    let w = diff_img.width as usize;
-    let h = diff_img.height as usize;
+    detect_result_difficulty_view(&diff_img.as_view())
+}
+
+pub fn detect_result_difficulty_view(diff_img: &ImageView) -> Option<Difficulty> {
+    let w = diff_img.width;
+    let h = diff_img.height;
     if w * h == 0 {
         return None;
     }
 
+    let region = diff_img.to_image_region();
     let (binary, _, _) = match overmax_cv::binarize_by_global_contrast(
-        &diff_img.bgra,
+        &region.bgra,
         w,
         h,
         overmax_cv::LumaMethod::Average,
@@ -163,14 +181,19 @@ pub fn detect_result_difficulty(diff_img: &ImageRegion) -> Option<Difficulty> {
 
 /// 오픈매치 결과 화면 전용 난이도 영역을 템플릿 매칭으로 감지합니다. (106x18 해상도 적용)
 pub fn detect_openmatch_result_difficulty(diff_img: &ImageRegion) -> Option<Difficulty> {
-    let w = diff_img.width as usize;
-    let h = diff_img.height as usize;
+    detect_openmatch_result_difficulty_view(&diff_img.as_view())
+}
+
+pub fn detect_openmatch_result_difficulty_view(diff_img: &ImageView) -> Option<Difficulty> {
+    let w = diff_img.width;
+    let h = diff_img.height;
     if w * h == 0 {
         return None;
     }
 
+    let region = diff_img.to_image_region();
     let binary = overmax_cv::adaptive_threshold_bradley_roth(
-        &diff_img.bgra,
+        &region.bgra,
         w,
         h,
         overmax_cv::LumaMethod::Average,
@@ -207,15 +230,24 @@ pub fn detect_openmatch_result_difficulty(diff_img: &ImageRegion) -> Option<Diff
     )
 }
 
+#[allow(dead_code)]
 fn match_digits_template(
     img: &ImageRegion,
     cv_templates: &[overmax_cv::CvTemplate],
 ) -> Result<(String, Vec<u8>, u8, u8), String> {
-    let w = img.width as usize;
-    let h = img.height as usize;
+    match_digits_template_view(&img.as_view(), cv_templates)
+}
 
+fn match_digits_template_view(
+    img: &ImageView,
+    cv_templates: &[overmax_cv::CvTemplate],
+) -> Result<(String, Vec<u8>, u8, u8), String> {
+    let w = img.width;
+    let h = img.height;
+
+    let region = img.to_image_region();
     let (binary, threshold, max_y) = overmax_cv::binarize_by_global_contrast(
-        &img.bgra,
+        &region.bgra,
         w,
         h,
         overmax_cv::LumaMethod::Average,

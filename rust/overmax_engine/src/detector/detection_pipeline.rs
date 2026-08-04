@@ -1,5 +1,5 @@
 use crate::capture::frame::CapturedFrame;
-use crate::capture::frame_utils::{make_thumbnail, thumbnail_changed};
+use crate::capture::frame_utils::{make_thumbnail_view, thumbnail_changed};
 use crate::capture::window_tracker::WindowSnapshot;
 use crate::detector::hysteresis::HysteresisBuffer;
 use crate::detector::play_state::PlayStateDetector;
@@ -238,7 +238,10 @@ impl DetectionPipeline {
             self.last_jacket_match_ts = now;
 
             // process_frame_shared 에서 중복 매칭이 돌지 않도록 썸네일 캐시 갱신
-            if let Some(thumb) = self.rois.and_then_roi(frame, "jacket", make_thumbnail) {
+            if let Some(thumb) = self
+                .rois
+                .and_then_roi_view(frame, "jacket", make_thumbnail_view)
+            {
                 self.last_jacket_thumb = Some(thumb);
             }
         }
@@ -324,10 +327,14 @@ impl DetectionPipeline {
             return JacketMatchStatus::Cooldown;
         }
         self.last_jacket_ts = now;
-        let Some(jacket) = self.rois.get_roi("jacket").and_then(|roi| roi.crop(frame)) else {
+        let Some(jacket) = self
+            .rois
+            .get_roi("jacket")
+            .and_then(|roi| roi.crop_view(frame))
+        else {
             return JacketMatchStatus::CropMissing;
         };
-        let Some(thumb) = make_thumbnail(&jacket) else {
+        let Some(thumb) = make_thumbnail_view(&jacket) else {
             return JacketMatchStatus::ThumbnailMissing;
         };
         let image_changed = thumbnail_changed(
@@ -341,7 +348,8 @@ impl DetectionPipeline {
 
         self.last_jacket_thumb = Some(thumb);
         self.last_jacket_match_ts = now;
-        self.apply_jacket_match(&jacket)
+        let jacket_region = jacket.to_image_region();
+        self.apply_jacket_match(&jacket_region)
     }
 
     fn apply_jacket_match(

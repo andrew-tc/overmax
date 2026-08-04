@@ -63,8 +63,8 @@ impl PlayStateDetector {
         now: f64,
     ) -> (f32, Option<RateTelemetry>) {
         if self.should_run_rate_detection(now) {
-            if let Some(rate_res) = rois.and_then_roi(frame, "rate", |rate_img| {
-                let mut rate_res = templates::detect_rate(rate_img);
+            if let Some(rate_res) = rois.and_then_roi_view(frame, "rate", |rate_img| {
+                let mut rate_res = templates::detect_rate_view(rate_img);
                 rate_res.0 =
                     Self::cross_validate_rate_with_score(frame, rois, scene, is_result, rate_res.0);
                 Some(rate_res)
@@ -167,17 +167,23 @@ impl PlayStateDetector {
         // 1. 결과창 실시간 템플릿 매칭 우선 시도
         match scene {
             overmax_core::SceneType::ResultFreestyle => {
-                detected_mode =
-                    rois.and_then_roi(frame, "mode_digit", templates::detect_freestyle_mode);
-                detected_diff =
-                    rois.and_then_roi(frame, "diff_panel", templates::detect_result_difficulty);
+                detected_mode = rois.and_then_roi_view(
+                    frame,
+                    "mode_digit",
+                    templates::detect_freestyle_mode_view,
+                );
+                detected_diff = rois.and_then_roi_view(
+                    frame,
+                    "diff_panel",
+                    templates::detect_result_difficulty_view,
+                );
             }
             overmax_core::SceneType::ResultOpen3 | overmax_core::SceneType::ResultOpen2 => {
                 detected_mode = detect_button_mode_from_roi(frame, rois, "openmatch_mode");
-                detected_diff = rois.and_then_roi(
+                detected_diff = rois.and_then_roi_view(
                     frame,
                     "openmatch_diff",
-                    templates::detect_openmatch_result_difficulty,
+                    templates::detect_openmatch_result_difficulty_view,
                 );
             }
             _ => {}
@@ -213,7 +219,7 @@ impl PlayStateDetector {
             return detected_rate;
         }
 
-        let score_val = rois.and_then_roi(frame, "score", templates::detect_score);
+        let score_val = rois.and_then_roi_view(frame, "score", templates::detect_score_view);
         let Some(score_val) = score_val else {
             return detected_rate;
         };
@@ -438,7 +444,7 @@ fn calculate_hash_score(
 }
 
 pub fn detect_max_combo(frame: &CapturedFrame, rois: &RoiManager) -> bool {
-    let hashes = rois.and_then_roi(frame, "max_combo_badge", |img| img.compute_hashes(4).ok());
+    let hashes = rois.and_then_roi_view(frame, "max_combo_badge", |img| img.compute_hashes(4).ok());
 
     let Some((phash, dhash, ahash)) = hashes else {
         return false;
@@ -463,7 +469,7 @@ pub fn detect_max_combo(frame: &CapturedFrame, rois: &RoiManager) -> bool {
 }
 
 pub fn detect_max_combo_result(frame: &CapturedFrame, rois: &RoiManager) -> bool {
-    let hashes = rois.and_then_roi(frame, "max_combo_badge", |img| img.compute_hashes(4).ok());
+    let hashes = rois.and_then_roi_view(frame, "max_combo_badge", |img| img.compute_hashes(4).ok());
 
     let Some((phash, dhash, ahash)) = hashes else {
         return false;
