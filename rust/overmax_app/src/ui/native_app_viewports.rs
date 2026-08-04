@@ -83,6 +83,7 @@ impl NativeApp {
         let base = self.settings.base.clone();
         let merged = self.settings.merged.clone();
         let settings_ctx = settings_ui::SettingsUiContext {
+            root: self.root.clone(),
             current_steam_id: self
                 .sync_state
                 .steam_id

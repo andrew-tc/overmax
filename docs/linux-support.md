@@ -4,8 +4,6 @@ Overmax의 Linux 지원은 초기 단계입니다. Windows와 같은 범용 지�
 
 ## 지원 범위
 
-다음 조건을 만족해야 합니다.
-
 - x86_64 Linux와 glibc 2.39 이상
 - Wayland 세션과 `wlr-layer-shell`을 지원하는 compositor
 - 같은 세션에서 동작하는 XWayland
@@ -44,6 +42,22 @@ fc-match ':lang=ko' | head -n 1
 4. 같은 데스크톱 세션의 터미널에서 `./overmax`를 실행합니다.
 
 설정과 캐시는 실행 디렉터리에 저장됩니다. 자동 업데이트를 사용하려면 실행 파일이 있는 디렉터리에 쓰기 권한이 있어야 합니다. 직접 업데이트하는 경우 `settings.user.json`과 `cache/`를 함께 복사합니다.
+
+## 터미널 없이 실행
+
+Overmax 설정에서 **System → Linux 앱 실행 → 바로가기 생성**을 누르면 현재 실행 파일과 실행 디렉터리를 사용하는 `overmax.desktop`이 사용자 앱 메뉴에 생성됩니다. 이후 앱 메뉴에서 Overmax를 실행할 수 있습니다.
+
+설치 디렉터리를 옮긴 경우 이전 바로가기는 옛 경로를 가리키므로 새 위치에서 Overmax를 실행한 뒤 바로가기를 다시 생성해 주세요.
+
+## Steam에서 게임과 함께 자동 실행
+
+Steam의 DJMAX RESPECT V **속성 → 일반 → 시작 옵션**에 다음 명령을 입력합니다. (`OVERMAX_DIR`은 압축을 푼 Overmax 디렉터리로 수정)
+
+```bash
+sh -c '(cd "OVERMAX_DIR" && exec ./overmax) & exec "$@"' -- %command%
+```
+
+Overmax는 백그라운드에서 시작하고 DJMAX는 Steam이 추적하는 게임 프로세스로 유지됩니다. 이미 Overmax가 실행 중이면 단일 인스턴스 보호에 따라 추가 실행은 종료됩니다.
 
 ## 실행되지 않을 때
 
