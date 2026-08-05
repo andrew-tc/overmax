@@ -59,6 +59,34 @@ pub struct RecommendContext {
     pub max_results: usize,
     pub same_mode_only: bool,
     pub v_id: Option<String>,
+    pub sort_priority: SortPriority,
+}
+
+/// 추천 목록 정렬 시 플레이 여부 그룹의 우선순위. `Played`는 기존 동작(플레이한 곡 우선),
+/// `Unplayed`는 미플레이 곡을 우선 노출한다. `local_floor` 소스의 정렬에만 적용되며 외부
+/// Provider 소스는 자체 score 기준으로 정렬되므로 영향을 받지 않는다.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+pub enum SortPriority {
+    #[default]
+    Played,
+    Unplayed,
+}
+
+impl SortPriority {
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "unplayed" => Self::Unplayed,
+            _ => Self::Played,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Played => "played",
+            Self::Unplayed => "unplayed",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -613,9 +641,17 @@ impl RecommendationSource for LocalFloorRecommender {
 
         candidates.sort_by(|a, b| {
             if a.is_played() && !b.is_played() {
-                Ordering::Less
+                if ctx.sort_priority == SortPriority::Unplayed {
+                    Ordering::Greater
+                } else {
+                    Ordering::Less
+                }
             } else if !a.is_played() && b.is_played() {
-                Ordering::Greater
+                if ctx.sort_priority == SortPriority::Unplayed {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
             } else if let (Some(ra), Some(rb)) = (a.rate, b.rate) {
                 ra.partial_cmp(&rb)
                     .unwrap_or(Ordering::Equal)
@@ -922,6 +958,7 @@ impl CompositeRecommender {
             max_results,
             same_mode_only,
             v_id: None,
+            sort_priority: SortPriority::default(),
         };
         self.recommend_panel(&ctx).as_legacy_result()
     }
@@ -952,6 +989,7 @@ mod tests {
             max_results: 6,
             same_mode_only: true,
             v_id: None,
+            sort_priority: SortPriority::default(),
         };
 
         let bundle = reader.recommend(&ctx);
@@ -991,6 +1029,7 @@ mod tests {
             max_results: 6,
             same_mode_only: true,
             v_id: None,
+            sort_priority: SortPriority::default(),
         };
 
         let bundle = reader.recommend(&ctx);
@@ -1001,5 +1040,133 @@ mod tests {
         assert_eq!(bundle.entries[0].difficulty, Difficulty::SC);
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    use crate::community::client::VArchiveDB;
+    use crate::service::record_manager::RecordManager;
+    use crate::store::record_db::RecordDB;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn sort_priority_test_dir(prefix: &str) -> std::path::PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("{prefix}-{}-{nanos}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn make_sort_priority_vdb() -> VArchiveDB {
+        let mut vdb = VArchiveDB::new();
+        let song = |id: &str, name: &str| {
+            serde_json::json!({
+                "name": name,
+                "title": id,
+                "composer": "Artist",
+                "dlcCode": "pack",
+                "patterns": {
+                    "4B": {
+                        "MX": { "level": 15, "floorName": "15.0" }
+                    }
+                }
+            })
+        };
+        vdb.songs = vec![
+            serde_json::from_value(song("1", "Song A")).unwrap(),
+            serde_json::from_value(song("2", "Song B")).unwrap(),
+            serde_json::from_value(song("3", "Song C")).unwrap(),
+        ];
+        vdb
+    }
+
+    /// Builds a recommender for 3 songs at the same floor/mode: song 1 is the
+    /// reference (excluded from candidates), song 2 is played (rate 90.0), song 3
+    /// is unplayed.
+    fn make_sort_priority_recommender(dir_prefix: &str) -> (CompositeRecommender, std::path::PathBuf) {
+        let dir = sort_priority_test_dir(dir_prefix);
+        let db_path = dir.join("record.db");
+        let mut db = RecordDB::new(&db_path, None);
+        assert!(db.initialize());
+        assert!(db.upsert(2, Mode::B4, Difficulty::MX, 90.0, false, false));
+
+        let record_db = Arc::new(db);
+        let record_manager = Arc::new(RecordManager::new(record_db));
+        record_manager.refresh();
+
+        (
+            CompositeRecommender::new(Arc::new(make_sort_priority_vdb()), record_manager),
+            dir,
+        )
+    }
+
+    fn sort_priority_ctx(sort_priority: SortPriority) -> RecommendContext {
+        RecommendContext {
+            song_id: 1,
+            button_mode: Mode::B4,
+            difficulty: Difficulty::MX,
+            floor_range: 0.1,
+            max_results: 10,
+            same_mode_only: true,
+            v_id: None,
+            sort_priority,
+        }
+    }
+
+    #[test]
+    fn sort_priority_played_keeps_played_first() {
+        let (recommender, dir) = make_sort_priority_recommender("recommend-sort-priority-played");
+
+        let result = recommender
+            .recommend_panel(&sort_priority_ctx(SortPriority::Played))
+            .as_legacy_result();
+
+        assert_eq!(result.entries.len(), 2);
+        assert_eq!(result.entries[0].song_id, 2);
+        assert!(result.entries[0].is_played());
+        assert_eq!(result.entries[1].song_id, 3);
+        assert!(!result.entries[1].is_played());
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn sort_priority_unplayed_sorts_unplayed_first() {
+        let (recommender, dir) = make_sort_priority_recommender("recommend-sort-priority-unplayed");
+
+        let result = recommender
+            .recommend_panel(&sort_priority_ctx(SortPriority::Unplayed))
+            .as_legacy_result();
+
+        assert_eq!(result.entries.len(), 2);
+        assert_eq!(result.entries[0].song_id, 3);
+        assert!(!result.entries[0].is_played());
+        assert_eq!(result.entries[1].song_id, 2);
+        assert!(result.entries[1].is_played());
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn sort_priority_does_not_change_summary_stats() {
+        let (recommender_played, dir_played) =
+            make_sort_priority_recommender("recommend-sort-priority-stats-played");
+        let played = recommender_played
+            .recommend_panel(&sort_priority_ctx(SortPriority::Played))
+            .as_legacy_result();
+
+        let (recommender_unplayed, dir_unplayed) =
+            make_sort_priority_recommender("recommend-sort-priority-stats-unplayed");
+        let unplayed = recommender_unplayed
+            .recommend_panel(&sort_priority_ctx(SortPriority::Unplayed))
+            .as_legacy_result();
+
+        assert_eq!(played.total_count, unplayed.total_count);
+        assert_eq!(played.has_record_count, unplayed.has_record_count);
+        assert_eq!(played.avg_rate, unplayed.avg_rate);
+
+        let _ = std::fs::remove_dir_all(dir_played);
+        let _ = std::fs::remove_dir_all(dir_unplayed);
     }
 }

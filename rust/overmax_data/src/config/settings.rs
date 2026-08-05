@@ -161,6 +161,14 @@ pub fn normalize_settings(settings: &mut Value) {
         }
     }
 
+    if let Some(Value::Object(recommend)) = map.get_mut("recommend") {
+        if let Some(sort_priority) = recommend.get("sort_priority").and_then(|v| v.as_str()) {
+            if sort_priority != "played" && sort_priority != "unplayed" {
+                recommend.insert("sort_priority".to_string(), json!("played"));
+            }
+        }
+    }
+
     if let Some(Value::Object(sf)) = map.get_mut("sync_filter") {
         if let Some(min_idx) = sf.get("min_level_idx").and_then(|v| v.as_u64()) {
             sf.insert("min_level_idx".to_string(), json!(min_idx.min(29)));
@@ -373,6 +381,19 @@ mod tests {
         let mut settings = json!({"language": "en"});
         normalize_settings(&mut settings);
         assert_eq!(settings["language"], json!("en"));
+    }
+
+    #[test]
+    fn test_normalize_settings_resets_invalid_recommend_sort_priority() {
+        let mut settings = json!({
+            "recommend": {
+                "sort_priority": "bogus"
+            }
+        });
+
+        normalize_settings(&mut settings);
+
+        assert_eq!(settings["recommend"]["sort_priority"], json!("played"));
     }
 }
 
@@ -725,6 +746,24 @@ pub struct RecommendProviderSettings {
     pub name: Option<String>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct RecommendSettings {
+    #[serde(default = "default_recommend_sort_priority")]
+    pub sort_priority: String,
+}
+
+fn default_recommend_sort_priority() -> String {
+    "played".to_string()
+}
+
+impl Default for RecommendSettings {
+    fn default() -> Self {
+        Self {
+            sort_priority: default_recommend_sort_priority(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 pub struct Settings {
     #[serde(default)]
@@ -745,6 +784,8 @@ pub struct Settings {
     pub sync_filter: Option<SyncFilterSettings>,
     #[serde(default)]
     pub recommend_provider: Option<RecommendProviderSettings>,
+    #[serde(default)]
+    pub recommend: Option<RecommendSettings>,
 }
 
 impl Settings {
@@ -774,5 +815,8 @@ impl Settings {
     }
     pub fn recommend_provider(&self) -> RecommendProviderSettings {
         self.recommend_provider.clone().unwrap_or_default()
+    }
+    pub fn recommend(&self) -> RecommendSettings {
+        self.recommend.clone().unwrap_or_default()
     }
 }

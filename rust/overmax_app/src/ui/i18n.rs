@@ -79,6 +79,10 @@ fn translate_en(ko: &'static str) -> &'static str {
         // settings_ui.rs
         "설정" => "Settings",
         "오버레이 설정" => "Overlay Settings",
+        "추천 설정" => "Recommend Settings",
+        "정렬 기준" => "Sort Priority",
+        "플레이한 곡 우선" => "Played First",
+        "미플레이 곡 우선" => "Unplayed First",
         "크기" => "Size",
         "투명도" => "Opacity",
         "라이트모드" => "Lite Mode",

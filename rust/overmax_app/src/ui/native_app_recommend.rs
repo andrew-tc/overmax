@@ -107,6 +107,8 @@ impl NativeApp {
         let Some(ctx) = &state.context else {
             return RecommendResult::empty();
         };
+        let sort_priority =
+            overmax_data::SortPriority::from_str(&self.settings.get_merged().recommend().sort_priority);
         let rec_ctx = RecommendContext {
             song_id: ctx.song_id,
             button_mode: ctx.mode,
@@ -115,6 +117,7 @@ impl NativeApp {
             max_results: 6,
             same_mode_only: true,
             v_id: self.varchive_user_id(),
+            sort_priority,
         };
 
         let provider_settings = self.settings.get_merged().recommend_provider();

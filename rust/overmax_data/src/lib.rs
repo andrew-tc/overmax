@@ -14,15 +14,15 @@ pub use config::settings::{
     diff_settings, load_base_settings, load_merged_settings, merge_settings_layers,
     normalize_settings, save_user_settings, AppUpdateSettings, DebugWindowSettings,
     JacketMatcherSettings, OverlayPosition, OverlaySettings, RecommendProviderSettings,
-    ScreenCaptureSettings, Settings, SettingsPaths, SyncFilterSettings, VArchiveSettings,
-    VArchiveUserMap, WindowTrackerSettings,
+    RecommendSettings, ScreenCaptureSettings, Settings, SettingsPaths, SyncFilterSettings,
+    VArchiveSettings, VArchiveUserMap, WindowTrackerSettings,
 };
 pub use overmax_core::{RecordKey, RecordValue};
 pub use service::jacket_matcher::{JacketMatcher, JacketMatcherConfig};
 pub use service::recommend::{
     CompositeRecommender, LocalFloorRecommender, LocalRecommendFooter, ProviderCacheReader,
     RecommendBundle, RecommendContext, RecommendEntry, RecommendPanel, RecommendResult,
-    RecommendationSource, Recommender, SourceStatus, VaryDim,
+    RecommendationSource, Recommender, SortPriority, SourceStatus, VaryDim,
 };
 pub use service::record_manager::{RecordManager, RecordSource};
 pub use store::image_index::{ImageEntry, ImageIndexDb, ImageMatch};

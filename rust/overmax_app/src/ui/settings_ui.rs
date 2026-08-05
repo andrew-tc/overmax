@@ -70,6 +70,46 @@ fn ui_tab(ui: &mut egui::Ui, draft: &mut Value) {
     section_frame(ui, t("오버레이 설정"), |ui| {
         overlay_section(ui, draft)
     });
+    ui.add_space(16.0);
+    section_frame(ui, t("추천 설정"), |ui| recommend_section(ui, draft));
+}
+
+fn recommend_section(ui: &mut egui::Ui, draft: &mut Value) {
+    let recommend = object_section_mut(draft, "recommend");
+
+    form_row(ui, t("정렬 기준"), |ui| {
+        let current_sort = recommend
+            .get("sort_priority")
+            .and_then(Value::as_str)
+            .unwrap_or("played")
+            .to_string();
+        ui.horizontal(|ui| {
+            ui.style_mut().spacing.item_spacing.x = 4.0;
+            ui.spacing_mut().button_padding = egui::vec2(4.0, 4.0);
+            for (label, val) in [
+                (t("플레이한 곡 우선"), "played"),
+                (t("미플레이 곡 우선"), "unplayed"),
+            ] {
+                let is_active = current_sort == val;
+                let btn = egui::Button::new(RichText::new(label).size(Theme::FONT_SMALL).strong())
+                    .fill(if is_active {
+                        Theme::TAB_ACTIVE_BG
+                    } else {
+                        Theme::TAB_DIM_BG
+                    })
+                    .stroke(Stroke::new(1.0_f32, Theme::STROKE))
+                    .corner_radius(egui::CornerRadius::same(Theme::R_SM))
+                    .wrap();
+
+                if ui
+                    .add_sized(egui::vec2(84.0, Theme::CONTROL_HEIGHT), btn)
+                    .clicked()
+                {
+                    recommend.insert("sort_priority".into(), json!(val));
+                }
+            }
+        });
+    });
 }
 
 fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
