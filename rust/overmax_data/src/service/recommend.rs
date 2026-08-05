@@ -661,7 +661,7 @@ impl ProviderCacheReader {
         }
     }
 
-    fn cache_key(&self, ctx: &RecommendContext) -> String {
+    pub fn cache_key(&self, ctx: &RecommendContext) -> String {
         if self.vary.is_empty() {
             return "global".to_string();
         }

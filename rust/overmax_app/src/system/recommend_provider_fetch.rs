@@ -103,6 +103,17 @@ pub fn fetch_manifest_blocking(provider_url: &str) -> ProviderManifest {
     manifest
 }
 
+pub fn get_cached_manifest(provider_url: &str) -> ProviderManifest {
+    let clean_url = provider_url.trim_end_matches('/').to_string();
+    let mut guard = overmax_core::lock_or_recover(&MANIFEST_CACHE);
+    let cache = guard.get_or_insert_with(HashMap::new);
+    if let Some((manifest, _)) = cache.get(&clean_url) {
+        manifest.clone()
+    } else {
+        ProviderManifest::default()
+    }
+}
+
 pub fn fetch_recommend_blocking(
     provider_url: &str,
     manifest: &ProviderManifest,

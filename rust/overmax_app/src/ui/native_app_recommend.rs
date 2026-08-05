@@ -134,18 +134,21 @@ impl NativeApp {
                         .join("recommend_provider")
                         .join(provider_name);
 
+                    let manifest =
+                        crate::system::recommend_provider_fetch::get_cached_manifest(clean_url);
+
                     let reader = overmax_data::ProviderCacheReader::new(
                         provider_name,
                         provider_name,
                         cache_dir.clone(),
-                        vec![overmax_data::VaryDim::Mode],
-                        std::time::Duration::from_secs(3600),
+                        manifest.vary,
+                        std::time::Duration::from_secs(manifest.ttl_sec),
                     );
 
                     let clean_url_clone = clean_url.to_string();
                     let rec_ctx_clone = rec_ctx.clone();
                     let cache_dir_clone = cache_dir.clone();
-                    let cache_key = format!("{:?}", rec_ctx.button_mode);
+                    let cache_key = reader.cache_key(&rec_ctx);
                     let cache_path = cache_dir_clone.join(format!("{}.json", cache_key));
 
                     let should_fetch = match std::fs::metadata(&cache_path) {
