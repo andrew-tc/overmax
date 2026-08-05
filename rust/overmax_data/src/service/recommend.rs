@@ -767,19 +767,11 @@ impl RecommendationSource for ProviderCacheReader {
 
         let mut entries = Vec::new();
         for pe in payload.entries {
-            let mode = match pe.mode.as_str() {
-                "4B" => Mode::B4,
-                "5B" => Mode::B5,
-                "6B" => Mode::B6,
-                "8B" => Mode::B8,
-                _ => continue,
+            let Some(mode) = Mode::from_str(&pe.mode) else {
+                continue;
             };
-            let diff = match pe.diff.as_str() {
-                "NM" => Difficulty::NM,
-                "HD" => Difficulty::HD,
-                "MX" => Difficulty::MX,
-                "SC" => Difficulty::SC,
-                _ => continue,
+            let Some(diff) = Difficulty::from_str(&pe.diff) else {
+                continue;
             };
             entries.push(RecommendEntry {
                 song_id: pe.song_id,
