@@ -806,6 +806,7 @@ impl RecommendationSource for ProviderCacheReader {
     }
 }
 
+#[derive(Clone)]
 pub struct CompositeRecommender {
     local: Arc<LocalFloorRecommender>,
     provider: Option<Arc<ProviderCacheReader>>,

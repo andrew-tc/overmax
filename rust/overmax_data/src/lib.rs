@@ -20,9 +20,9 @@ pub use config::settings::{
 pub use overmax_core::{RecordKey, RecordValue};
 pub use service::jacket_matcher::{JacketMatcher, JacketMatcherConfig};
 pub use service::recommend::{
-    CompositeRecommender, LocalFloorRecommender, LocalRecommendFooter, RecommendBundle,
-    RecommendContext, RecommendEntry, RecommendPanel, RecommendResult, RecommendationSource,
-    Recommender, SourceStatus, VaryDim,
+    CompositeRecommender, LocalFloorRecommender, LocalRecommendFooter, ProviderCacheReader,
+    RecommendBundle, RecommendContext, RecommendEntry, RecommendPanel, RecommendResult,
+    RecommendationSource, Recommender, SourceStatus, VaryDim,
 };
 pub use service::record_manager::{RecordManager, RecordSource};
 pub use store::image_index::{ImageEntry, ImageIndexDb, ImageMatch};

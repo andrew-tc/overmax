@@ -117,6 +117,69 @@ impl NativeApp {
             same_mode_only: true,
             v_id: None,
         };
+
+        let provider_settings = self.settings.get_merged().recommend_provider();
+        if provider_settings.enabled {
+            if let Some(url) = &provider_settings.url {
+                let clean_url = url.trim();
+                if !clean_url.is_empty() {
+                    let provider_name = provider_settings
+                        .name
+                        .as_deref()
+                        .filter(|n| !n.is_empty())
+                        .unwrap_or("external_provider");
+                    let cache_dir = self
+                        .root
+                        .join("cache")
+                        .join("recommend_provider")
+                        .join(provider_name);
+
+                    let reader = overmax_data::ProviderCacheReader::new(
+                        provider_name,
+                        provider_name,
+                        cache_dir.clone(),
+                        vec![overmax_data::VaryDim::Mode],
+                        std::time::Duration::from_secs(3600),
+                    );
+
+                    let clean_url_clone = clean_url.to_string();
+                    let rec_ctx_clone = rec_ctx.clone();
+                    let cache_dir_clone = cache_dir;
+                    std::thread::spawn(move || {
+                        let manifest =
+                            crate::system::recommend_provider_fetch::fetch_manifest_blocking(
+                                &clean_url_clone,
+                            );
+                        let cache_key = format!("{:?}", rec_ctx_clone.button_mode);
+                        let cache_path = cache_dir_clone.join(format!("{}.json", cache_key));
+
+                        let should_fetch = match std::fs::metadata(&cache_path) {
+                            Ok(meta) => meta
+                                .modified()
+                                .ok()
+                                .and_then(|m| m.elapsed().ok())
+                                .map(|e| e.as_secs() > 5)
+                                .unwrap_or(true),
+                            Err(_) => true,
+                        };
+
+                        if should_fetch {
+                            let _ =
+                                crate::system::recommend_provider_fetch::fetch_recommend_blocking(
+                                    &clean_url_clone,
+                                    &manifest,
+                                    &rec_ctx_clone,
+                                    &cache_path,
+                                );
+                        }
+                    });
+
+                    let composite = (*self.recommender).clone().with_provider(reader);
+                    return composite.recommend_panel(&rec_ctx).as_legacy_result();
+                }
+            }
+        }
+
         self.recommender
             .recommend_panel(&rec_ctx)
             .as_legacy_result()
