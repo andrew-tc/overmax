@@ -130,18 +130,8 @@ pub fn fetch_recommend_blocking(
         format!("{}/{}", clean_url, manifest.endpoint)
     };
 
-    let mode_str = match ctx.button_mode {
-        overmax_core::Mode::B4 => "4B",
-        overmax_core::Mode::B5 => "5B",
-        overmax_core::Mode::B6 => "6B",
-        overmax_core::Mode::B8 => "8B",
-    };
-    let diff_str = match ctx.difficulty {
-        overmax_core::Difficulty::NM => "NM",
-        overmax_core::Difficulty::HD => "HD",
-        overmax_core::Difficulty::MX => "MX",
-        overmax_core::Difficulty::SC => "SC",
-    };
+    let mode_str = ctx.button_mode.as_str();
+    let diff_str = ctx.difficulty.as_str();
     let v_id_str = ctx.v_id.as_deref().unwrap_or("");
 
     let full_url = format!(
