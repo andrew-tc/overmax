@@ -63,7 +63,10 @@ pub fn test_provider_connection_blocking(provider_url: &str) -> Result<ProviderM
         .map_err(|e| format!("Manifest JSON 파싱 실패: {}", e))?;
 
     if manifest.protocol != "overmax-recommend/1" {
-        return Err(format!("지원하지 않는 프로토콜 버전: {}", manifest.protocol));
+        return Err(format!(
+            "지원하지 않는 프로토콜 버전: {}",
+            manifest.protocol
+        ));
     }
 
     Ok(manifest)
@@ -82,7 +85,8 @@ pub fn fetch_recommend_blocking(
     let clean_url = provider_url.trim_end_matches('/');
     let endpoint = if manifest.endpoint.starts_with('/') {
         format!("{}{}", clean_url, manifest.endpoint)
-    } else if manifest.endpoint.starts_with("http://") || manifest.endpoint.starts_with("https://") {
+    } else if manifest.endpoint.starts_with("http://") || manifest.endpoint.starts_with("https://")
+    {
         manifest.endpoint.clone()
     } else {
         format!("{}/{}", clean_url, manifest.endpoint)
@@ -104,11 +108,7 @@ pub fn fetch_recommend_blocking(
 
     let full_url = format!(
         "{}?song_id={}&mode={}&diff={}&v_id={}",
-        endpoint,
-        ctx.song_id,
-        mode_str,
-        diff_str,
-        v_id_str
+        endpoint, ctx.song_id, mode_str, diff_str, v_id_str
     );
 
     let client = reqwest::blocking::Client::builder()

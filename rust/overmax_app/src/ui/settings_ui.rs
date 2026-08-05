@@ -408,7 +408,9 @@ fn steam_account_rows(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiCont
 }
 
 fn system_tab(ui: &mut egui::Ui, draft: &mut Value, _ctx: &SettingsUiContext) {
-    section_frame(ui, "추천 Provider", |ui| recommend_provider_section(ui, draft));
+    section_frame(ui, "추천 Provider", |ui| {
+        recommend_provider_section(ui, draft)
+    });
     section_frame(ui, "업데이트 설정", |ui| update_section(ui, draft));
     #[cfg(target_os = "linux")]
     section_frame(ui, "Linux 앱 실행", |ui| {

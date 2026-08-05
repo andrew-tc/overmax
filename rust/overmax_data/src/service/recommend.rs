@@ -590,7 +590,10 @@ impl RecommendationSource for LocalFloorRecommender {
         let (final_ref_floor, ref_diff_grp) = if let Some(floor) = ref_floor {
             (floor, "")
         } else {
-            (p.level.unwrap_or(0) as f64, Self::diff_group(ctx.difficulty))
+            (
+                p.level.unwrap_or(0) as f64,
+                Self::diff_group(ctx.difficulty),
+            )
         };
 
         let mut candidates = self.get_candidates(CandidateSearchParams {
