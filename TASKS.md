@@ -16,8 +16,8 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
   - [x] 2.1 `overmax_app`: 백그라운드 Provider fetch worker 구현 (`system/recommend_provider_fetch.rs`)
   - [x] 2.2 `overmax_data` & `settings.user.json`: `RecommendProviderSettings` 스키마 및 settings 추가
   - [x] 2.3 `overmax_app`: Settings UI System 탭에 Provider 설정 섹션 (토글, URL, 연결 테스트) 추가
-- [ ] **Phase 3: 다중 소스 UI & 커뮤니티 공개 문서**
-  - [ ] 3.1 다중 소스 렌더링 UI 개선 및 외부 공개용 slim spec (`docs/overmax-recommend-protocol-v1.md`) 제공
+- [x] **Phase 3: 다중 소스 UI & 커뮤니티 공개 문서**
+  - [x] 3.1 커뮤니티 공개용 slim spec (`docs/overmax-recommend-protocol-v1.md`) 및 예제 python mock server (`examples/recommend_mock_server.py`) 제공
 
 ## 2. 메모리 사용량 최적화
 
