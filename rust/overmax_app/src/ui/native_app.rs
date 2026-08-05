@@ -850,6 +850,25 @@ impl NativeApp {
         std::path::Path::new(&account_path).exists()
     }
 
+    pub(crate) fn varchive_user_id(&self) -> Option<String> {
+        let settings = self.settings.get_merged();
+        let steam = self
+            .sync_state
+            .steam_id
+            .lock()
+            .map(|g| g.clone())
+            .unwrap_or_default();
+        if steam.is_empty() {
+            return None;
+        }
+        let varchive = settings.varchive();
+        varchive
+            .user_map
+            .get(&steam)
+            .and_then(|u| u.v_id.clone())
+            .filter(|id| !id.is_empty())
+    }
+
     pub(crate) fn current_pattern_needs_upload(&self) -> bool {
         let Some(ctx) = &self.session.context else {
             return false;

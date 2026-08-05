@@ -115,7 +115,7 @@ impl NativeApp {
             floor_range: 0.0,
             max_results: 6,
             same_mode_only: true,
-            v_id: None,
+            v_id: self.varchive_user_id(),
         };
 
         let provider_settings = self.settings.get_merged().recommend_provider();
