@@ -788,7 +788,7 @@ impl RecommendationSource for ProviderCacheReader {
                 level: None,
                 floor: None,
                 floor_name: pe.reason,
-                rate: pe.score,
+                rate: None,
                 is_max_combo: false,
             });
         }
@@ -833,7 +833,11 @@ impl CompositeRecommender {
         let local_bundle = self.local.recommend(ctx);
         let local_footer = self.local.floor_summary(ctx);
 
-        let provider_bundle = self.provider.as_ref().map(|p| p.recommend(ctx));
+        let provider_bundle = self.provider.as_ref().map(|p| {
+            let mut b = p.recommend(ctx);
+            self.enrich_bundle(&mut b);
+            b
+        });
 
         let bundles = match provider_bundle {
             Some(b) if b.status == SourceStatus::Ok && !b.entries.is_empty() => {
@@ -846,6 +850,57 @@ impl CompositeRecommender {
             bundles,
             local_footer: Some(local_footer),
         }
+    }
+
+    fn enrich_bundle(&self, bundle: &mut RecommendBundle) {
+        let vdb = &self.local.vdb;
+        let rdb = &self.local.rdb;
+
+        let mut enriched_entries = Vec::new();
+        let mut unique_ids = Vec::new();
+
+        for entry in &bundle.entries {
+            let Some(song) = vdb.search_by_id(entry.song_id) else {
+                continue;
+            };
+
+            let pattern =
+                song.patterns[entry.button_mode as usize][entry.difficulty as usize].as_ref();
+            let level = pattern.and_then(|p| p.level);
+            let floor_val = pattern
+                .and_then(|p| LocalFloorRecommender::parse_floor_value(p.floor_name.as_ref()));
+
+            if !unique_ids.contains(&entry.song_id) {
+                unique_ids.push(entry.song_id);
+            }
+
+            enriched_entries.push(RecommendEntry {
+                song_id: entry.song_id,
+                song_name: song.name.to_string(),
+                composer: song.composer.to_string(),
+                button_mode: entry.button_mode,
+                difficulty: entry.difficulty,
+                level,
+                floor: floor_val,
+                floor_name: entry.floor_name.clone(),
+                rate: None,
+                is_max_combo: false,
+            });
+        }
+
+        if rdb.is_ready() && !unique_ids.is_empty() {
+            let rate_map = rdb.get_rate_map(&unique_ids);
+            for entry in &mut enriched_entries {
+                if let Some(&(rate, is_max_combo)) =
+                    rate_map.get(&(entry.song_id, entry.button_mode, entry.difficulty))
+                {
+                    entry.rate = Some(rate as f64);
+                    entry.is_max_combo = is_max_combo;
+                }
+            }
+        }
+
+        bundle.entries = enriched_entries;
     }
 
     pub fn recommend(

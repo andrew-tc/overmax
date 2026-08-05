@@ -39,20 +39,20 @@ class MockRecommendHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
 
-            # Dummy recommendations
+            # Dummy recommendations (using valid V-Archive song IDs 14: Far East Princess, 16: glory day)
             response = {
                 "protocol": "overmax-recommend/1",
                 "source": "Mock Provider",
                 "entries": [
                     {
-                        "song_id": 1,
+                        "song_id": 14,
                         "mode": mode,
                         "diff": "SC",
                         "reason": "Popular Choice",
                         "score": 0.95
                     },
                     {
-                        "song_id": 2,
+                        "song_id": 16,
                         "mode": mode,
                         "diff": "MX",
                         "reason": "Personalized Recommendation",
