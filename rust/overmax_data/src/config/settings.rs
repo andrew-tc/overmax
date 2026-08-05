@@ -687,6 +687,14 @@ impl Default for SyncFilterSettings {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
+pub struct RecommendProviderSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    pub url: Option<String>,
+    pub name: Option<String>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 pub struct Settings {
     #[serde(default)]
@@ -705,6 +713,8 @@ pub struct Settings {
     pub varchive: Option<VArchiveSettings>,
     #[serde(default)]
     pub sync_filter: Option<SyncFilterSettings>,
+    #[serde(default)]
+    pub recommend_provider: Option<RecommendProviderSettings>,
 }
 
 impl Settings {
@@ -731,5 +741,8 @@ impl Settings {
     }
     pub fn sync_filter(&self) -> SyncFilterSettings {
         self.sync_filter.clone().unwrap_or_default()
+    }
+    pub fn recommend_provider(&self) -> RecommendProviderSettings {
+        self.recommend_provider.clone().unwrap_or_default()
     }
 }

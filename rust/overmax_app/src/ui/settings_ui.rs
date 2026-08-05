@@ -408,6 +408,7 @@ fn steam_account_rows(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiCont
 }
 
 fn system_tab(ui: &mut egui::Ui, draft: &mut Value, _ctx: &SettingsUiContext) {
+    section_frame(ui, "추천 Provider", |ui| recommend_provider_section(ui, draft));
     section_frame(ui, "업데이트 설정", |ui| update_section(ui, draft));
     #[cfg(target_os = "linux")]
     section_frame(ui, "Linux 앱 실행", |ui| {
@@ -458,6 +459,63 @@ fn update_section(ui: &mut egui::Ui, draft: &mut Value) {
                 .color(Theme::TEXT_PRIMARY)
                 .size(Theme::FONT_BODY),
         );
+    });
+}
+
+fn recommend_provider_section(ui: &mut egui::Ui, draft: &mut Value) {
+    let rec_provider = object_section_mut(draft, "recommend_provider");
+
+    let mut enabled = rec_provider
+        .get("enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    form_row(ui, "외부 Provider 사용", |ui| {
+        if ui
+            .checkbox(&mut enabled, RichText::new("사용").size(Theme::FONT_BODY))
+            .changed()
+        {
+            rec_provider.insert("enabled".into(), json!(enabled));
+        }
+    });
+
+    ui.add_space(Theme::ROW_SPACING);
+
+    let mut url = rec_provider
+        .get("url")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    form_row(ui, "Provider URL", |ui| {
+        if ui
+            .add(
+                egui::TextEdit::singleline(&mut url)
+                    .hint_text("http://127.0.0.1:8080")
+                    .desired_width(220.0),
+            )
+            .changed()
+        {
+            rec_provider.insert("url".into(), json!(url.trim()));
+        }
+    });
+
+    ui.add_space(Theme::ROW_SPACING);
+
+    let mut name = rec_provider
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    form_row(ui, "표시 이름", |ui| {
+        if ui
+            .add(
+                egui::TextEdit::singleline(&mut name)
+                    .hint_text("예: djmax.gg")
+                    .desired_width(220.0),
+            )
+            .changed()
+        {
+            rec_provider.insert("name".into(), json!(name.trim()));
+        }
     });
 }
 

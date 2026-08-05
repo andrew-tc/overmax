@@ -41,5 +41,10 @@
     "cache_path": "cache/songs.json",
     "cache_ttl_sec": 86400,
     "download_timeout_sec": 10
+  },
+  "recommend_provider": {
+    "enabled": false,
+    "url": null,
+    "name": null
   }
 }
