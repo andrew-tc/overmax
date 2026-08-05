@@ -72,8 +72,35 @@ pub fn test_provider_connection_blocking(provider_url: &str) -> Result<ProviderM
     Ok(manifest)
 }
 
+use std::collections::HashMap;
+use std::sync::Mutex;
+use std::time::Instant;
+
+static MANIFEST_CACHE: Mutex<Option<HashMap<String, (ProviderManifest, Instant)>>> =
+    Mutex::new(None);
+
 pub fn fetch_manifest_blocking(provider_url: &str) -> ProviderManifest {
-    test_provider_connection_blocking(provider_url).unwrap_or_default()
+    let clean_url = provider_url.trim_end_matches('/').to_string();
+
+    {
+        let mut guard = overmax_core::lock_or_recover(&MANIFEST_CACHE);
+        let cache = guard.get_or_insert_with(HashMap::new);
+        if let Some((manifest, fetched_at)) = cache.get(&clean_url) {
+            if fetched_at.elapsed().as_secs() < 3600 {
+                return manifest.clone();
+            }
+        }
+    }
+
+    let manifest = test_provider_connection_blocking(&clean_url).unwrap_or_default();
+
+    {
+        let mut guard = overmax_core::lock_or_recover(&MANIFEST_CACHE);
+        let cache = guard.get_or_insert_with(HashMap::new);
+        cache.insert(clean_url, (manifest.clone(), Instant::now()));
+    }
+
+    manifest
 }
 
 pub fn fetch_recommend_blocking(

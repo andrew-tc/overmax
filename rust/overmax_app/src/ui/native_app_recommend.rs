@@ -144,26 +144,26 @@ impl NativeApp {
 
                     let clean_url_clone = clean_url.to_string();
                     let rec_ctx_clone = rec_ctx.clone();
-                    let cache_dir_clone = cache_dir;
-                    std::thread::spawn(move || {
-                        let manifest =
-                            crate::system::recommend_provider_fetch::fetch_manifest_blocking(
-                                &clean_url_clone,
-                            );
-                        let cache_key = format!("{:?}", rec_ctx_clone.button_mode);
-                        let cache_path = cache_dir_clone.join(format!("{}.json", cache_key));
+                    let cache_dir_clone = cache_dir.clone();
+                    let cache_key = format!("{:?}", rec_ctx.button_mode);
+                    let cache_path = cache_dir_clone.join(format!("{}.json", cache_key));
 
-                        let should_fetch = match std::fs::metadata(&cache_path) {
-                            Ok(meta) => meta
-                                .modified()
-                                .ok()
-                                .and_then(|m| m.elapsed().ok())
-                                .map(|e| e.as_secs() > 5)
-                                .unwrap_or(true),
-                            Err(_) => true,
-                        };
+                    let should_fetch = match std::fs::metadata(&cache_path) {
+                        Ok(meta) => meta
+                            .modified()
+                            .ok()
+                            .and_then(|m| m.elapsed().ok())
+                            .map(|e| e.as_secs() > 10)
+                            .unwrap_or(true),
+                        Err(_) => true,
+                    };
 
-                        if should_fetch {
+                    if should_fetch {
+                        std::thread::spawn(move || {
+                            let manifest =
+                                crate::system::recommend_provider_fetch::fetch_manifest_blocking(
+                                    &clean_url_clone,
+                                );
                             let _ =
                                 crate::system::recommend_provider_fetch::fetch_recommend_blocking(
                                     &clean_url_clone,
@@ -171,8 +171,8 @@ impl NativeApp {
                                     &rec_ctx_clone,
                                     &cache_path,
                                 );
-                        }
-                    });
+                        });
+                    }
 
                     let composite = (*self.recommender).clone().with_provider(reader);
                     return composite.recommend_panel(&rec_ctx).as_legacy_result();
