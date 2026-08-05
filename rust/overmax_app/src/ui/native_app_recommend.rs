@@ -2,7 +2,7 @@ use crate::ui::debug_ui;
 use crate::ui::native_app::NativeApp;
 use crate::ui::overlay_recommend_ui::PatternTabInfo;
 use overmax_core::{Difficulty, GameSessionState};
-use overmax_data::{RecommendResult, RecordSource};
+use overmax_data::{RecommendContext, RecommendResult, RecordSource};
 
 impl NativeApp {
     pub(crate) fn drain_detection_results(&mut self, ctx: &egui::Context) {
@@ -108,8 +108,18 @@ impl NativeApp {
         let Some(ctx) = &state.context else {
             return RecommendResult::empty();
         };
+        let rec_ctx = RecommendContext {
+            song_id: ctx.song_id,
+            button_mode: ctx.mode,
+            difficulty: ctx.diff,
+            floor_range: 0.0,
+            max_results: 6,
+            same_mode_only: true,
+            v_id: None,
+        };
         self.recommender
-            .recommend(ctx.song_id, ctx.mode, ctx.diff, 0.0, 6, true)
+            .recommend_panel(&rec_ctx)
+            .as_legacy_result()
     }
 
     fn pattern_tabs_for_state(&self, state: &GameSessionState) -> Vec<PatternTabInfo> {

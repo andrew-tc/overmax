@@ -4,9 +4,20 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
 
 ---
 
-## 1. 추천 기능 고도화
+## 1. 추천 기능 고도화 (Recommend Provider Protocol & Trait 추상화)
 
-- [ ] 추천 시스템 및 알고리즘 고도화
+- [x] **Phase 1: In-process Trait 추상화 & CompositeRecommender (로컬 전용)**
+  - [x] 1.1 `overmax_data`: `RecommendContext`, `VaryDim`, `RecommendBundle`, `SourceStatus`, `LocalRecommendFooter`, `RecommendPanel`, `RecommendationSource` trait 정의
+  - [x] 1.2 `overmax_data`: 기존 `Recommender` → `LocalFloorRecommender`로 리팩토링 및 `RecommendationSource` trait 구현
+  - [x] 1.3 `overmax_data`: `ProviderCacheReader` + `CompositeRecommender` 구현 및 폴백 유닛 테스트 작성
+  - [x] 1.4 `overmax_app`: `native_app_recommend.rs` 데이터 연결부를 `RecommendPanel`로 업데이트 (`as_legacy_result()` 레거시 호환 projection 사용)
+  - [x] 1.5 전체 workspace 빌드/테스트 통과 및 회귀 검증 완료
+- [ ] **Phase 2: Provider Fetch 인프라 & 설정 UI**
+  - [ ] 2.1 `overmax_app`: 백그라운드 Provider fetch worker 구현 (`system/recommend_provider_fetch.rs`)
+  - [ ] 2.2 `overmax_data` & `settings.user.json`: `RecommendProviderSettings` 스키마 및 settings 추가
+  - [ ] 2.3 `overmax_app`: Settings UI System 탭에 Provider 설정 섹션 (토글, URL, 연결 테스트) 추가
+- [ ] **Phase 3: 다중 소스 UI & 커뮤니티 공개 문서**
+  - [ ] 3.1 다중 소스 렌더링 UI 개선 및 외부 공개용 slim spec (`docs/overmax-recommend-protocol-v1.md`) 제공
 
 ## 2. 메모리 사용량 최적화
 

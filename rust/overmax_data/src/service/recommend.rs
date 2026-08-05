@@ -2,10 +2,13 @@ use crate::community::client::VArchiveDB;
 use crate::service::record_manager::{RecordManager, RecordSource};
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use overmax_core::{Difficulty, Mode, RecordKey};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RecommendEntry {
@@ -46,6 +49,78 @@ impl RecommendResult {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct RecommendContext {
+    pub song_id: i32,
+    pub button_mode: Mode,
+    pub difficulty: Difficulty,
+    pub floor_range: f64,
+    pub max_results: usize,
+    pub same_mode_only: bool,
+    pub v_id: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VaryDim {
+    SongId,
+    Mode,
+    Diff,
+    VId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceStatus {
+    Ok,
+    Stale,
+    Skipped,
+    Error,
+}
+
+#[derive(Debug, Clone)]
+pub struct RecommendBundle {
+    pub source_id: String,
+    pub source_label: String,
+    pub entries: Vec<RecommendEntry>,
+    pub status: SourceStatus,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct LocalRecommendFooter {
+    pub avg_rate: f64,
+    pub has_record_count: usize,
+    pub total_count: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct RecommendPanel {
+    pub bundles: Vec<RecommendBundle>,
+    pub local_footer: Option<LocalRecommendFooter>,
+}
+
+impl RecommendPanel {
+    pub fn as_legacy_result(&self) -> RecommendResult {
+        let entries = self
+            .bundles
+            .first()
+            .map(|b| b.entries.clone())
+            .unwrap_or_default();
+        let footer = &self.local_footer;
+        RecommendResult {
+            entries,
+            avg_rate: footer.as_ref().map(|f| f.avg_rate).unwrap_or(-1.0),
+            has_record_count: footer.as_ref().map(|f| f.has_record_count).unwrap_or(0),
+            total_count: footer.as_ref().map(|f| f.total_count).unwrap_or(0),
+        }
+    }
+}
+
+pub trait RecommendationSource: Send + Sync {
+    fn source_id(&self) -> &str;
+    fn source_label(&self) -> &str;
+    fn recommend(&self, ctx: &RecommendContext) -> RecommendBundle;
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FloorCacheKey {
     pub button_mode: overmax_core::Mode,
@@ -77,7 +152,7 @@ impl FloorRateSummary {
     }
 }
 
-pub struct Recommender {
+pub struct LocalFloorRecommender {
     vdb: Arc<VArchiveDB>,
     rdb: Arc<RecordManager>,
     floor_rate_cache: Mutex<HashMap<FloorCacheKey, FloorRateSummary>>,
@@ -131,7 +206,7 @@ impl<'a> RawCandidate<'a> {
     }
 }
 
-impl Recommender {
+impl LocalFloorRecommender {
     pub fn new(vdb: Arc<VArchiveDB>, rdb: Arc<RecordManager>) -> Self {
         Self {
             vdb,
@@ -160,79 +235,39 @@ impl Recommender {
         }
     }
 
-    pub fn recommend(
-        &self,
-        song_id: i32,
-        button_mode: Mode,
-        difficulty: Difficulty,
-        floor_range: f64,
-        max_results: usize,
-        same_mode_only: bool,
-    ) -> RecommendResult {
-        let current_song = match self.vdb.search_by_id(song_id) {
+    pub fn floor_summary(&self, ctx: &RecommendContext) -> LocalRecommendFooter {
+        let current_song = match self.vdb.search_by_id(ctx.song_id) {
             Some(s) => s,
-            None => return RecommendResult::empty(),
+            None => return LocalRecommendFooter::default(),
         };
 
         let current_pattern =
-            current_song.patterns[button_mode as usize][difficulty as usize].as_ref();
+            current_song.patterns[ctx.button_mode as usize][ctx.difficulty as usize].as_ref();
 
         let p = match current_pattern {
             Some(p) => p,
-            None => return RecommendResult::empty(),
+            None => return LocalRecommendFooter::default(),
         };
 
         let ref_floor = Self::parse_floor_value(p.floor_name.as_ref());
         let use_official = ref_floor.is_none();
 
-        let (final_ref_floor, ref_diff_grp) = if let Some(floor) = ref_floor {
-            (floor, "")
+        let final_ref_floor = if let Some(floor) = ref_floor {
+            floor
         } else {
-            (p.level.unwrap_or(0) as f64, Self::diff_group(difficulty))
+            p.level.unwrap_or(0) as f64
         };
 
-        let mut candidates = self.get_candidates(CandidateSearchParams {
-            target_song_id: song_id,
-            target_mode: button_mode,
-            target_diff: difficulty,
-            ref_floor: final_ref_floor,
-            use_official,
-            ref_diff_grp,
-            floor_range,
-            same_mode_only,
-        });
-
-        self.merge_record_rates(&mut candidates);
-
-        candidates.sort_by(|a, b| {
-            if a.is_played() && !b.is_played() {
-                Ordering::Less
-            } else if !a.is_played() && b.is_played() {
-                Ordering::Greater
-            } else if let (Some(ra), Some(rb)) = (a.rate, b.rate) {
-                ra.partial_cmp(&rb)
-                    .unwrap_or(Ordering::Equal)
-                    .then_with(|| a.floor.partial_cmp(&b.floor).unwrap_or(Ordering::Equal))
-            } else {
-                a.floor.partial_cmp(&b.floor).unwrap_or(Ordering::Equal)
-            }
-        });
-
         let summary = self.get_summary_from_cache(
-            button_mode,
-            difficulty,
+            ctx.button_mode,
+            ctx.difficulty,
             final_ref_floor,
             use_official,
-            floor_range,
-            same_mode_only,
+            ctx.floor_range,
+            ctx.same_mode_only,
         );
 
-        candidates.truncate(max_results);
-
-        let final_entries = candidates.into_iter().map(|c| c.into_entry()).collect();
-
-        RecommendResult {
-            entries: final_entries,
+        LocalRecommendFooter {
             avg_rate: summary.avg_rate(),
             has_record_count: summary.has_record_count,
             total_count: summary.total_count,
@@ -241,7 +276,6 @@ impl Recommender {
 
     fn get_candidates<'a>(&'a self, params: CandidateSearchParams) -> Vec<RawCandidate<'a>> {
         let modes_to_check: &[Mode] = if params.same_mode_only {
-            // 스택에 임시 슬라이스 — copy enum은 이 방식이 깔끔
             std::slice::from_ref(&params.target_mode)
         } else {
             &Mode::ALL
@@ -510,5 +544,401 @@ impl Recommender {
             has_record_count: has_record,
             rate_sum,
         }
+    }
+}
+
+impl RecommendationSource for LocalFloorRecommender {
+    fn source_id(&self) -> &str {
+        "local_floor"
+    }
+
+    fn source_label(&self) -> &str {
+        "유사 구간"
+    }
+
+    fn recommend(&self, ctx: &RecommendContext) -> RecommendBundle {
+        let current_song = match self.vdb.search_by_id(ctx.song_id) {
+            Some(s) => s,
+            None => {
+                return RecommendBundle {
+                    source_id: self.source_id().to_string(),
+                    source_label: self.source_label().to_string(),
+                    entries: Vec::new(),
+                    status: SourceStatus::Ok,
+                }
+            }
+        };
+
+        let current_pattern =
+            current_song.patterns[ctx.button_mode as usize][ctx.difficulty as usize].as_ref();
+
+        let p = match current_pattern {
+            Some(p) => p,
+            None => {
+                return RecommendBundle {
+                    source_id: self.source_id().to_string(),
+                    source_label: self.source_label().to_string(),
+                    entries: Vec::new(),
+                    status: SourceStatus::Ok,
+                }
+            }
+        };
+
+        let ref_floor = Self::parse_floor_value(p.floor_name.as_ref());
+        let use_official = ref_floor.is_none();
+
+        let (final_ref_floor, ref_diff_grp) = if let Some(floor) = ref_floor {
+            (floor, "")
+        } else {
+            (p.level.unwrap_or(0) as f64, Self::diff_group(ctx.difficulty))
+        };
+
+        let mut candidates = self.get_candidates(CandidateSearchParams {
+            target_song_id: ctx.song_id,
+            target_mode: ctx.button_mode,
+            target_diff: ctx.difficulty,
+            ref_floor: final_ref_floor,
+            use_official,
+            ref_diff_grp,
+            floor_range: ctx.floor_range,
+            same_mode_only: ctx.same_mode_only,
+        });
+
+        self.merge_record_rates(&mut candidates);
+
+        candidates.sort_by(|a, b| {
+            if a.is_played() && !b.is_played() {
+                Ordering::Less
+            } else if !a.is_played() && b.is_played() {
+                Ordering::Greater
+            } else if let (Some(ra), Some(rb)) = (a.rate, b.rate) {
+                ra.partial_cmp(&rb)
+                    .unwrap_or(Ordering::Equal)
+                    .then_with(|| a.floor.partial_cmp(&b.floor).unwrap_or(Ordering::Equal))
+            } else {
+                a.floor.partial_cmp(&b.floor).unwrap_or(Ordering::Equal)
+            }
+        });
+
+        candidates.truncate(ctx.max_results);
+
+        let final_entries = candidates.into_iter().map(|c| c.into_entry()).collect();
+
+        RecommendBundle {
+            source_id: self.source_id().to_string(),
+            source_label: self.source_label().to_string(),
+            entries: final_entries,
+            status: SourceStatus::Ok,
+        }
+    }
+}
+
+pub struct ProviderCacheReader {
+    pub source_id: String,
+    pub source_label: String,
+    pub cache_dir: PathBuf,
+    pub vary: Vec<VaryDim>,
+    pub ttl: Duration,
+}
+
+impl ProviderCacheReader {
+    pub fn new(
+        source_id: impl Into<String>,
+        source_label: impl Into<String>,
+        cache_dir: impl Into<PathBuf>,
+        vary: Vec<VaryDim>,
+        ttl: Duration,
+    ) -> Self {
+        Self {
+            source_id: source_id.into(),
+            source_label: source_label.into(),
+            cache_dir: cache_dir.into(),
+            vary,
+            ttl,
+        }
+    }
+
+    fn cache_key(&self, ctx: &RecommendContext) -> String {
+        if self.vary.is_empty() {
+            return "global".to_string();
+        }
+
+        let mut parts = Vec::new();
+        for dim in &self.vary {
+            match dim {
+                VaryDim::SongId => parts.push(ctx.song_id.to_string()),
+                VaryDim::Mode => parts.push(format!("{:?}", ctx.button_mode)),
+                VaryDim::Diff => parts.push(format!("{:?}", ctx.difficulty)),
+                VaryDim::VId => parts.push(ctx.v_id.clone().unwrap_or_default()),
+            }
+        }
+        parts.join("_")
+    }
+}
+
+impl RecommendationSource for ProviderCacheReader {
+    fn source_id(&self) -> &str {
+        &self.source_id
+    }
+
+    fn source_label(&self) -> &str {
+        &self.source_label
+    }
+
+    fn recommend(&self, ctx: &RecommendContext) -> RecommendBundle {
+        let key = self.cache_key(ctx);
+        let cache_path = self.cache_dir.join(format!("{}.json", key));
+
+        let metadata = match std::fs::metadata(&cache_path) {
+            Ok(m) => m,
+            Err(_) => {
+                return RecommendBundle {
+                    source_id: self.source_id.clone(),
+                    source_label: self.source_label.clone(),
+                    entries: Vec::new(),
+                    status: SourceStatus::Error,
+                };
+            }
+        };
+
+        let elapsed = metadata
+            .modified()
+            .ok()
+            .and_then(|t| t.elapsed().ok())
+            .unwrap_or(Duration::MAX);
+
+        let is_stale = elapsed > self.ttl;
+
+        let content = match std::fs::read_to_string(&cache_path) {
+            Ok(c) => c,
+            Err(_) => {
+                return RecommendBundle {
+                    source_id: self.source_id.clone(),
+                    source_label: self.source_label.clone(),
+                    entries: Vec::new(),
+                    status: SourceStatus::Error,
+                };
+            }
+        };
+
+        #[derive(Deserialize)]
+        struct ProviderPayload {
+            protocol: String,
+            #[serde(default)]
+            entries: Vec<ProviderEntry>,
+        }
+
+        #[derive(Deserialize)]
+        struct ProviderEntry {
+            song_id: i32,
+            mode: String,
+            diff: String,
+            #[serde(default)]
+            reason: Option<String>,
+            #[serde(default)]
+            score: Option<f64>,
+        }
+
+        let payload: ProviderPayload = match serde_json::from_str(&content) {
+            Ok(p) => p,
+            Err(_) => {
+                return RecommendBundle {
+                    source_id: self.source_id.clone(),
+                    source_label: self.source_label.clone(),
+                    entries: Vec::new(),
+                    status: SourceStatus::Error,
+                };
+            }
+        };
+
+        if payload.protocol != "overmax-recommend/1" || payload.entries.is_empty() {
+            return RecommendBundle {
+                source_id: self.source_id.clone(),
+                source_label: self.source_label.clone(),
+                entries: Vec::new(),
+                status: SourceStatus::Error,
+            };
+        }
+
+        let mut entries = Vec::new();
+        for pe in payload.entries {
+            let mode = match pe.mode.as_str() {
+                "4B" => Mode::B4,
+                "5B" => Mode::B5,
+                "6B" => Mode::B6,
+                "8B" => Mode::B8,
+                _ => continue,
+            };
+            let diff = match pe.diff.as_str() {
+                "NM" => Difficulty::NM,
+                "HD" => Difficulty::HD,
+                "MX" => Difficulty::MX,
+                "SC" => Difficulty::SC,
+                _ => continue,
+            };
+            entries.push(RecommendEntry {
+                song_id: pe.song_id,
+                song_name: String::new(),
+                composer: String::new(),
+                button_mode: mode,
+                difficulty: diff,
+                level: None,
+                floor: None,
+                floor_name: pe.reason,
+                rate: pe.score,
+                is_max_combo: false,
+            });
+        }
+
+        RecommendBundle {
+            source_id: self.source_id.clone(),
+            source_label: self.source_label.clone(),
+            entries,
+            status: if is_stale {
+                SourceStatus::Stale
+            } else {
+                SourceStatus::Ok
+            },
+        }
+    }
+}
+
+pub struct CompositeRecommender {
+    local: Arc<LocalFloorRecommender>,
+    provider: Option<Arc<ProviderCacheReader>>,
+}
+
+impl CompositeRecommender {
+    pub fn new(vdb: Arc<VArchiveDB>, rdb: Arc<RecordManager>) -> Self {
+        Self {
+            local: Arc::new(LocalFloorRecommender::new(vdb, rdb)),
+            provider: None,
+        }
+    }
+
+    pub fn with_provider(mut self, provider: ProviderCacheReader) -> Self {
+        self.provider = Some(Arc::new(provider));
+        self
+    }
+
+    pub fn local(&self) -> &Arc<LocalFloorRecommender> {
+        &self.local
+    }
+
+    pub fn recommend_panel(&self, ctx: &RecommendContext) -> RecommendPanel {
+        let local_bundle = self.local.recommend(ctx);
+        let local_footer = self.local.floor_summary(ctx);
+
+        let provider_bundle = self.provider.as_ref().map(|p| p.recommend(ctx));
+
+        let bundles = match provider_bundle {
+            Some(b) if b.status == SourceStatus::Ok && !b.entries.is_empty() => {
+                vec![b, local_bundle]
+            }
+            _ => vec![local_bundle],
+        };
+
+        RecommendPanel {
+            bundles,
+            local_footer: Some(local_footer),
+        }
+    }
+
+    pub fn recommend(
+        &self,
+        song_id: i32,
+        button_mode: Mode,
+        difficulty: Difficulty,
+        floor_range: f64,
+        max_results: usize,
+        same_mode_only: bool,
+    ) -> RecommendResult {
+        let ctx = RecommendContext {
+            song_id,
+            button_mode,
+            difficulty,
+            floor_range,
+            max_results,
+            same_mode_only,
+            v_id: None,
+        };
+        self.recommend_panel(&ctx).as_legacy_result()
+    }
+}
+
+pub type Recommender = CompositeRecommender;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_provider_cache_reader_fallback_when_file_missing() {
+        let temp_dir = std::env::temp_dir().join("overmax_test_cache_reader_missing");
+        let reader = ProviderCacheReader::new(
+            "test_provider",
+            "Test Provider",
+            &temp_dir,
+            vec![VaryDim::Mode],
+            Duration::from_secs(3600),
+        );
+
+        let ctx = RecommendContext {
+            song_id: 1,
+            button_mode: Mode::B4,
+            difficulty: Difficulty::NM,
+            floor_range: 0.0,
+            max_results: 6,
+            same_mode_only: true,
+            v_id: None,
+        };
+
+        let bundle = reader.recommend(&ctx);
+        assert_eq!(bundle.status, SourceStatus::Error);
+        assert!(bundle.entries.is_empty());
+    }
+
+    #[test]
+    fn test_provider_cache_reader_valid_json() {
+        let temp_dir = std::env::temp_dir().join("overmax_test_cache_reader_valid");
+        let _ = std::fs::create_dir_all(&temp_dir);
+        let cache_file = temp_dir.join("B4.json");
+
+        let json_content = r#"{
+            "protocol": "overmax-recommend/1",
+            "source": "test_provider",
+            "entries": [
+                { "song_id": 10, "mode": "4B", "diff": "SC", "reason": "test", "score": 99.5 }
+            ]
+        }"#;
+
+        std::fs::write(&cache_file, json_content).unwrap();
+
+        let reader = ProviderCacheReader::new(
+            "test_provider",
+            "Test Provider",
+            &temp_dir,
+            vec![VaryDim::Mode],
+            Duration::from_secs(3600),
+        );
+
+        let ctx = RecommendContext {
+            song_id: 1,
+            button_mode: Mode::B4,
+            difficulty: Difficulty::NM,
+            floor_range: 0.0,
+            max_results: 6,
+            same_mode_only: true,
+            v_id: None,
+        };
+
+        let bundle = reader.recommend(&ctx);
+        assert_eq!(bundle.status, SourceStatus::Ok);
+        assert_eq!(bundle.entries.len(), 1);
+        assert_eq!(bundle.entries[0].song_id, 10);
+        assert_eq!(bundle.entries[0].button_mode, Mode::B4);
+        assert_eq!(bundle.entries[0].difficulty, Difficulty::SC);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }
