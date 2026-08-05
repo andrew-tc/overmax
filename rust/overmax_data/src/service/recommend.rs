@@ -22,6 +22,7 @@ pub struct RecommendEntry {
     pub floor_name: Option<String>,
     pub rate: Option<f64>,
     pub is_max_combo: bool,
+    pub score: Option<f64>,
 }
 
 impl RecommendEntry {
@@ -202,6 +203,7 @@ impl<'a> RawCandidate<'a> {
             floor_name: self.floor_name.map(|s| s.to_string()),
             rate: self.rate,
             is_max_combo: self.is_max_combo,
+            score: None,
         }
     }
 }
@@ -790,6 +792,7 @@ impl RecommendationSource for ProviderCacheReader {
                 floor_name: pe.reason,
                 rate: None,
                 is_max_combo: false,
+                score: pe.score,
             });
         }
 
@@ -885,6 +888,7 @@ impl CompositeRecommender {
                 floor_name: entry.floor_name.clone(),
                 rate: None,
                 is_max_combo: false,
+                score: entry.score,
             });
         }
 
@@ -899,6 +903,12 @@ impl CompositeRecommender {
                 }
             }
         }
+
+        enriched_entries.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         bundle.entries = enriched_entries;
     }
