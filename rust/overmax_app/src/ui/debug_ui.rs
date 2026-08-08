@@ -152,11 +152,19 @@ fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) 
                                 .size(Theme::FONT_TINY)
                                 .color(Theme::TEXT_MUTED),
                         );
+                        #[cfg(target_os = "windows")]
                         let (focus_txt, focus_color) = if state.is_active {
                             ("Active (Topmost)", Color32::from_rgb(100, 255, 100))
                         } else {
                             ("Inactive (Notopmost)", Color32::from_rgb(255, 170, 0))
                         };
+                        #[cfg(not(target_os = "windows"))]
+                        let (focus_txt, focus_color) = if state.is_active {
+                            ("Active", Color32::from_rgb(100, 255, 100))
+                        } else {
+                            ("Inactive", Color32::from_rgb(255, 170, 0))
+                        };
+
                         let game_txt = if state.game_found {
                             "Found"
                         } else {
@@ -185,15 +193,16 @@ fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) 
                         } else {
                             ("Hidden (0%)".to_string(), Color32::from_rgb(255, 100, 100))
                         };
+                        #[cfg(target_os = "windows")]
+                        let engine_str = state.capture_engine.to_uppercase();
+                        #[cfg(not(target_os = "windows"))]
+                        let engine_str = "XCOMPOSITE".to_string();
+
                         ui.label(
-                            RichText::new(format!(
-                                "{} | {}",
-                                vis_txt,
-                                state.capture_engine.to_uppercase()
-                            ))
-                            .size(Theme::FONT_SMALL)
-                            .color(vis_color)
-                            .strong(),
+                            RichText::new(format!("{} | {}", vis_txt, engine_str))
+                                .size(Theme::FONT_SMALL)
+                                .color(vis_color)
+                                .strong(),
                         );
                     });
                 });

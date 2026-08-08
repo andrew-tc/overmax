@@ -461,40 +461,43 @@ fn system_tab(ui: &mut egui::Ui, draft: &mut Value, _ctx: &SettingsUiContext) {
 fn capture_section(ui: &mut egui::Ui, draft: &mut Value) {
     let screen_capture = object_section_mut(draft, "screen_capture");
 
-    let mut engine = screen_capture
-        .get("engine")
-        .and_then(Value::as_str)
-        .unwrap_or("dxgi")
-        .to_string();
+    #[cfg(target_os = "windows")]
+    {
+        let mut engine = screen_capture
+            .get("engine")
+            .and_then(Value::as_str)
+            .unwrap_or("dxgi")
+            .to_string();
 
-    form_row(ui, "캡처 방식 (Windows)", |ui| {
-        let mut changed = false;
-        egui::ComboBox::from_id_salt("capture_engine_combo")
-            .selected_text(match engine.as_str() {
-                "gdi" => "GDI (호환성 모드)",
-                _ => "DXGI (기본값 / 고성능)",
-            })
-            .show_ui(ui, |ui| {
-                if ui
-                    .selectable_value(&mut engine, "dxgi".to_string(), "DXGI (기본값 / 고성능)")
-                    .clicked()
-                {
-                    changed = true;
-                }
-                if ui
-                    .selectable_value(&mut engine, "gdi".to_string(), "GDI (호환성 모드)")
-                    .clicked()
-                {
-                    changed = true;
-                }
-            });
+        form_row(ui, "캡처 방식 (Windows)", |ui| {
+            let mut changed = false;
+            egui::ComboBox::from_id_salt("capture_engine_combo")
+                .selected_text(match engine.as_str() {
+                    "gdi" => "GDI (호환성 모드)",
+                    _ => "DXGI (기본값 / 고성능)",
+                })
+                .show_ui(ui, |ui| {
+                    if ui
+                        .selectable_value(&mut engine, "dxgi".to_string(), "DXGI (기본값 / 고성능)")
+                        .clicked()
+                    {
+                        changed = true;
+                    }
+                    if ui
+                        .selectable_value(&mut engine, "gdi".to_string(), "GDI (호환성 모드)")
+                        .clicked()
+                    {
+                        changed = true;
+                    }
+                });
 
-        if changed {
-            screen_capture.insert("engine".into(), json!(engine));
-        }
-    });
+            if changed {
+                screen_capture.insert("engine".into(), json!(engine));
+            }
+        });
 
-    ui.add_space(Theme::ROW_SPACING);
+        ui.add_space(Theme::ROW_SPACING);
+    }
 
     let mut content_protected = screen_capture
         .get("content_protected")
