@@ -106,6 +106,10 @@ fn translate_en(ko: &'static str) -> &'static str {
         "언어" => "Language",
         "현재 Steam: " => "Current Steam: ",
         "현재 Steam: -" => "Current Steam: -",
+        "추천 Provider" => "Recommend Provider",
+        "외부 Provider 사용" => "Use External Provider",
+        "표시 이름" => "Display Name",
+        "예: djmax.gg" => "e.g. djmax.gg",
 
         // sync_ui.rs
         "동기화" => "Sync",
