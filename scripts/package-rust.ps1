@@ -39,8 +39,8 @@ try {
 
     $zipSha256 = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLower()
     
-    # Extract version from Cargo.toml
-    $cargoTomlPath = Join-Path $repoRoot "rust/overmax_app/Cargo.toml"
+    # Extract version from workspace Cargo.toml
+    $cargoTomlPath = Join-Path $repoRoot "Cargo.toml"
     $appVersion = (Select-String -Path $cargoTomlPath -Pattern '^version\s*=\s*"([^"]+)"').Matches.Groups[1].Value
 
     if (-not $appVersion) {
