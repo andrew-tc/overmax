@@ -506,9 +506,9 @@ fn capture_section(ui: &mut egui::Ui, draft: &mut Value) {
 
     form_row(ui, "캡처 시 오버레이 보호", |ui| {
         let response = ui
-            .checkbox(&mut content_protected, "화면 캡처 방지 (Content Protection)")
+            .checkbox(&mut content_protected, "화면 캡처 방지")
             .on_hover_text(
-                "녹화/캡처 시 오버레이 화면을 숨깁니다. (끄면 캡처본의 오버레이 UI가 게임 인식을 가릴 수 있습니다)",
+                "해제 시 화면 캡쳐에 잡히는 대신, 특정 영역에 오버레이가 위치하면 곡 인식이 제대로 동작하지 않게 됩니다.",
             );
 
         if response.changed() {
