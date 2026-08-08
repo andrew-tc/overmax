@@ -15,13 +15,15 @@ pub enum PreferredCaptureEngine {
     Auto,
 }
 
-impl PreferredCaptureEngine {
-    pub fn from_str(s: &str) -> Self {
-        match s.to_ascii_lowercase().as_str() {
+impl std::str::FromStr for PreferredCaptureEngine {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s.to_ascii_lowercase().as_str() {
             "gdi" => Self::Gdi,
             "auto" => Self::Auto,
             _ => Self::Dxgi,
-        }
+        })
     }
 }
 

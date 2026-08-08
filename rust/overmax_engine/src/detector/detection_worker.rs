@@ -132,9 +132,12 @@ impl DetectionWorker {
         };
         #[cfg(target_os = "windows")]
         {
-            let pref = crate::capture::capture_engine::PreferredCaptureEngine::from_str(
-                &self.settings.screen_capture().engine,
-            );
+            let pref = self
+                .settings
+                .screen_capture()
+                .engine
+                .parse()
+                .unwrap_or_default();
             capturer_adaptive.set_preferred_engine(pref);
         }
         let mut capturer: Box<dyn CaptureEngine> = Box::new(capturer_adaptive);
