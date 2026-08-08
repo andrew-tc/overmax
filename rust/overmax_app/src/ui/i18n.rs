@@ -257,6 +257,10 @@ fn translate_ja(ko: &'static str) -> &'static str {
         "언어" => "言語",
         "현재 Steam: " => "現在のSteam: ",
         "현재 Steam: -" => "現在のSteam: -",
+        "추천 Provider" => "おすすめプロバイダー",
+        "외부 Provider 사용" => "外部プロバイダーを使用",
+        "표시 이름" => "表示名",
+        "예: djmax.gg" => "例: djmax.gg",
 
         // sync_ui.rs
         "동기화" => "同期",
