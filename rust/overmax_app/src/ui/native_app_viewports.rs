@@ -668,47 +668,72 @@ impl NativeApp {
                 if let Some(hwnd_val) = self.platform.win_cache.cached_hwnd {
                     if let Some(g_rect) = game_rect_val {
                         use windows_sys::Win32::UI::WindowsAndMessaging::*;
-                        let hwnd = hwnd_val as HWND;
-                        let ppi = ctx.pixels_per_point();
-                        let overlay_w_px =
-                            (((overlay_ui::BASE_WIDTH * scale).ceil() + 2.0) * ppi) as i32;
-                        let overlay_h_px = (((height * scale).ceil() + 2.0) * ppi) as i32;
-                        let margin_px = (16.0 * ppi) as i32;
 
+                        let hwnd = hwnd_val as HWND;
+
+                        // 1. 오버레이 HWND의 실제 물리적 크기(Physical Pixels) 구하기
+                        let mut ov_rect = windows_sys::Win32::Foundation::RECT::default();
+                        unsafe {
+                            GetWindowRect(hwnd, &mut ov_rect);
+                        }
+                        let mut overlay_phys_w = ov_rect.right - ov_rect.left;
+                        let mut overlay_phys_h = ov_rect.bottom - ov_rect.top;
+
+                        // 2. DPI Scale 구하기
+                        let dpi_scale = ctx.pixels_per_point();
+
+                        if overlay_phys_w <= 0 || overlay_phys_h <= 0 {
+                            overlay_phys_w = (((overlay_ui::BASE_WIDTH * scale).ceil() + 2.0)
+                                * dpi_scale) as i32;
+                            overlay_phys_h = (((height * scale).ceil() + 2.0) * dpi_scale) as i32;
+                        }
+
+                        let margin_px = (16.0 * dpi_scale) as i32;
+
+                        // 3. 물리 픽셀 도메인에서만 구석 위치(px, py) 계산
                         let (px, py) = match snap_position {
                             "top_left" => (g_rect.left + margin_px, g_rect.top + margin_px),
                             "top_right" => (
-                                g_rect.left + g_rect.width - overlay_w_px - margin_px,
+                                g_rect.left + g_rect.width - overlay_phys_w - margin_px,
                                 g_rect.top + margin_px,
                             ),
                             "bottom_left" => (
                                 g_rect.left + margin_px,
-                                g_rect.top + g_rect.height - overlay_h_px - margin_px,
+                                g_rect.top + g_rect.height - overlay_phys_h - margin_px,
                             ),
                             _ => {
                                 // bottom_right
                                 (
-                                    g_rect.left + g_rect.width - overlay_w_px - margin_px,
-                                    g_rect.top + g_rect.height - overlay_h_px - margin_px,
+                                    g_rect.left + g_rect.width - overlay_phys_w - margin_px,
+                                    g_rect.top + g_rect.height - overlay_phys_h - margin_px,
                                 )
                             }
                         };
 
-                        // 이전 설정 좌표 및 크기와 다른 경우에만 SetWindowPos 호출
-                        let current_geom = (px, py, overlay_w_px, overlay_h_px);
+                        // 4. 좌표 변경 시 SWP_NOSIZE로 크기 핑퐁 충돌 없이 위치만 지정
+                        let current_geom = (px, py, overlay_phys_w, overlay_phys_h);
                         let geom_changed =
                             self.platform.win_cache.prev_snap_geometry != Some(current_geom);
 
                         if geom_changed {
+                            debug_ui::push_log(
+                                &self.debug_state.log_lines,
+                                1000,
+                                format!(
+                                    "[Win32 DPI] 오버레이 스냅 위치 보정: px={}, py={}, w={}, h={}, dpi_scale={:.2}",
+                                    px, py, overlay_phys_w, overlay_phys_h, dpi_scale
+                                ),
+                            );
+
                             unsafe {
                                 SetWindowPos(
                                     hwnd,
                                     HWND_TOPMOST,
                                     px,
                                     py,
-                                    overlay_w_px,
-                                    overlay_h_px,
-                                    SWP_NOACTIVATE,
+                                    0,
+                                    0,
+                                    SWP_NOSIZE | SWP_NOACTIVATE,
                                 );
                             }
                             self.platform.win_cache.prev_snap_geometry = Some(current_geom);
