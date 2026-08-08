@@ -506,8 +506,13 @@ impl NativeApp {
         self.drain_fetch_results();
         self.poll_delete_requests(ctx);
         self.drain_game_found_refresh_steam();
-        if self.state_tracker.prev_protected.update(Some(true)) {
-            ctx.send_viewport_cmd(ViewportCommand::ContentProtected(true));
+        let content_protected = self
+            .settings
+            .get_merged()
+            .screen_capture()
+            .content_protected;
+        if self.state_tracker.prev_protected.update(Some(content_protected)) {
+            ctx.send_viewport_cmd(ViewportCommand::ContentProtected(content_protected));
         }
     }
 

@@ -9,7 +9,7 @@ mod windows;
 #[cfg(target_os = "linux")]
 pub use linux::AdaptiveCaptureEngine;
 #[cfg(target_os = "windows")]
-pub use windows::AdaptiveCaptureEngine;
+pub use windows::{AdaptiveCaptureEngine, PreferredCaptureEngine};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CaptureErrorAction {

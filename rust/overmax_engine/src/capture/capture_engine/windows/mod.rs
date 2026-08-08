@@ -7,12 +7,31 @@ use crate::capture::window_tracker::{WindowRect, WindowTracker};
 use dxgi::DxgiCaptureEngine;
 use gdi::GdiCaptureEngine;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PreferredCaptureEngine {
+    #[default]
+    Dxgi,
+    Gdi,
+    Auto,
+}
+
+impl PreferredCaptureEngine {
+    pub fn from_str(s: &str) -> Self {
+        match s.to_ascii_lowercase().as_str() {
+            "gdi" => Self::Gdi,
+            "auto" => Self::Auto,
+            _ => Self::Dxgi,
+        }
+    }
+}
+
 pub struct AdaptiveCaptureEngine {
     tracker: WindowTracker,
     gdi_backend: Option<GdiCaptureEngine>,
     dxgi_backend: Option<DxgiCaptureEngine>,
     current_is_fullscreen: bool,
     last_dxgi_init_attempt: std::time::Instant,
+    preferred_engine: PreferredCaptureEngine,
 }
 
 impl AdaptiveCaptureEngine {
@@ -25,7 +44,16 @@ impl AdaptiveCaptureEngine {
             last_dxgi_init_attempt: std::time::Instant::now()
                 .checked_sub(std::time::Duration::from_secs(5))
                 .unwrap_or_else(std::time::Instant::now),
+            preferred_engine: PreferredCaptureEngine::Dxgi,
         })
+    }
+
+    pub fn set_preferred_engine(&mut self, preferred: PreferredCaptureEngine) {
+        self.preferred_engine = preferred;
+    }
+
+    pub fn preferred_engine(&self) -> PreferredCaptureEngine {
+        self.preferred_engine
     }
 
     fn fallback_to_gdi(
@@ -57,7 +85,13 @@ impl CaptureEngine for AdaptiveCaptureEngine {
         let is_fs = self.tracker.is_fullscreen();
         self.current_is_fullscreen = is_fs;
 
-        if is_fs {
+        let try_dxgi = match self.preferred_engine {
+            PreferredCaptureEngine::Gdi => false,
+            PreferredCaptureEngine::Dxgi => true,
+            PreferredCaptureEngine::Auto => is_fs,
+        };
+
+        if try_dxgi {
             if self.dxgi_backend.is_none() {
                 if self.last_dxgi_init_attempt.elapsed() >= std::time::Duration::from_secs(3) {
                     self.last_dxgi_init_attempt = std::time::Instant::now();

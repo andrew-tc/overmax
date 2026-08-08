@@ -386,6 +386,10 @@ pub struct ScreenCaptureSettings {
     pub active_sleep_ms: u64,
     #[serde(default = "default_background_sleep")]
     pub background_sleep_ms: u64,
+    #[serde(default = "default_capture_engine")]
+    pub engine: String,
+    #[serde(default = "default_content_protected")]
+    pub content_protected: bool,
 }
 
 fn default_logo_cooldown() -> f64 {
@@ -399,6 +403,12 @@ fn default_active_sleep() -> u64 {
 }
 fn default_background_sleep() -> u64 {
     500
+}
+fn default_capture_engine() -> String {
+    "dxgi".to_string()
+}
+fn default_content_protected() -> bool {
+    true
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -556,6 +566,8 @@ impl Default for ScreenCaptureSettings {
             idle_sleep_sec: default_idle_sleep(),
             active_sleep_ms: default_active_sleep(),
             background_sleep_ms: default_background_sleep(),
+            engine: default_capture_engine(),
+            content_protected: default_content_protected(),
         }
     }
 }

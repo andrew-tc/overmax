@@ -126,10 +126,18 @@ impl DetectionWorker {
         let tracker = WindowTracker::new(&window_title(&self.settings));
         #[cfg(target_os = "linux")]
         let mut tracker = WindowTracker::new(&window_title(&self.settings));
-        let mut capturer: Box<dyn CaptureEngine> = match AdaptiveCaptureEngine::new() {
-            Ok(c) => Box::new(c),
+        let mut capturer_adaptive = match AdaptiveCaptureEngine::new() {
+            Ok(c) => c,
             Err(e) => return self.log(format!("[Detection] capture init failed: {e}")),
         };
+        #[cfg(target_os = "windows")]
+        {
+            let pref = crate::capture::capture_engine::PreferredCaptureEngine::from_str(
+                &self.settings.screen_capture().engine,
+            );
+            capturer_adaptive.set_preferred_engine(pref);
+        }
+        let mut capturer: Box<dyn CaptureEngine> = Box::new(capturer_adaptive);
         let mut pipeline = self.build_pipeline();
         self.log("[Detection] Pure Rust Native Engine initialized".to_string());
 
