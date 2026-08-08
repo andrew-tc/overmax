@@ -558,7 +558,11 @@ impl NativeApp {
             .get_merged()
             .screen_capture()
             .content_protected;
-        if self.state_tracker.prev_protected.update(Some(content_protected)) {
+        if self
+            .state_tracker
+            .prev_protected
+            .update(Some(content_protected))
+        {
             ctx.send_viewport_cmd(ViewportCommand::ContentProtected(content_protected));
         }
     }
@@ -937,7 +941,10 @@ impl NativeApp {
             debug_ui::push_log(
                 &self.debug_state.log_lines,
                 self.max_log_lines(),
-                format!("[Win32] Overmax 오버레이 HWND 감지 실패 (PID: {})", target_pid),
+                format!(
+                    "[Win32] Overmax 오버레이 HWND 감지 실패 (PID: {})",
+                    target_pid
+                ),
             );
         }
         res
@@ -957,7 +964,10 @@ impl NativeApp {
                 debug_ui::push_log(
                     &self.debug_state.log_lines,
                     self.max_log_lines(),
-                    format!("[Win32] 게임 창 HWND 새로 감지됨: {:?} ('{}')", h, game_title),
+                    format!(
+                        "[Win32] 게임 창 HWND 새로 감지됨: {:?} ('{}')",
+                        h, game_title
+                    ),
                 );
             }
         }

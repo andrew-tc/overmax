@@ -149,9 +149,9 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
-        let response = ui
-            .checkbox(&mut always_visible, "항상 표시")
-            .on_hover_text("게임 구동 중 씬 감지(Unknown) 결과와 상관없이 오버레이를 항상 표시합니다.");
+        let response = ui.checkbox(&mut always_visible, "항상 표시").on_hover_text(
+            "게임 구동 중 씬 감지(Unknown) 결과와 상관없이 오버레이를 항상 표시합니다.",
+        );
 
         if response.changed() {
             overlay.insert("always_visible".into(), serde_json::json!(always_visible));
@@ -476,11 +476,7 @@ fn capture_section(ui: &mut egui::Ui, draft: &mut Value) {
             })
             .show_ui(ui, |ui| {
                 if ui
-                    .selectable_value(
-                        &mut engine,
-                        "dxgi".to_string(),
-                        "DXGI (기본값 / 고성능)",
-                    )
+                    .selectable_value(&mut engine, "dxgi".to_string(), "DXGI (기본값 / 고성능)")
                     .clicked()
                 {
                     changed = true;
