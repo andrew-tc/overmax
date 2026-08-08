@@ -92,7 +92,7 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
 - [x] **디버그 창 실시간화 및 Real-time App State 대시보드 구축 (`debug`)**
   - [x] 디버그 창 오픈 시 Repaint Cadence 실시간화 (100ms 이내 실시간 리프레시)
   - [x] 디버그 창에 현재 App State (Game HWND, Active State, Topmost State, Opacity, SceneType, Confidence, Capture Engine, Content Protection 등) 실시간 대시보드 패널 구축
-- [ ] **오버레이 가시성 및 HWND/포커스 진단 로그 보강**
-  - [ ] `native_app_viewports.rs` 의 HWND 탐색, `is_active` 포커스 평가, `SetWindowPos`, `SetLayeredWindowAttributes` 호출에 진단용 상세 로그 추가
+- [x] **오버레이 가시성 및 HWND/포커스 진단 로그 보강**
+  - [x] `native_app_viewports.rs` 의 HWND 탐색, `is_active` 포커스 평가, `SetWindowPos`, `SetLayeredWindowAttributes` 호출에 진단용 상세 로그 추가
 
 

@@ -823,16 +823,33 @@ impl NativeApp {
             return false;
         }
 
-        if fg == g_hwnd {
-            return true;
+        let is_act = if fg == g_hwnd {
+            true
+        } else {
+            unsafe {
+                let mut fg_pid = 0u32;
+                GetWindowThreadProcessId(fg, &mut fg_pid);
+                let my_pid = GetCurrentProcessId();
+                fg_pid == my_pid
+            }
+        };
+
+        static mut PREV_ACTIVE: Option<bool> = None;
+        unsafe {
+            if PREV_ACTIVE != Some(is_act) {
+                debug_ui::push_log(
+                    &self.debug_state.log_lines,
+                    self.max_log_lines(),
+                    format!(
+                        "[Win32] 포커스 상태 변경: Active={} (FG HWND: {:?}, Game HWND: {:?})",
+                        is_act, fg, g_hwnd
+                    ),
+                );
+                PREV_ACTIVE = Some(is_act);
+            }
         }
 
-        unsafe {
-            let mut fg_pid = 0u32;
-            GetWindowThreadProcessId(fg, &mut fg_pid);
-            let my_pid = GetCurrentProcessId();
-            fg_pid == my_pid
-        }
+        is_act
     }
 
     fn check_cached_window_opacity(
@@ -915,7 +932,15 @@ impl NativeApp {
 
             EnumWindows(Some(enum_callback), &mut data as *mut _ as isize);
         }
-        data.found_hwnd
+        let res = data.found_hwnd;
+        if res.is_none() {
+            debug_ui::push_log(
+                &self.debug_state.log_lines,
+                self.max_log_lines(),
+                format!("[Win32] Overmax 오버레이 HWND 감지 실패 (PID: {})", target_pid),
+            );
+        }
+        res
     }
 
     fn game_hwnd_cached(&mut self) -> Option<HWND> {
@@ -928,6 +953,13 @@ impl NativeApp {
             let title_wide = window_tracker::encode_wide(&game_title);
             g_hwnd = window_tracker::find_hwnd_by_title(&title_wide);
             self.platform.win_cache.cached_game_hwnd = g_hwnd.map(|h| h as isize);
+            if let Some(h) = g_hwnd {
+                debug_ui::push_log(
+                    &self.debug_state.log_lines,
+                    self.max_log_lines(),
+                    format!("[Win32] 게임 창 HWND 새로 감지됨: {:?} ('{}')", h, game_title),
+                );
+            }
         }
         g_hwnd
     }
