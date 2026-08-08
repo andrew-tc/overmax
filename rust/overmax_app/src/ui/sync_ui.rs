@@ -619,7 +619,7 @@ fn dual_thumb_range_slider(
     ui.painter().circle_stroke(
         min_thumb_pos,
         thumb_radius,
-        egui::Stroke::new(1.5, Theme::PRIMARY),
+        egui::Stroke::new(1.5_f32, Theme::PRIMARY),
     );
 
     let max_hovered = response
@@ -635,7 +635,7 @@ fn dual_thumb_range_slider(
     ui.painter().circle_stroke(
         max_thumb_pos,
         thumb_radius,
-        egui::Stroke::new(1.5, Theme::PRIMARY),
+        egui::Stroke::new(1.5_f32, Theme::PRIMARY),
     );
 
     if changed {

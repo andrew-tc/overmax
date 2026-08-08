@@ -126,6 +126,7 @@ impl DetectionWorker {
         let tracker = WindowTracker::new(&window_title(&self.settings));
         #[cfg(target_os = "linux")]
         let mut tracker = WindowTracker::new(&window_title(&self.settings));
+        #[allow(unused_mut)]
         let mut capturer_adaptive = match AdaptiveCaptureEngine::new() {
             Ok(c) => c,
             Err(e) => return self.log(format!("[Detection] capture init failed: {e}")),

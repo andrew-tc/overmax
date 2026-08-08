@@ -105,7 +105,7 @@ pub fn render_debug(
 fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) {
     Frame::new()
         .fill(Theme::CARD)
-        .stroke(Stroke::new(1.0, Theme::STROKE))
+        .stroke(Stroke::new(1.0_f32, Theme::STROKE))
         .corner_radius(CornerRadius::same(Theme::R_MD))
         .inner_margin(Margin::same(12))
         .show(ui, |ui| {

@@ -277,7 +277,6 @@ impl NativeApp {
     }
 }
 
-#[cfg(target_os = "windows")]
 struct OverlaySettingsSnapshot {
     scale: f32,
     opacity: f32,
@@ -286,7 +285,6 @@ struct OverlaySettingsSnapshot {
     snap_position: String,
 }
 
-#[cfg(target_os = "windows")]
 fn read_overlay_settings(
     settings: &std::sync::Arc<std::sync::Mutex<serde_json::Value>>,
 ) -> OverlaySettingsSnapshot {
