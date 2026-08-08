@@ -45,9 +45,11 @@ impl NativeApp {
         let rate_ocr = self.debug_state.rate_ocr.clone();
         let rate_ocr_texture = self.debug_state.rate_ocr_texture.clone();
         let title = self.debug_title();
+        let app_state = self.build_debug_app_state_snapshot();
+
         ctx.show_viewport_deferred(
             native_helpers::vp_debug(),
-            Self::auxiliary_viewport(&title, [720.0, 460.0]),
+            Self::auxiliary_viewport(&title, [720.0, 480.0]),
             move |ctx, class| {
                 #[cfg(debug_assertions)]
                 ctx.style_mut(|s| {
@@ -66,10 +68,51 @@ impl NativeApp {
                     &filters,
                     &rate_ocr,
                     &rate_ocr_texture,
+                    &app_state,
                 );
                 debug_ui::close_if_requested(ctx, &open);
             },
         );
+    }
+
+    fn build_debug_app_state_snapshot(&self) -> debug_ui::DebugAppStateSnapshot {
+        let game_rect_val = *overmax_core::lock_or_recover(&self.game_rect);
+        let game_found = game_rect_val.is_some();
+        let ovs = read_overlay_settings(&self.settings.merged);
+        let settings_merged = self.settings.get_merged();
+        let cap_settings = settings_merged.screen_capture();
+
+        let overlay_on = game_found
+            && (ovs.always_visible || self.session.scene != overmax_core::SceneType::Unknown);
+
+        #[cfg(target_os = "windows")]
+        let game_hwnd = self.platform.win_cache.cached_game_hwnd;
+        #[cfg(not(target_os = "windows"))]
+        let game_hwnd = None;
+
+        #[cfg(target_os = "windows")]
+        let is_active = self.determine_active_state(game_hwnd.map(|h| h as _));
+        #[cfg(not(target_os = "windows"))]
+        let is_active = true;
+
+        #[cfg(target_os = "windows")]
+        let cached_hwnd = self.platform.win_cache.cached_hwnd;
+        #[cfg(not(target_os = "windows"))]
+        let cached_hwnd = None;
+
+        debug_ui::DebugAppStateSnapshot {
+            scene_label: format!("{:?}", self.session.scene),
+            confidence: self.confidence,
+            game_found,
+            is_active,
+            overlay_on,
+            always_visible: ovs.always_visible,
+            opacity: ovs.opacity,
+            capture_engine: cap_settings.engine,
+            content_protected: cap_settings.content_protected,
+            cached_hwnd,
+            game_hwnd,
+        }
     }
 
     fn show_settings_viewport(&self, ctx: &egui::Context) {
@@ -493,7 +536,11 @@ impl NativeApp {
         }
 
         self.start_log_pump(ctx);
-        ctx.request_repaint_after(std::time::Duration::from_secs(5));
+        if debug_on {
+            ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        } else {
+            ctx.request_repaint_after(std::time::Duration::from_secs(5));
+        }
         self.drain_detection_results(ctx);
         if self.drain_ui_commands() {
             ctx.request_repaint();

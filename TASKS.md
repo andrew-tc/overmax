@@ -89,9 +89,9 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
   - [x] `capture.engine` 설정 추가 (DXGI 기본값 / GDI 선택 지원)
   - [x] `capture.content_protected` 설정 추가 (기본값 `true`, 캡처 시 오버레이 화면 보호 및 캡처 노출 여부 제어)
   - [x] 설정 UI(`settings_ui.rs`)에 캡처 백엔드 드롭다운 및 Content Protection 체크박스/경고 문구 연동
-- [ ] **디버그 창 실시간화 및 Real-time App State 대시보드 구축 (`debug`)**
-  - [ ] 디버그 창 오픈 시 Repaint Cadence 실시간화 (100ms 이내 실시간 리프레시)
-  - [ ] 디버그 창에 현재 App State (Game HWND, Active State, Topmost State, Opacity, SceneType, Confidence, Capture Engine, Content Protection 등) 실시간 대시보드 패널 구축
+- [x] **디버그 창 실시간화 및 Real-time App State 대시보드 구축 (`debug`)**
+  - [x] 디버그 창 오픈 시 Repaint Cadence 실시간화 (100ms 이내 실시간 리프레시)
+  - [x] 디버그 창에 현재 App State (Game HWND, Active State, Topmost State, Opacity, SceneType, Confidence, Capture Engine, Content Protection 등) 실시간 대시보드 패널 구축
 - [ ] **오버레이 가시성 및 HWND/포커스 진단 로그 보강**
   - [ ] `native_app_viewports.rs` 의 HWND 탐색, `is_active` 포커스 평가, `SetWindowPos`, `SetLayeredWindowAttributes` 호출에 진단용 상세 로그 추가
 

@@ -10,6 +10,21 @@ use std::sync::{Arc, Mutex};
 use crate::ui::overlay_theme::{apply_secondary_window_style, Theme};
 use overmax_engine::detector::RateTelemetry;
 
+#[derive(Clone, Debug, Default)]
+pub struct DebugAppStateSnapshot {
+    pub scene_label: String,
+    pub confidence: f32,
+    pub game_found: bool,
+    pub is_active: bool,
+    pub overlay_on: bool,
+    pub always_visible: bool,
+    pub opacity: f32,
+    pub capture_engine: String,
+    pub content_protected: bool,
+    pub cached_hwnd: Option<isize>,
+    pub game_hwnd: Option<isize>,
+}
+
 pub fn push_log(lines: &Arc<Mutex<VecDeque<Arc<str>>>>, max_lines: usize, line: impl AsRef<str>) {
     let Ok(mut g) = lines.lock() else {
         return;
@@ -29,11 +44,14 @@ pub fn render_debug(
     filters: &Arc<Mutex<std::collections::HashMap<String, bool>>>,
     rate_ocr: &Arc<Mutex<Option<RateTelemetry>>>,
     rate_ocr_texture: &Arc<Mutex<Option<egui::TextureHandle>>>,
+    app_state: &DebugAppStateSnapshot,
 ) {
     apply_secondary_window_style(ctx);
 
     if class == ViewportClass::Embedded {
         egui::Window::new(title).show(ctx, |ui| {
+            render_app_state_dashboard(ui, app_state);
+            ui.add_space(8.0);
             render_ocr_telemetry(ui, rate_ocr, rate_ocr_texture);
             render_controls(ui, lines, paused, filters);
             ui.add_space(8.0);
@@ -70,7 +88,10 @@ pub fn render_debug(
                         );
                     });
                 });
-                ui.add_space(16.0);
+                ui.add_space(12.0);
+
+                render_app_state_dashboard(ui, app_state);
+                ui.add_space(12.0);
 
                 render_ocr_telemetry(ui, rate_ocr, rate_ocr_texture);
                 render_controls(ui, lines, paused, filters);
@@ -79,6 +100,105 @@ pub fn render_debug(
                 log_scroll(ui, lines, filters);
             });
     }
+}
+
+fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) {
+    Frame::new()
+        .fill(Theme::CARD)
+        .stroke(Stroke::new(1.0, Theme::STROKE))
+        .corner_radius(CornerRadius::same(Theme::R_MD))
+        .inner_margin(Margin::same(12))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new("📊 Real-time App State Monitor")
+                            .color(Theme::TEXT_PRIMARY)
+                            .size(Theme::FONT_BODY)
+                            .strong(),
+                    );
+                });
+                ui.add_space(8.0);
+
+                ui.columns(3, |cols| {
+                    // Col 1: Scene & Confidence
+                    cols[0].vertical(|ui| {
+                        ui.label(
+                            RichText::new("Scene / Conf")
+                                .size(Theme::FONT_TINY)
+                                .color(Theme::TEXT_MUTED),
+                        );
+                        let scene_color = if state.scene_label.contains("Unknown") {
+                            Color32::from_rgb(255, 170, 0)
+                        } else {
+                            Color32::from_rgb(100, 200, 255)
+                        };
+                        ui.label(
+                            RichText::new(format!(
+                                "{} ({:.2})",
+                                state.scene_label, state.confidence
+                            ))
+                            .size(Theme::FONT_SMALL)
+                            .color(scene_color)
+                            .strong(),
+                        );
+                    });
+
+                    // Col 2: Game & Focus (Topmost)
+                    cols[1].vertical(|ui| {
+                        ui.label(
+                            RichText::new("Game & Focus")
+                                .size(Theme::FONT_TINY)
+                                .color(Theme::TEXT_MUTED),
+                        );
+                        let (focus_txt, focus_color) = if state.is_active {
+                            ("Active (Topmost)", Color32::from_rgb(100, 255, 100))
+                        } else {
+                            ("Inactive (Notopmost)", Color32::from_rgb(255, 170, 0))
+                        };
+                        let game_txt = if state.game_found {
+                            "Found"
+                        } else {
+                            "Not Found"
+                        };
+                        ui.label(
+                            RichText::new(format!("{} | {}", game_txt, focus_txt))
+                                .size(Theme::FONT_SMALL)
+                                .color(focus_color)
+                                .strong(),
+                        );
+                    });
+
+                    // Col 3: Overlay Visibility & Capture Engine
+                    cols[2].vertical(|ui| {
+                        ui.label(
+                            RichText::new("Overlay & Engine")
+                                .size(Theme::FONT_TINY)
+                                .color(Theme::TEXT_MUTED),
+                        );
+                        let (vis_txt, vis_color) = if state.overlay_on {
+                            (
+                                format!("Visible ({:.0}%)", state.opacity * 100.0),
+                                Color32::from_rgb(100, 255, 100),
+                            )
+                        } else {
+                            ("Hidden (0%)".to_string(), Color32::from_rgb(255, 100, 100))
+                        };
+                        ui.label(
+                            RichText::new(format!(
+                                "{} | {}",
+                                vis_txt,
+                                state.capture_engine.to_uppercase()
+                            ))
+                            .size(Theme::FONT_SMALL)
+                            .color(vis_color)
+                            .strong(),
+                        );
+                    });
+                });
+            });
+        });
 }
 
 fn update_ocr_texture(
