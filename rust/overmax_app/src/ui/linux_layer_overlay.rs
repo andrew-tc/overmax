@@ -63,6 +63,7 @@ pub struct LinuxOverlaySnapshot {
     pub varchive_upload_needed: bool,
     pub varchive_account_configured: bool,
     pub lite_mode: bool,
+    pub always_visible: bool,
     pub snap: String,
     pub position: Option<(i32, i32)>,
     pub record_manager: Arc<RecordManager>,
@@ -151,6 +152,7 @@ fn same_display_snapshot(
         && previous.varchive_upload_needed == next.varchive_upload_needed
         && previous.varchive_account_configured == next.varchive_account_configured
         && previous.lite_mode == next.lite_mode
+        && previous.always_visible == next.always_visible
         && previous.snap == next.snap
         && previous.position == next.position
         && Arc::ptr_eq(&previous.record_manager, &next.record_manager)
@@ -942,7 +944,9 @@ fn is_hidden(snapshot: &LinuxOverlaySnapshot) -> bool {
     snapshot.capture_fatal.is_none()
         && snapshot.window_snapshot.is_some_and(|window| {
             !window.foreground
-                || (window.fullscreen && snapshot.state.scene == overmax_core::SceneType::Unknown)
+                || (!snapshot.always_visible
+                    && window.fullscreen
+                    && snapshot.state.scene == overmax_core::SceneType::Unknown)
         })
 }
 

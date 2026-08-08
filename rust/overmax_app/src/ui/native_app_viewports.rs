@@ -498,6 +498,7 @@ impl NativeApp {
                 varchive_upload_needed: self.current_pattern_needs_upload(),
                 varchive_account_configured: self.is_varchive_account_configured(),
                 lite_mode: overlay.lite_mode,
+                always_visible: overlay.always_visible,
                 snap: overlay.position.snap,
                 position,
                 record_manager: self.record_manager.clone(),
