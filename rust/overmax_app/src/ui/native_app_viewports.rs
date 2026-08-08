@@ -1041,26 +1041,6 @@ impl NativeApp {
             let hwnd = hwnd_val as HWND;
             let game_hwnd = self.game_hwnd_cached();
 
-            // 게임 창을 Owner로 지정하여 항상 오버레이가 게임 위에 렌더링되도록 보장
-            if let Some(g_hwnd) = game_hwnd {
-                unsafe {
-                    let current_owner = GetWindowLongPtrW(hwnd, GWL_HWNDPARENT) as HWND;
-                    if current_owner != g_hwnd {
-                        SetWindowLongPtrW(hwnd, GWL_HWNDPARENT, g_hwnd as isize);
-                        SetWindowPos(
-                            hwnd,
-                            HWND_TOPMOST,
-                            0,
-                            0,
-                            0,
-                            0,
-                            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED,
-                        );
-                    }
-                }
-            }
-
-            // 현재 활성 상태 검사
             let is_active = self.determine_active_state(game_hwnd);
 
             if force_topmost {
@@ -1105,12 +1085,6 @@ impl NativeApp {
 
             let game_hwnd = self.game_hwnd_cached();
 
-            if let Some(g_hwnd) = game_hwnd {
-                unsafe {
-                    SetWindowLongPtrW(hwnd, GWL_HWNDPARENT, g_hwnd as isize);
-                }
-            }
-
             let is_active = self.determine_active_state(game_hwnd);
 
             if Self::apply_style_and_opacity(hwnd, is_active, opacity) {
@@ -1122,9 +1096,28 @@ impl NativeApp {
         false
     }
 
-    fn handle_window_drag(&mut self, ctx: &egui::Context, start_drag: bool) {
+    fn handle_window_drag(&mut self, _ctx: &egui::Context, start_drag: bool) {
         if start_drag {
-            ctx.send_viewport_cmd(ViewportCommand::StartDrag);
+            #[cfg(target_os = "windows")]
+            {
+                if let Some(hwnd_val) = self.platform.win_cache.cached_hwnd {
+                    use windows_sys::Win32::Foundation::HWND;
+                    use windows_sys::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
+                    use windows_sys::Win32::UI::WindowsAndMessaging::{
+                        SendMessageW, HTCAPTION, WM_NCLBUTTONDOWN,
+                    };
+
+                    let hwnd = hwnd_val as HWND;
+                    unsafe {
+                        ReleaseCapture();
+                        SendMessageW(hwnd, WM_NCLBUTTONDOWN, HTCAPTION as usize, 0);
+                    }
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                _ctx.send_viewport_cmd(ViewportCommand::StartDrag);
+            }
         }
     }
 }
