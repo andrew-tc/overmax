@@ -142,6 +142,23 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
     });
 
     ui.add_space(Theme::ROW_SPACING);
+
+    form_row(ui, "오버레이 표시", |ui| {
+        let mut always_visible = overlay
+            .get("always_visible")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        let response = ui
+            .checkbox(&mut always_visible, "항상 표시")
+            .on_hover_text("게임 구동 중 씬 감지(Unknown) 결과와 상관없이 오버레이를 항상 표시합니다.");
+
+        if response.changed() {
+            overlay.insert("always_visible".into(), serde_json::json!(always_visible));
+        }
+    });
+
+    ui.add_space(Theme::ROW_SPACING);
     form_row(ui, "오버레이 고정 위치", |ui| {
         let mut position = overlay
             .get("position")

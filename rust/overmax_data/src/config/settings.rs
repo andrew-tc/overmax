@@ -437,6 +437,8 @@ pub struct OverlaySettings {
     #[serde(default)]
     pub lite_mode: bool,
     #[serde(default)]
+    pub always_visible: bool,
+    #[serde(default)]
     pub position: OverlayPosition,
 }
 
@@ -571,6 +573,7 @@ impl Default for OverlaySettings {
             base_opacity: default_base_opacity(),
             scale: default_scale(),
             lite_mode: false,
+            always_visible: false,
             position: OverlayPosition::default(),
         }
     }

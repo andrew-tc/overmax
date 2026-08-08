@@ -239,6 +239,7 @@ struct OverlaySettingsSnapshot {
     scale: f32,
     opacity: f32,
     is_lite: bool,
+    always_visible: bool,
     snap_position: String,
 }
 
@@ -251,6 +252,7 @@ fn read_overlay_settings(
             scale: 1.0,
             opacity: 0.8,
             is_lite: false,
+            always_visible: false,
             snap_position: "manual".into(),
         };
     };
@@ -266,6 +268,10 @@ fn read_overlay_settings(
             .unwrap_or(0.8) as f32,
         is_lite: overlay
             .and_then(|o| o.get("lite_mode"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+        always_visible: overlay
+            .and_then(|o| o.get("always_visible"))
             .and_then(|v| v.as_bool())
             .unwrap_or(false),
         snap_position: overlay
@@ -361,7 +367,8 @@ impl NativeApp {
         // game_rect 락 단 1회 획득으로 통합하여 경합 방지
         let game_rect_val = *overmax_core::lock_or_recover(&self.game_rect);
         let game_found = game_rect_val.is_some();
-        let overlay_on = game_found && self.session.scene != overmax_core::SceneType::Unknown;
+        let overlay_on = game_found
+            && (ovs.always_visible || self.session.scene != overmax_core::SceneType::Unknown);
 
         let overlay_on_changed = self.state_tracker.prev_overlay_on.update(overlay_on);
 
