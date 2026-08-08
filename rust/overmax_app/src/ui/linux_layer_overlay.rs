@@ -1314,6 +1314,7 @@ mod tests {
             varchive_upload_needed: false,
             varchive_account_configured: false,
             lite_mode: false,
+            always_visible: false,
             snap: "manual".to_string(),
             position: None,
             record_manager,
