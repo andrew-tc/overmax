@@ -94,5 +94,8 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
   - [x] 디버그 창에 현재 App State (Game HWND, Active State, Topmost State, Opacity, SceneType, Confidence, Capture Engine, Content Protection 등) 실시간 대시보드 패널 구축
 - [x] **오버레이 가시성 및 HWND/포커스 진단 로그 보강**
   - [x] `native_app_viewports.rs` 의 HWND 탐색, `is_active` 포커스 평가, `SetWindowPos`, `SetLayeredWindowAttributes` 호출에 진단용 상세 로그 추가
+- [x] **DWM Z-order 가림 해제 및 144Hz/240Hz OS 네이티브 윈도우 드래그 완성**
+  - [x] DWM 오버레이 창 가림 원인이었던 `GWL_HWNDPARENT` 소유권 묶기 구문 전면 삭제
+  - [x] Win32 `ReleaseCapture` + `WM_NCLBUTTONDOWN (HTCAPTION)` 을 통해 egui 마우스 피드백 꼬임 및 덜덜 떨림 0%의 OS 네이티브 윈도우 이동(`SC_MOVE`) 달성
 
 
