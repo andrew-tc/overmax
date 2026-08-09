@@ -26,7 +26,6 @@ const TRAY_ID: u32 = 1;
 const TRAY_CALLBACK: u32 = WM_APP + 1;
 const CMD_SETTINGS: usize = 1002;
 const CMD_SYNC: usize = 1003;
-const CMD_DEBUG: usize = 1004;
 
 static TRAY_HWND: AtomicIsize = AtomicIsize::new(0);
 
@@ -289,14 +288,6 @@ unsafe fn show_context_menu(hwnd: HWND) {
     }
     append_item(menu, CMD_SETTINGS, "설정");
     append_item(menu, CMD_SYNC, "V-Archive 동기화");
-    let debug_enabled = ACTIONS
-        .get()
-        .map(|a| overmax_core::lock_or_recover(&a.settings))
-        .and_then(|s| s.get("debug").and_then(|v| v.as_bool()))
-        .unwrap_or(false);
-    if debug_enabled {
-        append_item(menu, CMD_DEBUG, "디버그 로그");
-    }
     AppendMenuW(menu, MF_SEPARATOR, 0, null());
     append_item(menu, CMD_EXIT, "종료");
 
@@ -330,7 +321,6 @@ fn handle_menu_command(cmd: usize) {
     match cmd {
         CMD_SETTINGS => send_command(actions, UiCommand::OpenSettings),
         CMD_SYNC => send_command(actions, UiCommand::OpenSync),
-        CMD_DEBUG => send_command(actions, UiCommand::OpenDebug),
         CMD_EXIT => send_command(actions, UiCommand::Exit),
         _ => {}
     }
