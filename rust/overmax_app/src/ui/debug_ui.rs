@@ -43,7 +43,7 @@ pub fn push_log(lines: &Arc<Mutex<VecDeque<Arc<str>>>>, max_lines: usize, line: 
 }
 
 pub fn close_if_requested(ctx: &egui::Context, open: &Arc<AtomicBool>) {
-    if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+    if ctx.input(|i| i.viewport().close_requested() || i.key_pressed(egui::Key::Escape)) {
         open.store(false, Ordering::Relaxed);
     }
 }
