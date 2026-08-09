@@ -83,6 +83,14 @@ impl RoiManager {
         self.current_scene
     }
 
+    pub fn scale(&self) -> f32 {
+        self.scale
+    }
+
+    pub fn offset_y(&self) -> i32 {
+        self.offset_y
+    }
+
     pub fn update_window_size(&mut self, width: i32, height: i32) {
         if self.width == width && self.height == height {
             return;

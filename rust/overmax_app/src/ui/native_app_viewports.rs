@@ -115,6 +115,26 @@ impl NativeApp {
             "No Window".to_string()
         };
 
+        let top_jacket_similarity = self
+            .last_detection_output
+            .as_ref()
+            .and_then(|o| o.top_jacket_similarity);
+        let roi_scale = self
+            .last_detection_output
+            .as_ref()
+            .map(|o| o.roi_scale)
+            .unwrap_or(1.0);
+        let roi_offset_y = self
+            .last_detection_output
+            .as_ref()
+            .map(|o| o.roi_offset_y)
+            .unwrap_or(0);
+        let stable_hits = self
+            .last_detection_output
+            .as_ref()
+            .map(|o| o.stable_hits)
+            .unwrap_or(0);
+
         debug_ui::DebugAppStateSnapshot {
             scene_label: format!("{:?}", self.session.scene),
             confidence: self.confidence,
@@ -131,6 +151,10 @@ impl NativeApp {
             play_state_info,
             jacket_match_info,
             capture_res_info,
+            top_jacket_similarity,
+            roi_scale,
+            roi_offset_y,
+            stable_hits,
         }
     }
 

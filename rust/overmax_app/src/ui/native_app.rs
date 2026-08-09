@@ -259,6 +259,7 @@ pub struct NativeApp {
     pub(crate) session_initial_record: Option<overmax_data::RecordValue>,
     pub(crate) platform: platform::PlatformState,
     pub(crate) toast: Option<crate::ui::components::ToastMessage>,
+    pub(crate) last_detection_output: Option<DetectionOutput>,
 }
 
 impl NativeApp {
@@ -465,12 +466,12 @@ impl NativeApp {
             session_initial_record: None,
             platform,
             toast: None,
+            last_detection_output: None,
         };
 
         app.handle_auto_refresh();
         Ok(app)
     }
-
     pub(crate) fn poll_delete_requests(&mut self, ctx: &egui::Context) {
         while let Ok(key) = self.sync_channels.delete_req_rx.try_recv() {
             let cand = self

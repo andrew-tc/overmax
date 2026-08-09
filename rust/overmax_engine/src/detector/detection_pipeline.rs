@@ -30,6 +30,10 @@ pub struct DetectionOutput {
     pub window_snapshot: Option<WindowSnapshot>,
     pub capture_fatal: Option<String>,
     pub rate_telemetry: Option<RateTelemetry>,
+    pub top_jacket_similarity: Option<f32>,
+    pub roi_scale: f32,
+    pub roi_offset_y: i32,
+    pub stable_hits: u32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -404,6 +408,12 @@ impl DetectionPipeline {
         jacket_status: JacketMatchStatus,
         rate_telemetry: Option<RateTelemetry>,
     ) -> DetectionOutput {
+        let top_jacket_similarity = match &jacket_status {
+            JacketMatchStatus::Matched { similarity, .. } => Some(*similarity),
+            JacketMatchStatus::InvalidId { similarity, .. } => Some(*similarity),
+            _ => None,
+        };
+
         DetectionOutput {
             logo_detected,
             is_song_select,
@@ -418,6 +428,10 @@ impl DetectionPipeline {
             window_snapshot: None,
             capture_fatal: None,
             rate_telemetry,
+            top_jacket_similarity,
+            roi_scale: self.rois.scale(),
+            roi_offset_y: self.rois.offset_y(),
+            stable_hits: self.play_state.stable_hits(),
         }
     }
 }

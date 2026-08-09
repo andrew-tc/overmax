@@ -460,6 +460,10 @@ impl DetectionWorker {
                 window_snapshot: None,
                 capture_fatal: None,
                 rate_telemetry: None,
+                top_jacket_similarity: None,
+                roi_scale: 1.0,
+                roi_offset_y: 0,
+                stable_hits: 0,
             });
             self.request_repaint();
             self.log("[WindowTracker] game window lost".into());

@@ -8,6 +8,7 @@ impl NativeApp {
     pub(crate) fn drain_detection_results(&mut self, ctx: &egui::Context) {
         let mut changed = false;
         while let Ok(output) = self.detection_rx.try_recv() {
+            self.last_detection_output = Some(output.clone());
             if let Ok(mut r) = self.game_rect.lock() {
                 *r = output.game_rect;
             }

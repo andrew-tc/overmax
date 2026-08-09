@@ -26,6 +26,10 @@ pub struct DebugAppStateSnapshot {
     pub play_state_info: String,
     pub jacket_match_info: String,
     pub capture_res_info: String,
+    pub top_jacket_similarity: Option<f32>,
+    pub roi_scale: f32,
+    pub roi_offset_y: i32,
+    pub stable_hits: u32,
 }
 
 pub fn push_log(lines: &Arc<Mutex<VecDeque<Arc<str>>>>, max_lines: usize, line: impl AsRef<str>) {
@@ -282,6 +286,88 @@ fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) 
                                 .size(Theme::FONT_BODY)
                                 .color(Theme::TEXT_PRIMARY)
                                 .strong(),
+                        );
+                    });
+                });
+
+                ui.add_space(10.0);
+                ui.separator();
+                ui.add_space(10.0);
+
+                ui.columns(3, |cols| {
+                    // Row 3 - Col 1: Top 1 Jacket Similarity & Threshold
+                    cols[0].vertical(|ui| {
+                        ui.label(
+                            RichText::new("TOP 1 JACKET SIMILARITY")
+                                .size(Theme::FONT_TINY)
+                                .color(Theme::TEXT_MUTED)
+                                .strong(),
+                        );
+                        ui.add_space(3.0);
+                        let (sim_txt, sim_color) = match state.top_jacket_similarity {
+                            Some(sim) if sim >= 0.75 => (
+                                format!("{:.3} (Pass >= 0.75)", sim),
+                                Color32::from_rgb(100, 255, 150),
+                            ),
+                            Some(sim) => (
+                                format!("{:.3} (Fail < 0.75)", sim),
+                                Color32::from_rgb(255, 120, 120),
+                            ),
+                            None => ("None".to_string(), Theme::TEXT_MUTED),
+                        };
+                        ui.label(
+                            RichText::new(sim_txt)
+                                .size(Theme::FONT_BODY)
+                                .color(sim_color)
+                                .strong(),
+                        );
+                    });
+
+                    // Row 3 - Col 2: Stable Hits Counter
+                    cols[1].vertical(|ui| {
+                        ui.label(
+                            RichText::new("STABILITY HITS COUNTER")
+                                .size(Theme::FONT_TINY)
+                                .color(Theme::TEXT_MUTED)
+                                .strong(),
+                        );
+                        ui.add_space(3.0);
+                        let (hit_txt, hit_color) = if state.stable_hits >= 3 {
+                            (
+                                format!("{} / 3 (Stable)", state.stable_hits),
+                                Color32::from_rgb(100, 255, 150),
+                            )
+                        } else {
+                            (
+                                format!("{} / 3 (Acquiring)", state.stable_hits),
+                                Color32::from_rgb(255, 180, 50),
+                            )
+                        };
+                        ui.label(
+                            RichText::new(hit_txt)
+                                .size(Theme::FONT_BODY)
+                                .color(hit_color)
+                                .strong(),
+                        );
+                    });
+
+                    // Row 3 - Col 3: ROI Scale & Offset Y
+                    cols[2].vertical(|ui| {
+                        ui.label(
+                            RichText::new("ROI SCALE & OFFSET Y")
+                                .size(Theme::FONT_TINY)
+                                .color(Theme::TEXT_MUTED)
+                                .strong(),
+                        );
+                        ui.add_space(3.0);
+                        ui.label(
+                            RichText::new(format!(
+                                "Scale: {:.3}x | Offset Y: {}px",
+                                state.roi_scale, state.roi_offset_y
+                            ))
+                            .size(Theme::FONT_BODY)
+                            .color(Theme::TEXT_ACCENT)
+                            .strong(),
                         );
                     });
                 });

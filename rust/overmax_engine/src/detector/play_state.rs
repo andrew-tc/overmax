@@ -50,6 +50,10 @@ pub struct PlayStateDetector {
 }
 
 impl PlayStateDetector {
+    pub fn stable_hits(&self) -> u32 {
+        self.history.iter().filter(|h| h.is_some()).count() as u32
+    }
+
     fn should_run_rate_detection(&self, now: f64) -> bool {
         now - self.last_rate_detection_ts >= 0.20
     }
