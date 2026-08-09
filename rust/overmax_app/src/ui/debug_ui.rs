@@ -66,23 +66,39 @@ pub fn render_debug(
             .frame(
                 Frame::new()
                     .fill(Theme::PANEL_BG)
-                    .inner_margin(Margin::same(24)),
+                    .inner_margin(Margin::same(20)),
             )
             .show(ctx, |ui| {
-                ui.add_space(8.0);
                 ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 8.0;
                     ui.label(
-                        RichText::new("Debug")
+                        RichText::new("Overmax")
                             .color(Theme::TEXT_ACCENT)
                             .size(Theme::FONT_HEADING)
                             .strong(),
                     );
                     ui.label(
-                        RichText::new("Logs")
+                        RichText::new("Debug Telemetry")
                             .color(Theme::TEXT_PRIMARY)
                             .size(Theme::FONT_HEADING)
                             .strong(),
                     );
+
+                    let status_badge = Frame::new()
+                        .fill(Color32::from_rgba_premultiplied(0, 229, 255, 30))
+                        .corner_radius(CornerRadius::same(12))
+                        .stroke(Stroke::new(1.0, Theme::TEXT_ACCENT))
+                        .inner_margin(Margin::symmetric(10, 3));
+
+                    status_badge.show(ui, |ui| {
+                        ui.label(
+                            RichText::new("● LIVE MONITOR")
+                                .color(Theme::TEXT_ACCENT)
+                                .size(Theme::FONT_TINY)
+                                .strong(),
+                        );
+                    });
+
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let total_lines = if let Ok(g) = lines.lock() { g.len() } else { 0 };
                         ui.label(
@@ -92,14 +108,15 @@ pub fn render_debug(
                         );
                     });
                 });
-                ui.add_space(12.0);
+                ui.add_space(14.0);
 
                 render_app_state_dashboard(ui, app_state);
-                ui.add_space(12.0);
+                ui.add_space(14.0);
 
                 render_ocr_telemetry(ui, rate_ocr, rate_ocr_texture);
+                ui.add_space(8.0);
                 render_controls(ui, lines, paused, filters);
-                ui.add_space(16.0);
+                ui.add_space(12.0);
 
                 log_scroll(ui, lines, filters);
             });
@@ -109,41 +126,33 @@ pub fn render_debug(
 fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) {
     Frame::new()
         .fill(Theme::CARD)
-        .stroke(Stroke::new(1.0_f32, Theme::STROKE))
+        .stroke(Stroke::new(1.0_f32, Theme::PANEL_STROKE))
         .corner_radius(CornerRadius::same(Theme::R_MD))
-        .inner_margin(Margin::same(12))
+        .inner_margin(Margin::same(14))
         .show(ui, |ui| {
             ui.set_min_width(ui.available_width());
             ui.vertical(|ui| {
-                ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new("📊 Real-time App State Monitor")
-                            .color(Theme::TEXT_PRIMARY)
-                            .size(Theme::FONT_BODY)
-                            .strong(),
-                    );
-                });
-                ui.add_space(8.0);
-
                 ui.columns(3, |cols| {
                     // Col 1: Scene & Confidence
                     cols[0].vertical(|ui| {
                         ui.label(
-                            RichText::new("Scene / Conf")
+                            RichText::new("SCENE / CONFIDENCE")
                                 .size(Theme::FONT_TINY)
-                                .color(Theme::TEXT_MUTED),
+                                .color(Theme::TEXT_MUTED)
+                                .strong(),
                         );
+                        ui.add_space(3.0);
                         let scene_color = if state.scene_label.contains("Unknown") {
                             Color32::from_rgb(255, 170, 0)
                         } else {
-                            Color32::from_rgb(100, 200, 255)
+                            Theme::TEXT_ACCENT
                         };
                         ui.label(
                             RichText::new(format!(
                                 "{} ({:.2})",
                                 state.scene_label, state.confidence
                             ))
-                            .size(Theme::FONT_SMALL)
+                            .size(Theme::FONT_BODY)
                             .color(scene_color)
                             .strong(),
                         );
@@ -152,19 +161,21 @@ fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) 
                     // Col 2: Game & Focus (Topmost)
                     cols[1].vertical(|ui| {
                         ui.label(
-                            RichText::new("Game & Focus")
+                            RichText::new("GAME & FOCUS")
                                 .size(Theme::FONT_TINY)
-                                .color(Theme::TEXT_MUTED),
+                                .color(Theme::TEXT_MUTED)
+                                .strong(),
                         );
+                        ui.add_space(3.0);
                         #[cfg(target_os = "windows")]
                         let (focus_txt, focus_color) = if state.is_active {
-                            ("Active (Topmost)", Color32::from_rgb(100, 255, 100))
+                            ("Active (Topmost)", Color32::from_rgb(100, 255, 150))
                         } else {
-                            ("Inactive (Notopmost)", Color32::from_rgb(255, 170, 0))
+                            ("Inactive", Color32::from_rgb(255, 170, 0))
                         };
                         #[cfg(not(target_os = "windows"))]
                         let (focus_txt, focus_color) = if state.is_active {
-                            ("Active", Color32::from_rgb(100, 255, 100))
+                            ("Active", Color32::from_rgb(100, 255, 150))
                         } else {
                             ("Inactive", Color32::from_rgb(255, 170, 0))
                         };
@@ -176,7 +187,7 @@ fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) 
                         };
                         ui.label(
                             RichText::new(format!("{} | {}", game_txt, focus_txt))
-                                .size(Theme::FONT_SMALL)
+                                .size(Theme::FONT_BODY)
                                 .color(focus_color)
                                 .strong(),
                         );
@@ -185,14 +196,16 @@ fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) 
                     // Col 3: Overlay Visibility & Capture Engine
                     cols[2].vertical(|ui| {
                         ui.label(
-                            RichText::new("Overlay & Engine")
+                            RichText::new("OVERLAY & ENGINE")
                                 .size(Theme::FONT_TINY)
-                                .color(Theme::TEXT_MUTED),
+                                .color(Theme::TEXT_MUTED)
+                                .strong(),
                         );
+                        ui.add_space(3.0);
                         let (vis_txt, vis_color) = if state.overlay_on {
                             (
                                 format!("Visible ({:.0}%)", state.opacity * 100.0),
-                                Color32::from_rgb(100, 255, 100),
+                                Color32::from_rgb(100, 255, 150),
                             )
                         } else {
                             ("Hidden (0%)".to_string(), Color32::from_rgb(255, 100, 100))
@@ -204,25 +217,27 @@ fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) 
 
                         ui.label(
                             RichText::new(format!("{} | {}", vis_txt, engine_str))
-                                .size(Theme::FONT_SMALL)
+                                .size(Theme::FONT_BODY)
                                 .color(vis_color)
                                 .strong(),
                         );
                     });
                 });
 
-                ui.add_space(8.0);
+                ui.add_space(10.0);
                 ui.separator();
-                ui.add_space(8.0);
+                ui.add_space(10.0);
 
                 ui.columns(3, |cols| {
                     // Row 2 - Col 1: Song & Jacket Status
                     cols[0].vertical(|ui| {
                         ui.label(
-                            RichText::new("Detected Song & Jacket Match")
+                            RichText::new("DETECTED SONG & MATCH")
                                 .size(Theme::FONT_TINY)
-                                .color(Theme::TEXT_MUTED),
+                                .color(Theme::TEXT_MUTED)
+                                .strong(),
                         );
+                        ui.add_space(3.0);
                         let song_txt = if state.song_info.is_empty() {
                             "None".to_string()
                         } else {
@@ -235,7 +250,7 @@ fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) 
                         };
                         ui.label(
                             RichText::new(format!("{} [{}]", song_txt, match_txt))
-                                .size(Theme::FONT_SMALL)
+                                .size(Theme::FONT_BODY)
                                 .color(Color32::from_rgb(255, 220, 100))
                                 .strong(),
                         );
@@ -244,10 +259,12 @@ fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) 
                     // Row 2 - Col 2: PlayState & Stability
                     cols[1].vertical(|ui| {
                         ui.label(
-                            RichText::new("PlayState / Mode / Stability")
+                            RichText::new("PLAYSTATE / STABILITY")
                                 .size(Theme::FONT_TINY)
-                                .color(Theme::TEXT_MUTED),
+                                .color(Theme::TEXT_MUTED)
+                                .strong(),
                         );
+                        ui.add_space(3.0);
                         let ps_txt = if state.play_state_info.is_empty() {
                             "None".to_string()
                         } else {
@@ -255,7 +272,7 @@ fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) 
                         };
                         ui.label(
                             RichText::new(ps_txt)
-                                .size(Theme::FONT_SMALL)
+                                .size(Theme::FONT_BODY)
                                 .color(Color32::from_rgb(180, 220, 255))
                                 .strong(),
                         );
@@ -264,10 +281,12 @@ fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) 
                     // Row 2 - Col 3: Capture Resolution & Geometry
                     cols[2].vertical(|ui| {
                         ui.label(
-                            RichText::new("Captured Resolution & Game Rect")
+                            RichText::new("GEOMETRY & RESOLUTION")
                                 .size(Theme::FONT_TINY)
-                                .color(Theme::TEXT_MUTED),
+                                .color(Theme::TEXT_MUTED)
+                                .strong(),
                         );
+                        ui.add_space(3.0);
                         let res_txt = if state.capture_res_info.is_empty() {
                             "Unknown".to_string()
                         } else {
@@ -275,7 +294,7 @@ fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) 
                         };
                         ui.label(
                             RichText::new(res_txt)
-                                .size(Theme::FONT_SMALL)
+                                .size(Theme::FONT_BODY)
                                 .color(Theme::TEXT_PRIMARY)
                                 .strong(),
                         );
