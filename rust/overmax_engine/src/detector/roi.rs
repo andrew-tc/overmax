@@ -151,19 +151,21 @@ impl RoiManager {
             return;
         }
 
+        const ASPECT_EPSILON: f32 = 0.005;
+
         let current_aspect = self.width as f32 / self.height as f32;
-        if current_aspect > REF_ASPECT {
+        if (current_aspect - REF_ASPECT).abs() < ASPECT_EPSILON {
+            self.scale = self.width as f32 / REF_WIDTH as f32;
+            self.offset_x = 0;
+            self.offset_y = 0;
+        } else if current_aspect > REF_ASPECT {
             self.scale = self.height as f32 / REF_HEIGHT as f32;
             self.offset_x = ((self.width as f32 - REF_WIDTH as f32 * self.scale) / 2.0) as i32;
             self.offset_y = 0;
-        } else if current_aspect < REF_ASPECT {
-            self.scale = self.width as f32 / REF_WIDTH as f32;
-            self.offset_x = 0;
-            self.offset_y = ((self.height as f32 - REF_HEIGHT as f32 * self.scale) / 2.0) as i32;
         } else {
             self.scale = self.width as f32 / REF_WIDTH as f32;
             self.offset_x = 0;
-            self.offset_y = 0;
+            self.offset_y = ((self.height as f32 - REF_HEIGHT as f32 * self.scale) / 2.0) as i32;
         }
     }
 
@@ -205,5 +207,13 @@ mod tests {
         let mut manager = RoiManager::new(1920, 1200);
         manager.set_scene(SceneType::Freestyle);
         assert_eq!(manager.get_roi("logo").unwrap().y1, 78);
+    }
+
+    #[test]
+    fn handles_near_16_9_windowed_resolutions_with_epsilon() {
+        // 3838x2159 is slightly off from 16:9 due to window frame/border (aspect = 1.77767...)
+        let manager = RoiManager::new(3838, 2159);
+        assert_eq!(manager.offset_x, 0);
+        assert_eq!(manager.offset_y, 0);
     }
 }
