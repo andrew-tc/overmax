@@ -443,7 +443,7 @@ fn system_tab(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiContext) {
     section_frame(ui, "Linux 앱 실행", |ui| {
         form_row(ui, "앱 메뉴", |ui| {
             if ui.button("바로가기 생성").clicked() {
-                let result = crate::system::desktop_entry_linux::install(_ctx.root.as_path());
+                let result = crate::system::desktop_entry_linux::install(ctx.root.as_path());
                 let (title, description, level) = match result {
                     Ok(path) => (
                         "Overmax",

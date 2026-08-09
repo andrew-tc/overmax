@@ -482,7 +482,7 @@ fn log_scroll(
 
     Frame::new()
         .fill(Color32::from_rgb(12, 14, 20))
-        .stroke(Stroke::new(1.0, Color32::from_rgb(30, 35, 48)))
+        .stroke(Stroke::new(1.0_f32, Color32::from_rgb(30, 35, 48)))
         .corner_radius(CornerRadius::same(Theme::R_SM))
         .inner_margin(Margin::same(10))
         .show(ui, |ui| {
