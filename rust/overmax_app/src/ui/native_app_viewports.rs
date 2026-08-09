@@ -42,8 +42,6 @@ impl NativeApp {
         let lines = self.debug_state.log_lines.clone();
         let paused = self.debug_state.paused.clone();
         let filters = self.debug_state.filters.clone();
-        let rate_ocr = self.debug_state.rate_ocr.clone();
-        let rate_ocr_texture = self.debug_state.rate_ocr_texture.clone();
         let title = self.debug_title();
         let app_state = self.build_debug_app_state_snapshot();
 
@@ -51,6 +49,9 @@ impl NativeApp {
             native_helpers::vp_debug(),
             Self::auxiliary_viewport(&title, [720.0, 480.0]),
             move |ctx, class| {
+                if ctx.input(|i| i.pointer.has_pointer() || i.viewport().focused == Some(true)) {
+                    ctx.request_repaint_after(std::time::Duration::from_millis(100));
+                }
                 #[cfg(debug_assertions)]
                 ctx.style_mut(|s| {
                     s.debug.show_expand_width = false;
@@ -59,17 +60,7 @@ impl NativeApp {
                     s.debug.show_unaligned = false;
                     s.debug.debug_on_hover = false;
                 });
-                debug_ui::render_debug(
-                    ctx,
-                    class,
-                    &title,
-                    &lines,
-                    &paused,
-                    &filters,
-                    &rate_ocr,
-                    &rate_ocr_texture,
-                    &app_state,
-                );
+                debug_ui::render_debug(ctx, class, &title, &lines, &paused, &filters, &app_state);
                 debug_ui::close_if_requested(ctx, &open);
             },
         );
@@ -564,11 +555,7 @@ impl NativeApp {
         }
 
         self.start_log_pump(ctx);
-        if debug_on {
-            ctx.request_repaint_after(std::time::Duration::from_millis(100));
-        } else {
-            ctx.request_repaint_after(std::time::Duration::from_secs(5));
-        }
+        ctx.request_repaint_after(std::time::Duration::from_secs(5));
         self.drain_detection_results(ctx);
         if self.drain_ui_commands() {
             ctx.request_repaint();

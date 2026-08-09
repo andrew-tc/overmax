@@ -8,7 +8,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::ui::overlay_theme::{apply_secondary_window_style, Theme};
-use overmax_engine::detector::RateTelemetry;
 
 #[derive(Clone, Debug, Default)]
 pub struct DebugAppStateSnapshot {
@@ -39,6 +38,12 @@ pub fn push_log(lines: &Arc<Mutex<VecDeque<Arc<str>>>>, max_lines: usize, line: 
     g.push_back(Arc::from(line.as_ref()));
 }
 
+pub fn close_if_requested(ctx: &egui::Context, open: &Arc<AtomicBool>) {
+    if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+        open.store(false, Ordering::Relaxed);
+    }
+}
+
 pub fn render_debug(
     ctx: &egui::Context,
     class: ViewportClass,
@@ -46,8 +51,6 @@ pub fn render_debug(
     lines: &Arc<Mutex<VecDeque<Arc<str>>>>,
     paused: &Arc<AtomicBool>,
     filters: &Arc<Mutex<std::collections::HashMap<String, bool>>>,
-    rate_ocr: &Arc<Mutex<Option<RateTelemetry>>>,
-    rate_ocr_texture: &Arc<Mutex<Option<egui::TextureHandle>>>,
     app_state: &DebugAppStateSnapshot,
 ) {
     apply_secondary_window_style(ctx);
@@ -56,7 +59,6 @@ pub fn render_debug(
         egui::Window::new(title).show(ctx, |ui| {
             render_app_state_dashboard(ui, app_state);
             ui.add_space(8.0);
-            render_ocr_telemetry(ui, rate_ocr, rate_ocr_texture);
             render_controls(ui, lines, paused, filters);
             ui.add_space(8.0);
             log_scroll(ui, lines, filters);
@@ -84,21 +86,6 @@ pub fn render_debug(
                             .strong(),
                     );
 
-                    let status_badge = Frame::new()
-                        .fill(Color32::from_rgba_premultiplied(0, 229, 255, 30))
-                        .corner_radius(CornerRadius::same(12))
-                        .stroke(Stroke::new(1.0, Theme::TEXT_ACCENT))
-                        .inner_margin(Margin::symmetric(10, 3));
-
-                    status_badge.show(ui, |ui| {
-                        ui.label(
-                            RichText::new("● LIVE MONITOR")
-                                .color(Theme::TEXT_ACCENT)
-                                .size(Theme::FONT_TINY)
-                                .strong(),
-                        );
-                    });
-
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let total_lines = if let Ok(g) = lines.lock() { g.len() } else { 0 };
                         ui.label(
@@ -113,8 +100,6 @@ pub fn render_debug(
                 render_app_state_dashboard(ui, app_state);
                 ui.add_space(14.0);
 
-                render_ocr_telemetry(ui, rate_ocr, rate_ocr_texture);
-                ui.add_space(8.0);
                 render_controls(ui, lines, paused, filters);
                 ui.add_space(12.0);
 
@@ -304,119 +289,6 @@ fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) 
         });
 }
 
-fn update_ocr_texture(
-    ctx: &egui::Context,
-    info: &RateTelemetry,
-    texture_guard: &mut Option<egui::TextureHandle>,
-) {
-    let should_update = match texture_guard.as_ref() {
-        None => true,
-        Some(handle) => {
-            handle.size()[0] != info.image_width || handle.size()[1] != info.image_height
-        }
-    };
-    let texture_name = format!(
-        "ocr_rate_{}_{}_{}",
-        info.rate_text, info.threshold, info.use_invert
-    );
-    let should_update = should_update
-        || match texture_guard.as_ref() {
-            None => true,
-            Some(handle) => handle.name() != texture_name,
-        };
-
-    if should_update {
-        let pixels = if info.image_pixels.len() == info.image_width * info.image_height * 4 {
-            info.image_pixels
-                .chunks_exact(4)
-                .map(|chunk| {
-                    let color = overmax_cv::Bgr::from_bgra_slice(chunk);
-                    egui::Color32::from_rgba_unmultiplied(color.r, color.g, color.b, chunk[3])
-                })
-                .collect()
-        } else {
-            info.image_pixels
-                .iter()
-                .map(|&p| egui::Color32::from_gray(p))
-                .collect()
-        };
-        let color_image = egui::ColorImage {
-            size: [info.image_width, info.image_height],
-            pixels,
-            source_size: egui::vec2(info.image_width as f32, info.image_height as f32),
-        };
-        *texture_guard =
-            Some(ctx.load_texture(texture_name, color_image, egui::TextureOptions::default()));
-    }
-}
-
-fn render_ocr_telemetry(
-    ui: &mut egui::Ui,
-    rate_ocr: &Arc<Mutex<Option<RateTelemetry>>>,
-    rate_ocr_texture: &Arc<Mutex<Option<egui::TextureHandle>>>,
-) {
-    let ocr_info = if let Ok(g) = rate_ocr.lock() {
-        g.clone()
-    } else {
-        None
-    };
-    let Some(info) = ocr_info else {
-        return;
-    };
-    if info.image_width == 0 || info.image_height == 0 || info.image_pixels.is_empty() {
-        return;
-    }
-
-    let mut texture_guard = overmax_core::sync::lock_or_recover(rate_ocr_texture);
-    update_ocr_texture(ui.ctx(), &info, &mut texture_guard);
-
-    ui.group(|ui| {
-        ui.horizontal(|ui| {
-            ui.label(
-                RichText::new("Rate OCR Status:")
-                    .strong()
-                    .color(Theme::TEXT_ACCENT),
-            );
-            ui.add_space(8.0);
-            ui.label(
-                RichText::new(format!("Text: \"{}\"", info.rate_text)).color(Theme::TEXT_PRIMARY),
-            );
-            ui.separator();
-            ui.label(
-                RichText::new(format!("Threshold: {}", info.threshold)).color(Theme::TEXT_PRIMARY),
-            );
-            ui.separator();
-            ui.label(
-                RichText::new(format!("BgMean: {:.1}", info.bg_mean)).color(Theme::TEXT_PRIMARY),
-            );
-            ui.separator();
-            ui.label(
-                RichText::new(format!("Inverted: {}", info.use_invert)).color(Theme::TEXT_PRIMARY),
-            );
-        });
-
-        ui.add_space(6.0);
-
-        if let Some(texture) = &*texture_guard {
-            let max_width = 300.0;
-            let ratio = texture.size()[1] as f32 / texture.size()[0] as f32;
-            let display_width = (texture.size()[0] as f32).min(max_width);
-            let display_size = egui::vec2(display_width, display_width * ratio);
-
-            ui.horizontal(|ui| {
-                ui.label(
-                    RichText::new("OCR Image:")
-                        .size(Theme::FONT_TINY)
-                        .color(Theme::TEXT_MUTED),
-                );
-                ui.add_space(4.0);
-                ui.image((texture.id(), display_size));
-            });
-        }
-    });
-    ui.add_space(8.0);
-}
-
 fn render_controls(
     ui: &mut egui::Ui,
     lines: &Arc<Mutex<VecDeque<Arc<str>>>>,
@@ -424,71 +296,66 @@ fn render_controls(
     filters: &Arc<Mutex<std::collections::HashMap<String, bool>>>,
 ) {
     ui.horizontal(|ui| {
-        // Pause Button
         let is_paused = paused.load(Ordering::Relaxed);
-        let pause_text = if is_paused {
-            "▶ 재개"
-        } else {
-            "⏸ 일시정지"
-        };
-        let pause_btn =
-            egui::Button::new(RichText::new(pause_text).size(Theme::FONT_SMALL).strong())
-                .min_size(egui::vec2(80.0, Theme::CONTROL_HEIGHT))
-                .fill(if is_paused {
-                    Theme::BTN_PAUSED
-                } else {
-                    Theme::SECONDARY
-                })
-                .corner_radius(egui::CornerRadius::same(Theme::R_SM));
+        let pause_label = if is_paused { "▶ Resume" } else { "⏸ Pause" };
+        let pause_btn = egui::Button::new(RichText::new(pause_label).size(Theme::FONT_TINY))
+            .fill(if is_paused {
+                Theme::PRIMARY
+            } else {
+                Theme::SECTION_BG
+            })
+            .corner_radius(CornerRadius::same(6));
+
         if ui.add(pause_btn).clicked() {
             paused.store(!is_paused, Ordering::Relaxed);
         }
 
-        // Clear Button
-        let clear_btn = egui::Button::new(RichText::new("🗑 지우기").size(Theme::FONT_SMALL))
-            .min_size(egui::vec2(80.0, Theme::CONTROL_HEIGHT))
-            .fill(Theme::CARD)
-            .stroke(Stroke::new(1.0_f32, Theme::STROKE))
-            .corner_radius(egui::CornerRadius::same(Theme::R_SM));
+        let clear_btn = egui::Button::new(RichText::new("🗑 Clear").size(Theme::FONT_TINY))
+            .fill(Theme::SECTION_BG)
+            .corner_radius(CornerRadius::same(6));
+
         if ui.add(clear_btn).clicked() {
             if let Ok(mut g) = lines.lock() {
                 g.clear();
             }
         }
-    });
 
-    ui.add_space(8.0);
-
-    // Filters Row
-    ui.horizontal(|ui| {
+        ui.add_space(12.0);
         ui.label(
-            RichText::new("필터:")
-                .color(Theme::TEXT_SECONDARY)
-                .size(Theme::FONT_SMALL)
-                .strong(),
+            RichText::new("Filter:")
+                .size(Theme::FONT_TINY)
+                .color(Theme::TEXT_MUTED),
         );
-        ui.add_space(4.0);
 
-        if let Ok(mut filters_lock) = filters.lock() {
-            let tags = [
-                "[ScreenCapture]",
-                "[Overlay]",
-                "[VArchive]",
-                "[WindowTracker]",
-                "[Main]",
-            ];
-            for tag in &tags {
-                let tag_name = tag.trim_matches(|c| c == '[' || c == ']');
-                if let Some(val) = filters_lock.get_mut(*tag) {
-                    let color = get_line_color(tag);
-                    let mut checked = *val;
-                    let cb = egui::Checkbox::new(
-                        &mut checked,
-                        RichText::new(tag_name).color(color).size(Theme::FONT_SMALL),
-                    );
-                    if ui.add(cb).changed() {
-                        *val = checked;
+        let filter_keys = [
+            "All", "Main", "Engine", "Win32", "Overlay", "VArchive", "Error",
+        ];
+        let mut filter_map = overmax_core::lock_or_recover(filters);
+
+        for key in filter_keys {
+            let active = if key == "All" {
+                filter_map.values().all(|&v| v)
+            } else {
+                *filter_map.get(key).unwrap_or(&true)
+            };
+
+            let filter_btn = egui::Button::new(RichText::new(key).size(Theme::FONT_TINY))
+                .fill(if active {
+                    Color32::from_rgb(0, 150, 180)
+                } else {
+                    Theme::SECTION_BG
+                })
+                .corner_radius(CornerRadius::same(6));
+
+            if ui.add(filter_btn).clicked() {
+                if key == "All" {
+                    let next = !active;
+                    for v in filter_map.values_mut() {
+                        *v = next;
                     }
+                } else {
+                    let next = !active;
+                    filter_map.insert(key.to_string(), next);
                 }
             }
         }
@@ -500,82 +367,65 @@ fn log_scroll(
     lines: &Arc<Mutex<VecDeque<Arc<str>>>>,
     filters: &Arc<Mutex<std::collections::HashMap<String, bool>>>,
 ) {
-    // 락 보유 시간을 최소화하기 위해 Arc<str> 참조만 극속 채취 후 즉시 락 해제
-    let snapshot: Vec<Arc<str>> = {
-        let Ok(lines_guard) = lines.lock() else {
-            return;
-        };
-        lines_guard.iter().cloned().collect()
+    let raw_lines: Vec<Arc<str>> = if let Ok(g) = lines.lock() {
+        g.iter().cloned().collect()
+    } else {
+        Vec::new()
     };
 
-    let filters_lock = overmax_core::sync::lock_or_recover(filters);
-
-    let tags = [
-        "[ScreenCapture]",
-        "[Overlay]",
-        "[VArchive]",
-        "[WindowTracker]",
-        "[Main]",
-        "[UI]",
-    ];
-
-    let filtered_lines: Vec<&Arc<str>> = snapshot
+    let filter_map = overmax_core::lock_or_recover(filters);
+    let filtered_lines: Vec<&Arc<str>> = raw_lines
         .iter()
         .filter(|line| {
-            for tag in &tags {
-                if line.contains(tag) {
-                    let lookup_tag = if *tag == "[UI]" { "[Main]" } else { *tag };
-                    return *filters_lock.get(lookup_tag).unwrap_or(&true);
-                }
+            let l = line.as_ref();
+            if l.contains("ERR") || l.contains("Error") || l.contains("fail") {
+                *filter_map.get("Error").unwrap_or(&true)
+            } else if l.contains("[Engine]") || l.contains("[Detection]") {
+                *filter_map.get("Engine").unwrap_or(&true)
+            } else if l.contains("[Win32]") || l.contains("[DPI]") {
+                *filter_map.get("Win32").unwrap_or(&true)
+            } else if l.contains("[Overlay]") {
+                *filter_map.get("Overlay").unwrap_or(&true)
+            } else if l.contains("[V-Archive]") || l.contains("[Sync]") {
+                *filter_map.get("VArchive").unwrap_or(&true)
+            } else {
+                *filter_map.get("Main").unwrap_or(&true)
             }
-            true
         })
         .collect();
 
     Frame::new()
-        .fill(Theme::CARD)
-        .stroke(Stroke::new(1.0_f32, Theme::STROKE))
-        .corner_radius(CornerRadius::same(Theme::R_MD))
-        .inner_margin(Margin::same(12))
+        .fill(Color32::from_rgb(12, 14, 20))
+        .stroke(Stroke::new(1.0, Color32::from_rgb(30, 35, 48)))
+        .corner_radius(CornerRadius::same(Theme::R_SM))
+        .inner_margin(Margin::same(10))
         .show(ui, |ui| {
-            let row_height = ui.text_style_height(&egui::TextStyle::Monospace);
             ScrollArea::vertical()
+                .auto_shrink([false; 2])
                 .stick_to_bottom(true)
-                .auto_shrink([false, false])
-                .show_rows(ui, row_height, filtered_lines.len(), |ui, range| {
-                    for idx in range {
-                        let line = filtered_lines[idx];
-                        let color = get_line_color(line);
+                .show(ui, |ui| {
+                    ui.set_min_width(ui.available_width());
+                    for line in filtered_lines {
+                        let text = line.as_ref();
+                        let color = if text.contains("ERR")
+                            || text.contains("Error")
+                            || text.contains("fail")
+                        {
+                            Color32::from_rgb(255, 100, 100)
+                        } else if text.contains("[Win32]") || text.contains("[DPI]") {
+                            Color32::from_rgb(180, 180, 255)
+                        } else if text.contains("[Overlay]") {
+                            Theme::TEXT_ACCENT
+                        } else {
+                            Theme::TEXT_PRIMARY
+                        };
+
                         ui.label(
-                            RichText::new(line.as_ref())
-                                .color(color)
-                                .monospace()
-                                .size(Theme::FONT_TINY),
+                            RichText::new(text)
+                                .font(egui::FontId::monospace(11.0))
+                                .color(color),
                         );
                     }
                 });
         });
-}
-
-pub fn close_if_requested(ctx: &egui::Context, open: &Arc<AtomicBool>) {
-    if ctx.input(|i| i.viewport().close_requested()) {
-        open.store(false, Ordering::Relaxed);
-        ctx.request_repaint_of(ctx.parent_viewport_id());
-    }
-}
-
-fn get_line_color(line: &str) -> Color32 {
-    if line.contains("[ScreenCapture]") {
-        Theme::LOG_CAPTURE
-    } else if line.contains("[Overlay]") {
-        Theme::LOG_OVERLAY
-    } else if line.contains("[VArchive]") {
-        Theme::LOG_VARCHIVE
-    } else if line.contains("[WindowTracker]") {
-        Theme::LOG_WINDOW
-    } else if line.contains("[Main]") || line.contains("[UI]") {
-        Theme::LOG_MAIN
-    } else {
-        Theme::LOG_DEFAULT
-    }
 }
