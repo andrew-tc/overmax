@@ -669,22 +669,13 @@ impl NativeApp {
 
                         let hwnd = hwnd_val as HWND;
 
-                        // 1. 오버레이 HWND의 실제 물리적 크기(Physical Pixels) 구하기
-                        let mut ov_rect = windows_sys::Win32::Foundation::RECT::default();
-                        unsafe {
-                            GetWindowRect(hwnd, &mut ov_rect);
-                        }
-                        let mut overlay_phys_w = ov_rect.right - ov_rect.left;
-                        let mut overlay_phys_h = ov_rect.bottom - ov_rect.top;
-
-                        // 2. DPI Scale 구하기
+                        // 1. DPI Scale 구하기
                         let dpi_scale = ctx.pixels_per_point();
 
-                        if overlay_phys_w <= 0 || overlay_phys_h <= 0 {
-                            overlay_phys_w = (((overlay_ui::BASE_WIDTH * scale).ceil() + 2.0)
-                                * dpi_scale) as i32;
-                            overlay_phys_h = (((height * scale).ceil() + 2.0) * dpi_scale) as i32;
-                        }
+                        // 2. 현재 패널 높이(height)와 scale에 맞는 목표 물리적 크기(Physical Pixels) 구하기
+                        let target_phys_w =
+                            (((overlay_ui::BASE_WIDTH * scale).ceil() + 2.0) * dpi_scale) as i32;
+                        let target_phys_h = (((height * scale).ceil() + 2.0) * dpi_scale) as i32;
 
                         let margin_px = (16.0 * dpi_scale) as i32;
 
@@ -692,24 +683,24 @@ impl NativeApp {
                         let (px, py) = match snap_position {
                             "top_left" => (g_rect.left + margin_px, g_rect.top + margin_px),
                             "top_right" => (
-                                g_rect.left + g_rect.width - overlay_phys_w - margin_px,
+                                g_rect.left + g_rect.width - target_phys_w - margin_px,
                                 g_rect.top + margin_px,
                             ),
                             "bottom_left" => (
                                 g_rect.left + margin_px,
-                                g_rect.top + g_rect.height - overlay_phys_h - margin_px,
+                                g_rect.top + g_rect.height - target_phys_h - margin_px,
                             ),
                             _ => {
                                 // bottom_right
                                 (
-                                    g_rect.left + g_rect.width - overlay_phys_w - margin_px,
-                                    g_rect.top + g_rect.height - overlay_phys_h - margin_px,
+                                    g_rect.left + g_rect.width - target_phys_w - margin_px,
+                                    g_rect.top + g_rect.height - target_phys_h - margin_px,
                                 )
                             }
                         };
 
-                        // 4. 좌표 변경 시 SWP_NOSIZE로 크기 핑퐁 충돌 없이 위치만 지정
-                        let current_geom = (px, py, overlay_phys_w, overlay_phys_h);
+                        // 4. 좌표 및 크기 변경 시 SetWindowPos로 윈도우 크기와 위치를 함께 갱신
+                        let current_geom = (px, py, target_phys_w, target_phys_h);
                         let geom_changed =
                             self.platform.win_cache.prev_snap_geometry != Some(current_geom);
 
@@ -719,7 +710,7 @@ impl NativeApp {
                                 1000,
                                 format!(
                                     "[Win32 DPI] 오버레이 스냅 위치 보정: px={}, py={}, w={}, h={}, dpi_scale={:.2}",
-                                    px, py, overlay_phys_w, overlay_phys_h, dpi_scale
+                                    px, py, target_phys_w, target_phys_h, dpi_scale
                                 ),
                             );
 
@@ -729,9 +720,9 @@ impl NativeApp {
                                     HWND_TOPMOST,
                                     px,
                                     py,
-                                    0,
-                                    0,
-                                    SWP_NOSIZE | SWP_NOACTIVATE,
+                                    target_phys_w,
+                                    target_phys_h,
+                                    SWP_NOACTIVATE,
                                 );
                             }
                             self.platform.win_cache.prev_snap_geometry = Some(current_geom);
