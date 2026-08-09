@@ -950,7 +950,14 @@ impl NativeApp {
                             return 0; // 즉시 중단
                         }
 
-                        if data.found_hwnd.is_none() && (title.contains("Overmax") || visible) {
+                        // fallback: 오버레이 창 타이틀이 미세하게 변경된 경우에만 제목 매칭
+                        if data.found_hwnd.is_none()
+                            && visible
+                            && title.starts_with("Overmax")
+                            && !title.contains("설정")
+                            && !title.contains("Debug")
+                            && !title.contains("동기화")
+                        {
                             data.found_hwnd = Some(hwnd);
                         }
                     }
