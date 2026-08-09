@@ -100,6 +100,30 @@ impl NativeApp {
         #[cfg(not(target_os = "windows"))]
         let cached_hwnd = None;
 
+        let song_info = self.current_song_label();
+        let play_state_info = if let Some(ctx) = &self.session.context {
+            format!(
+                "{} {} | Rate: {:.2}% | Stable: {}",
+                ctx.mode.as_str(),
+                ctx.diff.as_str(),
+                ctx.rate,
+                self.session.is_stable
+            )
+        } else {
+            format!("Stable: {}", self.session.is_stable)
+        };
+        let jacket_match_info = if let Some(ctx) = &self.session.context {
+            format!("SongID: {}", ctx.song_id)
+        } else {
+            "No Match".to_string()
+        };
+        let capture_res_info = if let Some(r) = game_rect_val {
+            let aspect = r.width as f32 / r.height.max(1) as f32;
+            format!("{}x{} (Aspect: {:.3})", r.width, r.height, aspect)
+        } else {
+            "No Window".to_string()
+        };
+
         debug_ui::DebugAppStateSnapshot {
             scene_label: format!("{:?}", self.session.scene),
             confidence: self.confidence,
@@ -112,6 +136,10 @@ impl NativeApp {
             content_protected: cap_settings.content_protected,
             cached_hwnd,
             game_hwnd,
+            song_info,
+            play_state_info,
+            jacket_match_info,
+            capture_res_info,
         }
     }
 

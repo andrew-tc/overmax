@@ -23,6 +23,10 @@ pub struct DebugAppStateSnapshot {
     pub content_protected: bool,
     pub cached_hwnd: Option<isize>,
     pub game_hwnd: Option<isize>,
+    pub song_info: String,
+    pub play_state_info: String,
+    pub jacket_match_info: String,
+    pub capture_res_info: String,
 }
 
 pub fn push_log(lines: &Arc<Mutex<VecDeque<Arc<str>>>>, max_lines: usize, line: impl AsRef<str>) {
@@ -202,6 +206,77 @@ fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) 
                             RichText::new(format!("{} | {}", vis_txt, engine_str))
                                 .size(Theme::FONT_SMALL)
                                 .color(vis_color)
+                                .strong(),
+                        );
+                    });
+                });
+
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(8.0);
+
+                ui.columns(3, |cols| {
+                    // Row 2 - Col 1: Song & Jacket Status
+                    cols[0].vertical(|ui| {
+                        ui.label(
+                            RichText::new("Detected Song & Jacket Match")
+                                .size(Theme::FONT_TINY)
+                                .color(Theme::TEXT_MUTED),
+                        );
+                        let song_txt = if state.song_info.is_empty() {
+                            "None".to_string()
+                        } else {
+                            state.song_info.clone()
+                        };
+                        let match_txt = if state.jacket_match_info.is_empty() {
+                            "-".to_string()
+                        } else {
+                            state.jacket_match_info.clone()
+                        };
+                        ui.label(
+                            RichText::new(format!("{} [{}]", song_txt, match_txt))
+                                .size(Theme::FONT_SMALL)
+                                .color(Color32::from_rgb(255, 220, 100))
+                                .strong(),
+                        );
+                    });
+
+                    // Row 2 - Col 2: PlayState & Stability
+                    cols[1].vertical(|ui| {
+                        ui.label(
+                            RichText::new("PlayState / Mode / Stability")
+                                .size(Theme::FONT_TINY)
+                                .color(Theme::TEXT_MUTED),
+                        );
+                        let ps_txt = if state.play_state_info.is_empty() {
+                            "None".to_string()
+                        } else {
+                            state.play_state_info.clone()
+                        };
+                        ui.label(
+                            RichText::new(ps_txt)
+                                .size(Theme::FONT_SMALL)
+                                .color(Color32::from_rgb(180, 220, 255))
+                                .strong(),
+                        );
+                    });
+
+                    // Row 2 - Col 3: Capture Resolution & Geometry
+                    cols[2].vertical(|ui| {
+                        ui.label(
+                            RichText::new("Captured Resolution & Game Rect")
+                                .size(Theme::FONT_TINY)
+                                .color(Theme::TEXT_MUTED),
+                        );
+                        let res_txt = if state.capture_res_info.is_empty() {
+                            "Unknown".to_string()
+                        } else {
+                            state.capture_res_info.clone()
+                        };
+                        ui.label(
+                            RichText::new(res_txt)
+                                .size(Theme::FONT_SMALL)
+                                .color(Theme::TEXT_PRIMARY)
                                 .strong(),
                         );
                     });
