@@ -96,6 +96,7 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
                     .clicked()
                 {
                     overlay.insert("scale".into(), serde_json::json!(val));
+                    ui.ctx().request_repaint_of(ui.ctx().parent_viewport_id());
                 }
             }
         });
@@ -122,6 +123,7 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
             .changed()
         {
             overlay.insert("base_opacity".into(), serde_json::json!(opacity));
+            ui.ctx().request_repaint_of(ui.ctx().parent_viewport_id());
         }
     });
 
@@ -139,6 +141,7 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
 
         if response.changed() {
             overlay.insert("lite_mode".into(), serde_json::json!(lite_mode));
+            ui.ctx().request_repaint_of(ui.ctx().parent_viewport_id());
         }
     });
 
@@ -156,6 +159,7 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
 
         if response.changed() {
             overlay.insert("always_visible".into(), serde_json::json!(always_visible));
+            ui.ctx().request_repaint_of(ui.ctx().parent_viewport_id());
         }
     });
 
@@ -242,6 +246,7 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
         if changed {
             position.insert("snap".into(), serde_json::json!(snap));
             overlay.insert("position".into(), serde_json::json!(position));
+            ui.ctx().request_repaint_of(ui.ctx().parent_viewport_id());
         }
     });
 }

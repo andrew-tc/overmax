@@ -777,8 +777,12 @@ impl NativeApp {
                 }
 
                 if let Some(toast) = &self.toast {
-                    if std::time::Instant::now() >= toast.expires_at {
+                    let now = std::time::Instant::now();
+                    if now >= toast.expires_at {
                         self.toast = None;
+                        ctx.request_repaint();
+                    } else {
+                        ctx.request_repaint_after(toast.expires_at.saturating_duration_since(now));
                     }
                 }
 
