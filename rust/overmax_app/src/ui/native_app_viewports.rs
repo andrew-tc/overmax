@@ -49,9 +49,9 @@ impl NativeApp {
             native_helpers::vp_debug(),
             Self::auxiliary_viewport(&title, [720.0, 480.0]),
             move |ctx, class| {
-                if ctx.input(|i| i.pointer.has_pointer() || i.viewport().focused == Some(true)) {
-                    ctx.request_repaint_after(std::time::Duration::from_millis(100));
-                }
+                // 디버그 창이 비활성(Inactive) 상태라도 게임 플레이 중 탐지 결과 및 로그가 실시간 모니터링되도록 갱신 요청
+                ctx.request_repaint_after(std::time::Duration::from_millis(200));
+
                 #[cfg(debug_assertions)]
                 ctx.style_mut(|s| {
                     s.debug.show_expand_width = false;
