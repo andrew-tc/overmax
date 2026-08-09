@@ -110,7 +110,10 @@ impl NativeApp {
         };
         let capture_res_info = if let Some(r) = game_rect_val {
             let aspect = r.width as f32 / r.height.max(1) as f32;
-            format!("{}x{} (Aspect: {:.3})", r.width, r.height, aspect)
+            format!(
+                "({},{}) {}x{} ({:.2})",
+                r.left, r.top, r.width, r.height, aspect
+            )
         } else {
             "No Window".to_string()
         };
