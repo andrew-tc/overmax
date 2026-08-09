@@ -162,6 +162,7 @@ impl NativeApp {
                 .map(|g| g.clone())
                 .unwrap_or_default(),
             sync_open: self.ui_state.sync_open.clone(),
+            debug_open: self.ui_state.debug_open.clone(),
             scan_pending: self.ui_state.scan_pending.clone(),
             sync_steam_id: self.sync_state.steam_id.clone(),
             fetch_tx: self.sync_channels.fetch_req_tx.clone(),

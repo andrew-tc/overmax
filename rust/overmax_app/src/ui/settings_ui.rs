@@ -15,6 +15,7 @@ pub struct SettingsUiContext {
     pub root: Arc<std::path::PathBuf>,
     pub current_steam_id: String,
     pub sync_open: Arc<AtomicBool>,
+    pub debug_open: Arc<AtomicBool>,
     pub scan_pending: Arc<AtomicBool>,
     pub sync_steam_id: Arc<Mutex<String>>,
     pub fetch_tx: Sender<(String, String, i32)>,
@@ -424,7 +425,10 @@ fn steam_account_rows(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiCont
     });
 }
 
-fn system_tab(ui: &mut egui::Ui, draft: &mut Value, _ctx: &SettingsUiContext) {
+fn system_tab(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiContext) {
+    section_frame(ui, "진단 및 디버그", |ui| {
+        debug_section(ui, draft, ctx)
+    });
     section_frame(ui, "화면 캡처 설정", |ui| capture_section(ui, draft));
     section_frame(ui, "추천 Provider", |ui| {
         recommend_provider_section(ui, draft)
@@ -455,6 +459,37 @@ fn system_tab(ui: &mut egui::Ui, draft: &mut Value, _ctx: &SettingsUiContext) {
                     .show();
             }
         });
+    });
+}
+
+fn debug_section(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiContext) {
+    let debug_obj = object_section_mut(draft, "debug");
+    let mut enabled = debug_obj
+        .get("enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+
+    form_row(ui, "실시간 디버그 모드", |ui| {
+        if ui
+            .checkbox(&mut enabled, "디버그 로그 및 실시간 진단 기능 활성화")
+            .changed()
+        {
+            debug_obj.insert("enabled".to_string(), Value::Bool(enabled));
+            ctx.debug_open.store(enabled, Ordering::Relaxed);
+        }
+    });
+
+    form_row(ui, "디버그 창 제어", |ui| {
+        let is_open = ctx.debug_open.load(Ordering::Relaxed);
+        let btn_label = if is_open {
+            "디버그 창 닫기"
+        } else {
+            "디버그 창 열기"
+        };
+        if ui.button(btn_label).clicked() {
+            ctx.debug_open.store(!is_open, Ordering::Relaxed);
+            ui.ctx().request_repaint();
+        }
     });
 }
 
