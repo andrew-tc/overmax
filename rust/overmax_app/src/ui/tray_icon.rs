@@ -1,7 +1,6 @@
 //! Windows system tray icon for the native Rust app.
 
 use crate::ui::ui_command::UiCommand;
-use serde_json::Value;
 use std::ptr::{null, null_mut};
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::mpsc::Sender;
@@ -53,19 +52,16 @@ pub struct TrayIcon {
 
 struct TrayActions {
     command_tx: Sender<UiCommand>,
-    settings: Arc<Mutex<Value>>,
     ctx_holder: Arc<Mutex<Option<egui::Context>>>,
 }
 
 impl TrayIcon {
     pub fn spawn(
         command_tx: Sender<UiCommand>,
-        settings: Arc<Mutex<Value>>,
         ctx_holder: Arc<Mutex<Option<egui::Context>>>,
     ) -> Self {
         let _ = ACTIONS.set(TrayActions {
             command_tx,
-            settings,
             ctx_holder,
         });
         let hwnd = Arc::new(AtomicIsize::new(0));

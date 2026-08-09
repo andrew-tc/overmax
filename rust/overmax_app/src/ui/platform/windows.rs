@@ -191,11 +191,7 @@ impl PlatformState {
             .and_then(|v| v.get("tray_icon")?.as_bool())
             .unwrap_or(true)
         {
-            Some(TrayIcon::spawn(
-                command_tx.clone(),
-                settings.clone(),
-                ctx_holder.clone(),
-            ))
+            Some(TrayIcon::spawn(command_tx.clone(), ctx_holder.clone()))
         } else {
             None
         };

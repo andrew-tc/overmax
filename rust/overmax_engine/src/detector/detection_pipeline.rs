@@ -397,6 +397,7 @@ impl DetectionPipeline {
         image_changed || now - self.last_jacket_match_ts >= limit
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn output(
         &self,
         logo_detected: bool,

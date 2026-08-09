@@ -607,6 +607,7 @@ impl NativeApp {
     }
 
     #[cfg(target_os = "windows")]
+    #[allow(clippy::too_many_arguments)]
     fn update_overlay_geometry(
         &mut self,
         ctx: &egui::Context,

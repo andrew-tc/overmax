@@ -268,6 +268,7 @@ pub fn compute_grid_histogram(
             }
 
             let cell_idx = (gy * 4 + gx) * 24; // 24 = 3ch × 8bins
+            #[allow(clippy::manual_checked_ops)]
             if count > 0 {
                 for i in 0..8 {
                     grid_hist[cell_idx + i] = ((b_bins[i] * 64) / count) as u8;
