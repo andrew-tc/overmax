@@ -502,10 +502,10 @@ fn detect_result_scene_via_edge(
     // ResultFreestyle, ResultOpen3, ResultOpen2 재킷 ROI는 같은 위치를 공유함
     // 따라서 ResultFreestyle 재킷 ROI를 기준으로 엣지 디텍션을 수행하고, 추가 확인을 통해 분기함
     let jacket_roi = rois.get_roi_for_scene("jacket", SceneType::ResultFreestyle)?;
-    let edge_ok = detect_jacket_edges(frame, jacket_roi)
+    let edge_ok = detect_jacket_edges(frame, jacket_roi, rois.scale())
         .map(|edge_strength| edge_strength >= JACKET_EDGE_THRESHOLD)
         .unwrap_or(false);
-    let band_ok = check_category_band_solid(frame, jacket_roi);
+    let band_ok = check_category_band_solid(frame, jacket_roi, rois.scale());
 
     if edge_ok || band_ok {
         // 결과창 재킷 매칭 시도
@@ -564,10 +564,10 @@ fn detect_freestyle_scene_via_edge(
     matcher: &overmax_data::JacketMatcher,
 ) -> Option<(SceneType, i32, f32)> {
     let jacket_roi = rois.get_roi_for_scene("jacket", SceneType::Freestyle)?;
-    let edge_ok = detect_jacket_edges(frame, jacket_roi)
+    let edge_ok = detect_jacket_edges(frame, jacket_roi, rois.scale())
         .map(|edge_strength| edge_strength >= JACKET_EDGE_THRESHOLD)
         .unwrap_or(false);
-    let band_ok = check_category_band_solid(frame, jacket_roi);
+    let band_ok = check_category_band_solid(frame, jacket_roi, rois.scale());
 
     if edge_ok || band_ok {
         if let Some(match_res) = jacket_roi.and_then(frame, |jacket_img| {
@@ -597,10 +597,10 @@ fn detect_openmatch_scene_via_edge(
     matcher: &overmax_data::JacketMatcher,
 ) -> Option<(SceneType, i32, f32)> {
     let jacket_roi = rois.get_roi_for_scene("jacket", SceneType::OpenMatch)?;
-    let edge_ok = detect_jacket_edges(frame, jacket_roi)
+    let edge_ok = detect_jacket_edges(frame, jacket_roi, rois.scale())
         .map(|edge_strength| edge_strength >= JACKET_EDGE_THRESHOLD)
         .unwrap_or(false);
-    let band_ok = check_category_band_solid(frame, jacket_roi);
+    let band_ok = check_category_band_solid(frame, jacket_roi, rois.scale());
 
     if edge_ok || band_ok {
         if let Some(match_res) = jacket_roi.and_then(frame, |jacket_img| {
@@ -674,8 +674,10 @@ fn detect_rect_edges(frame: &CapturedFrame, roi: crate::detector::roi::RoiRect) 
 fn detect_jacket_edges(
     frame: &CapturedFrame,
     jacket_roi: crate::detector::roi::RoiRect,
+    _scale: f32,
 ) -> Option<f32> {
-    detect_jacket_edges_with_margin(frame, jacket_roi, 8)
+    let margin = 8;
+    detect_jacket_edges_with_margin(frame, jacket_roi, margin)
 }
 
 fn detect_jacket_edges_with_margin(
@@ -691,8 +693,9 @@ fn detect_jacket_edges_with_margin(
 fn check_category_band_solid(
     frame: &CapturedFrame,
     jacket_roi: crate::detector::roi::RoiRect,
+    scale: f32,
 ) -> bool {
-    let width = 4;
+    let width = ((4.0 * scale).round() as i32).max(4);
     let band_roi = crate::detector::roi::RoiRect {
         x1: jacket_roi.x2,
         y1: jacket_roi.y1,
