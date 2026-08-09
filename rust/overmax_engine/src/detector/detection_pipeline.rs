@@ -65,6 +65,7 @@ pub struct DetectionPipeline {
     result_scene_streak: u32,
     last_detected_result_scene: SceneType,
     unknown_since: Option<f64>,
+    last_top_jacket_similarity: Option<f32>,
 }
 
 impl DetectionPipeline {
@@ -85,6 +86,7 @@ impl DetectionPipeline {
             result_scene_streak: 0,
             last_detected_result_scene: SceneType::Unknown,
             unknown_since: None,
+            last_top_jacket_similarity: None,
         }
     }
 
@@ -360,8 +362,10 @@ impl DetectionPipeline {
             4,
         ) else {
             self.current_song_id = None;
+            self.last_top_jacket_similarity = None;
             return JacketMatchStatus::NoMatch;
         };
+        self.last_top_jacket_similarity = Some(result.similarity);
         match result.image_id.parse::<i32>() {
             Ok(song_id) => {
                 self.current_song_id = Some(song_id);
@@ -382,6 +386,7 @@ impl DetectionPipeline {
 
     fn reset_on_screen_exit(&mut self) {
         self.current_song_id = None;
+        self.last_top_jacket_similarity = None;
         self.play_state.reset();
         // 재진입 시 이전 자켓과 동일한 곡이어도 즉시 매칭이 실행되도록 초기화.
         self.last_jacket_thumb = None;
@@ -409,12 +414,6 @@ impl DetectionPipeline {
         jacket_status: JacketMatchStatus,
         rate_telemetry: Option<RateTelemetry>,
     ) -> DetectionOutput {
-        let top_jacket_similarity = match &jacket_status {
-            JacketMatchStatus::Matched { similarity, .. } => Some(*similarity),
-            JacketMatchStatus::InvalidId { similarity, .. } => Some(*similarity),
-            _ => None,
-        };
-
         DetectionOutput {
             logo_detected,
             is_song_select,
@@ -429,7 +428,7 @@ impl DetectionPipeline {
             window_snapshot: None,
             capture_fatal: None,
             rate_telemetry,
-            top_jacket_similarity,
+            top_jacket_similarity: self.last_top_jacket_similarity,
             roi_scale: self.rois.scale(),
             roi_offset_y: self.rois.offset_y(),
             stable_hits: self.play_state.stable_hits(),
