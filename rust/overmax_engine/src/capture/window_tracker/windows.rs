@@ -99,67 +99,27 @@ pub fn find_hwnd_by_title(title: &[u16]) -> Option<windows_sys::Win32::Foundatio
     (!hwnd.is_null()).then_some(hwnd)
 }
 
-const DWMWA_EXTENDED_FRAME_BOUNDS: u32 = 9;
-
-#[link(name = "dwmapi")]
-extern "system" {
-    fn DwmGetWindowAttribute(
-        hwnd: windows_sys::Win32::Foundation::HWND,
-        dwAttribute: u32,
-        pvAttribute: *mut std::ffi::c_void,
-        cbAttribute: u32,
-    ) -> i32;
-}
-
 fn client_rect_for_hwnd(hwnd: windows_sys::Win32::Foundation::HWND) -> Option<WindowRect> {
-    let mut dwm_rect = windows_sys::Win32::Foundation::RECT::default();
     let mut client_rect = windows_sys::Win32::Foundation::RECT::default();
-    let mut win_rect = windows_sys::Win32::Foundation::RECT::default();
     let mut point = windows_sys::Win32::Foundation::POINT { x: 0, y: 0 };
 
     unsafe {
-        let dwm_ok = DwmGetWindowAttribute(
-            hwnd,
-            DWMWA_EXTENDED_FRAME_BOUNDS,
-            (&mut dwm_rect as *mut windows_sys::Win32::Foundation::RECT).cast(),
-            std::mem::size_of::<windows_sys::Win32::Foundation::RECT>() as u32,
-        ) == 0;
-
         let client_ok =
             windows_sys::Win32::UI::WindowsAndMessaging::GetClientRect(hwnd, &mut client_rect) != 0;
-        let win_ok =
-            windows_sys::Win32::UI::WindowsAndMessaging::GetWindowRect(hwnd, &mut win_rect) != 0;
         let pt_ok = windows_sys::Win32::Graphics::Gdi::ClientToScreen(hwnd, &mut point) != 0;
 
         if !client_ok || !pt_ok {
             return None;
         }
 
-        let out = if dwm_ok && win_ok && (win_rect.right - win_rect.left) > 0 {
-            let scale_x =
-                (dwm_rect.right - dwm_rect.left) as f32 / (win_rect.right - win_rect.left) as f32;
-            let scale_y =
-                (dwm_rect.bottom - dwm_rect.top) as f32 / (win_rect.bottom - win_rect.top) as f32;
-
-            let border_x = (point.x - win_rect.left) as f32 * scale_x;
-            let border_y = (point.y - win_rect.top) as f32 * scale_y;
-
-            WindowRect {
-                left: dwm_rect.left + border_x as i32,
-                top: dwm_rect.top + border_y as i32,
-                width: ((client_rect.right - client_rect.left) as f32 * scale_x) as i32,
-                height: ((client_rect.bottom - client_rect.top) as f32 * scale_y) as i32,
-            }
-        } else {
-            WindowRect {
-                left: point.x,
-                top: point.y,
-                width: client_rect.right - client_rect.left,
-                height: client_rect.bottom - client_rect.top,
-            }
+        let out = WindowRect {
+            left: point.x,
+            top: point.y,
+            width: client_rect.right - client_rect.left,
+            height: client_rect.bottom - client_rect.top,
         };
 
-        (out.is_valid()).then_some(out)
+        out.is_valid().then_some(out)
     }
 }
 
