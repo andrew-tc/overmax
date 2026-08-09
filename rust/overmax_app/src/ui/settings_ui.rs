@@ -468,31 +468,17 @@ fn system_tab(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiContext) {
 }
 
 fn debug_section(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiContext) {
-    let debug_obj = object_section_mut(draft, "debug");
-    let mut enabled = debug_obj
-        .get("enabled")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
+    let mut is_open = ctx.debug_open.load(Ordering::Relaxed);
 
-    form_row(ui, "실시간 디버그 모드", |ui| {
+    form_row(ui, "디버그 창", |ui| {
         if ui
-            .checkbox(&mut enabled, "디버그 로그 및 실시간 진단 기능 활성화")
+            .checkbox(&mut is_open, "디버그 모니터링 창 표시")
+            .on_hover_text("실시간 탐지 수치 및 진단 로그를 표출하는 디버그 창을 엽니다.")
             .changed()
         {
-            debug_obj.insert("enabled".to_string(), Value::Bool(enabled));
-            ctx.debug_open.store(enabled, Ordering::Relaxed);
-        }
-    });
-
-    form_row(ui, "디버그 창 제어", |ui| {
-        let is_open = ctx.debug_open.load(Ordering::Relaxed);
-        let btn_label = if is_open {
-            "디버그 창 닫기"
-        } else {
-            "디버그 창 열기"
-        };
-        if ui.button(btn_label).clicked() {
-            ctx.debug_open.store(!is_open, Ordering::Relaxed);
+            let debug_obj = object_section_mut(draft, "debug");
+            debug_obj.insert("enabled".to_string(), Value::Bool(is_open));
+            ctx.debug_open.store(is_open, Ordering::Relaxed);
             ui.ctx().request_repaint();
         }
     });
