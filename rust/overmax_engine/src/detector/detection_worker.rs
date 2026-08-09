@@ -380,6 +380,10 @@ impl DetectionWorker {
             window_snapshot: self.window_snapshot,
             capture_fatal,
             rate_telemetry: None,
+            top_jacket_similarity: None,
+            roi_scale: 1.0,
+            roi_offset_y: 0,
+            stable_hits: 0,
         }
     }
 
