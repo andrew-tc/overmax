@@ -32,6 +32,15 @@ unsafe extern "system" fn console_ctrl_handler(_ctrl_type: u32) -> i32 {
 
 pub fn init_platform_on_startup() -> Result<(), String> {
     unsafe {
+        // Windows 다중 모니터 이종 DPI(QHD 100% / 4K 150~200% 등) 환경에서 DPI Virtualization으로 인한
+        // ClientToScreen 좌표 축소 및 캡처 찌그러짐(ROI Scale 0.158x) 현상을 원천 방지
+        #[link(name = "user32")]
+        extern "system" {
+            fn SetProcessDpiAwarenessContext(value: isize) -> i32;
+        }
+        const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: isize = -4;
+        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
         windows_sys::Win32::System::Console::SetConsoleCtrlHandler(Some(console_ctrl_handler), 1);
     }
     Ok(())
