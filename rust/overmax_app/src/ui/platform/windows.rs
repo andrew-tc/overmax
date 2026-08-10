@@ -248,7 +248,7 @@ pub fn draw_custom_cursor(painter: &egui::Painter, p: egui::Pos2) {
     use egui::{Color32, Stroke};
     let len = 6.0;
 
-    let stroke_black = Stroke::new(2.5, Color32::BLACK);
+    let stroke_black = Stroke::new(2.5_f32, Color32::BLACK);
     painter.line_segment(
         [egui::pos2(p.x - len, p.y), egui::pos2(p.x + len, p.y)],
         stroke_black,
