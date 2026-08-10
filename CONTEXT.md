@@ -248,6 +248,7 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 | 2026-08-10 | Capture Backend 런타임 실시간 스위칭 및 GDI 기본값 전환 | 설정 UI에서 Capture Backend(GDI/DXGI) 변경 시 디텍션 워커가 런타임에 즉시 engine을 스위칭하도록 동기화하고, 안정성 중심의 GDI 백엔드를 기본값으로 전환 | [detection_worker.rs](rust/overmax_engine/src/detector/detection_worker.rs) / [windows/mod.rs](rust/overmax_engine/src/capture/capture_engine/windows/mod.rs) / [settings_ui.rs](rust/overmax_app/src/ui/settings_ui.rs) |
 | 2026-08-10 | DXGI 백엔드 다중 모니터 Output 동적 탐색 및 로컬 오프셋 변환 지원 | DXGI Desktop Duplication 사용 시 서브 모니터에서 게임 구동 시 디텍션이 동작하지 않던 문제를 해결하기 위해, 게임 창 위치에 따른 DXGI Output1 동적 탐색 및 캡처 크롭 오프셋 변환 구현 | [dxgi.rs](rust/overmax_engine/src/capture/capture_engine/windows/dxgi.rs) |
 | 2026-08-10 | 오버레이 Scale 피드백 루프 해소 및 동적 Height Auto-Fit 적용 | `scale` 조절 시 이전 뷰포트 크기가 매 프레임 InnerSize를 덮어씌워 창 크기가 스케일에 반응하지 않던 피드백 루프를 제거하고, Width 고정 + 폰트 렌더링 결과 높이(`rect.height()`) 동적 핏을 적용하여 스케일 조절 시 유격 0px의 완벽한 오버레이 Fit 구현 | [native_app_viewports.rs](rust/overmax_app/src/ui/native_app_viewports.rs) |
+| 2026-08-10 | 오버레이 패널 RGBA Alpha 렌더링 전환 및 Windows 11 DWM 1px Border 제거 | `SetLayeredWindowAttributes` 사각형 전체 알파 덮어쓰기로 인한 둥근 모서리 바깥쪽 반투명 틴트 사각형 비침 현상을 패널 RGBA Alpha `Theme::with_opacity` 렌더링으로 전환해 완전 소거하고, `DwmSetWindowAttribute(DWMWA_BORDER_COLOR)` 속성 주입으로 Win11 1px 테두리 보더 100% 제거 | [overlay_theme.rs](rust/overmax_app/src/ui/overlay_theme.rs) / [overlay_ui.rs](rust/overmax_app/src/ui/overlay_ui.rs) / [native_app_viewports.rs](rust/overmax_app/src/ui/native_app_viewports.rs) |
 
 ## Linux 지원 결정 기록
 

@@ -476,23 +476,20 @@ impl NativeApp {
         self.render_overlay_panel(
             ui,
             scale,
+            opacity,
             height,
             &snap_position,
             overlay_on,
             &mut force_topmost,
         );
 
-        // Windows 전용: 전체 창 투명도 및 최상위 권한 적용 (게임 미실행 시에도 opacity 0.0 및 WS_EX_LAYERED를 즉시 적용하여 까만 뷰포트 노출 차단)
-        let target_opacity = if overlay_on { opacity } else { 0.0 };
-        let found = self.apply_window_opacity(target_opacity, force_topmost);
+        // Windows 전용: 오버레이 창 가시성 및 최상위 권한 적용 (게임 미실행 시 숨김 처리하여 까만 뷰포트 노출 차단)
+        let found = self.apply_window_visibility(overlay_on, force_topmost);
         if !found && overlay_on && !self.platform.win_cache.logged_opacity_fail {
             debug_ui::push_log(
                 &self.debug_state.log_lines,
                 self.max_log_lines(),
-                format!(
-                    "[Overlay] 투명도 조절용 창 핸들을 찾지 못함 (Opacity: {:.2})",
-                    opacity
-                ),
+                "[Overlay] 오버레이 스타일 적용용 창 핸들을 찾지 못함".to_string(),
             );
             self.platform.win_cache.logged_opacity_fail = true;
         }
@@ -771,10 +768,12 @@ impl NativeApp {
     }
 
     #[cfg(target_os = "windows")]
+    #[allow(clippy::too_many_arguments)]
     fn render_overlay_panel(
         &mut self,
         ui: &mut egui::Ui,
         scale: f32,
+        opacity: f32,
         height: f32,
         snap_position: &str,
         overlay_on: bool,
@@ -820,6 +819,7 @@ impl NativeApp {
                         settings_open: self.ui_state.settings_open.clone(),
                         sync_open: self.ui_state.sync_open.clone(),
                         scale,
+                        opacity,
                         varchive_upload_needed: self.current_pattern_needs_upload(),
                         varchive_account_configured: self.is_varchive_account_configured(),
                         lite_mode: height == overlay_ui::LITE_BASE_HEIGHT,
@@ -927,12 +927,7 @@ impl NativeApp {
         is_act
     }
 
-    fn check_cached_window_opacity(
-        &self,
-        hwnd: HWND,
-        target_opacity: f32,
-        is_active: bool,
-    ) -> bool {
+    fn check_cached_window_style(&self, hwnd: HWND, visible: bool, is_active: bool) -> bool {
         use windows_sys::Win32::UI::WindowsAndMessaging::*;
         if unsafe { IsWindow(hwnd) } == 0 {
             return false;
@@ -961,8 +956,8 @@ impl NativeApp {
         if success == 0 || (flags & 0x00000002) == 0 {
             return false;
         }
-        let current_opacity = alpha as f32 / 255.0;
-        (target_opacity - current_opacity).abs() < 0.005
+        let expected_alpha: u8 = if visible { 255 } else { 0 };
+        alpha == expected_alpha
     }
 
     fn find_overlay_window(&self) -> Option<HWND> {
@@ -1052,7 +1047,37 @@ impl NativeApp {
         g_hwnd
     }
 
-    fn apply_style_and_opacity(hwnd: HWND, is_active: bool, opacity: f32) -> bool {
+    #[cfg(target_os = "windows")]
+    fn disable_dwm_window_border(hwnd: HWND) {
+        #[link(name = "dwmapi")]
+        extern "system" {
+            fn DwmSetWindowAttribute(
+                hwnd: HWND,
+                dwAttribute: u32,
+                pvAttribute: *const std::ffi::c_void,
+                cbAttribute: u32,
+            ) -> i32;
+        }
+
+        let border_color: u32 = 0xFFFFFFFE; // DWMWCB_NONE
+        unsafe {
+            DwmSetWindowAttribute(
+                hwnd,
+                34, // DWMWA_BORDER_COLOR
+                &border_color as *const _ as *const _,
+                std::mem::size_of::<u32>() as u32,
+            );
+            let corner_pref: u32 = 1; // DWMWCP_DONOTROUND
+            DwmSetWindowAttribute(
+                hwnd,
+                33, // DWMWA_WINDOW_CORNER_PREFERENCE
+                &corner_pref as *const _ as *const _,
+                std::mem::size_of::<u32>() as u32,
+            );
+        }
+    }
+
+    fn apply_style_and_visibility(hwnd: HWND, is_active: bool, visible: bool) -> bool {
         use windows_sys::Win32::UI::WindowsAndMessaging::*;
         unsafe {
             if IsWindow(hwnd) == 0 {
@@ -1081,14 +1106,16 @@ impl NativeApp {
                 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED,
             );
-            SetLayeredWindowAttributes(hwnd, 0, (opacity * 255.0) as u8, 0x00000002) != 0
+
+            let layered_alpha: u8 = if visible { 255 } else { 0 };
+            SetLayeredWindowAttributes(hwnd, 0, layered_alpha, 0x00000002) != 0
         }
     }
 
-    fn apply_window_opacity(&mut self, opacity: f32, force_topmost: bool) -> bool {
+    fn apply_window_visibility(&mut self, visible: bool, force_topmost: bool) -> bool {
         use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
-        // 1. 캐싱된 핸들이 있고 투명도가 올바르게 유지되고 있다면 조기 반환
+        // 1. 캐싱된 핸들이 있고 스타일이 올바르게 유지되고 있다면 조기 반환
         if let Some(hwnd_val) = self.platform.win_cache.cached_hwnd {
             let hwnd = hwnd_val as HWND;
             let game_hwnd = self.game_hwnd_cached();
@@ -1113,13 +1140,17 @@ impl NativeApp {
                 }
             }
 
-            if self.check_cached_window_opacity(hwnd, opacity, is_active) {
+            if self.check_cached_window_style(hwnd, visible, is_active) {
                 return true;
             }
 
-            // 캐시된 핸들은 유효하나 스타일이나 투명도가 풀린 경우: 바로 재적용 시도
-            if Self::apply_style_and_opacity(hwnd, is_active, opacity) {
-                self.platform.win_cache.last_applied_opacity = Some(opacity);
+            // 캐시된 핸들은 유효하나 스타일이 풀린 경우: 바로 재적용 시도
+            if Self::apply_style_and_visibility(hwnd, is_active, visible) {
+                if !self.platform.win_cache.dwm_border_disabled {
+                    Self::disable_dwm_window_border(hwnd);
+                    self.platform.win_cache.dwm_border_disabled = true;
+                }
+                self.platform.win_cache.last_applied_visible = Some(visible);
                 return true;
             }
         }
@@ -1130,8 +1161,8 @@ impl NativeApp {
                 &self.debug_state.log_lines,
                 self.max_log_lines(),
                 format!(
-                    "[Win32] 투명도 업데이트 시도: {:.2} (HWND: {:?})",
-                    opacity, hwnd
+                    "[Win32] 오버레이 스타일 적용 시도: visible={} (HWND: {:?})",
+                    visible, hwnd
                 ),
             );
 
@@ -1139,9 +1170,12 @@ impl NativeApp {
 
             let is_active = self.determine_active_state(game_hwnd);
 
-            if Self::apply_style_and_opacity(hwnd, is_active, opacity) {
+            if Self::apply_style_and_visibility(hwnd, is_active, visible) {
                 self.platform.win_cache.cached_hwnd = Some(hwnd as isize);
-                self.platform.win_cache.last_applied_opacity = Some(opacity);
+                self.platform.win_cache.last_applied_visible = Some(visible);
+                self.platform.win_cache.dwm_border_disabled = false; // 새 HWND이므로 리셋
+                Self::disable_dwm_window_border(hwnd);
+                self.platform.win_cache.dwm_border_disabled = true;
                 return true;
             }
         }

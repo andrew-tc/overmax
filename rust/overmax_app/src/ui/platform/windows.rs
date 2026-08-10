@@ -177,9 +177,10 @@ pub fn native_options(settings: &overmax_data::Settings) -> eframe::NativeOption
 pub struct WindowsWindowCache {
     pub cached_hwnd: Option<isize>,
     pub cached_game_hwnd: Option<isize>,
-    pub last_applied_opacity: Option<f32>,
+    pub last_applied_visible: Option<bool>,
     pub logged_opacity_fail: bool,
     pub prev_snap_geometry: Option<(i32, i32, i32, i32)>,
+    pub dwm_border_disabled: bool,
 }
 
 pub struct PlatformState {

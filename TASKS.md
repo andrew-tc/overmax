@@ -102,5 +102,8 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
 - [x] **일반 모드 오버레이 `scale` 피드백 루프 해소 및 동적 Height Auto-Fit 구현**
   - [x] 매 프레임 `InnerSize`를 덮어써 `scale` 조절 시 창 크기가 확대/축소되지 않던 피드백 루프 전면 제거
   - [x] 배율 너비 고정(`BASE_WIDTH * scale`) + 폰트/패널 실제 렌더링 높이(`rect.height()`) 동적 Height Auto-Fit을 적용하여 스케일 조절 시 유격 0px의 완벽한 창 Fit 달성
+- [x] **오버레이 패널 RGBA Alpha 렌더링 전환 및 Windows 11 DWM 1px Border 소거**
+  - [x] Win32 `SetLayeredWindowAttributes` 사각형 전체 알파 덮어쓰기를 차단하고 `Theme::with_opacity` 패널 fill RGBA 렌더링으로 전환해 Windows 10/11 둥근 모서리 바깥쪽 반투명 틴트 사각형 비침 현상 100% 소거
+  - [x] Win11 전용 `DWMWA_BORDER_COLOR` (`0xFFFFFFFE`) 속성 주입으로 Windows 11 1px 테두리 보더 100% 제거
 
 

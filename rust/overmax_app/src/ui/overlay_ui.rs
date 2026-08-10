@@ -84,6 +84,7 @@ pub struct OverlayProps<'a> {
     pub settings_open: Arc<AtomicBool>,
     pub sync_open: Arc<AtomicBool>,
     pub scale: f32,
+    pub opacity: f32,
     pub varchive_upload_needed: bool,
     pub varchive_account_configured: bool,
     pub lite_mode: bool,
@@ -103,6 +104,8 @@ pub fn draw_overlay_panel(ui: &mut egui::Ui, props: &OverlayProps) -> OverlayAct
         });
         ui.ctx().set_debug_on_hover(false);
     }
+
+    ui.set_opacity(props.opacity);
 
     if props.lite_mode {
         return LitePanel::show(ui, props);
