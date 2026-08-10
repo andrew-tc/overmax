@@ -405,7 +405,7 @@ fn default_background_sleep() -> u64 {
     500
 }
 fn default_capture_engine() -> String {
-    "dxgi".to_string()
+    "gdi".to_string()
 }
 fn default_content_protected() -> bool {
     true

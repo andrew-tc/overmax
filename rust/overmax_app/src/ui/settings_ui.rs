@@ -492,25 +492,25 @@ fn capture_section(ui: &mut egui::Ui, draft: &mut Value) {
         let mut engine = screen_capture
             .get("engine")
             .and_then(Value::as_str)
-            .unwrap_or("dxgi")
+            .unwrap_or("gdi")
             .to_string();
 
         form_row(ui, "캡처 방식 (Windows)", |ui| {
             let mut changed = false;
             egui::ComboBox::from_id_salt("capture_engine_combo")
                 .selected_text(match engine.as_str() {
-                    "gdi" => "GDI (호환성 모드)",
-                    _ => "DXGI (기본값 / 고성능)",
+                    "dxgi" => "DXGI (실험적 / 고성능)",
+                    _ => "GDI (기본값 / 안정적)",
                 })
                 .show_ui(ui, |ui| {
                     if ui
-                        .selectable_value(&mut engine, "dxgi".to_string(), "DXGI (기본값 / 고성능)")
+                        .selectable_value(&mut engine, "gdi".to_string(), "GDI (기본값 / 안정적)")
                         .clicked()
                     {
                         changed = true;
                     }
                     if ui
-                        .selectable_value(&mut engine, "gdi".to_string(), "GDI (호환성 모드)")
+                        .selectable_value(&mut engine, "dxgi".to_string(), "DXGI (실험적 / 고성능)")
                         .clicked()
                     {
                         changed = true;

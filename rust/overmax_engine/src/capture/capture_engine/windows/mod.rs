@@ -10,8 +10,8 @@ use gdi::GdiCaptureEngine;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PreferredCaptureEngine {
     #[default]
-    Dxgi,
     Gdi,
+    Dxgi,
     Auto,
 }
 
@@ -20,9 +20,9 @@ impl std::str::FromStr for PreferredCaptureEngine {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s.to_ascii_lowercase().as_str() {
-            "gdi" => Self::Gdi,
+            "dxgi" => Self::Dxgi,
             "auto" => Self::Auto,
-            _ => Self::Dxgi,
+            _ => Self::Gdi,
         })
     }
 }
@@ -46,7 +46,7 @@ impl AdaptiveCaptureEngine {
             last_dxgi_init_attempt: std::time::Instant::now()
                 .checked_sub(std::time::Duration::from_secs(5))
                 .unwrap_or_else(std::time::Instant::now),
-            preferred_engine: PreferredCaptureEngine::Dxgi,
+            preferred_engine: PreferredCaptureEngine::Gdi,
         })
     }
 
