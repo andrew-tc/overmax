@@ -97,7 +97,7 @@ pub fn draw_overlay_panel(ui: &mut egui::Ui, props: &OverlayProps) -> OverlayAct
     // 레이아웃 경고(노란 선) 강제 비활성화
     #[cfg(debug_assertions)]
     {
-        ui.ctx().style_mut(|s| {
+        ui.ctx().all_styles_mut(|s| {
             s.debug.show_expand_width = false;
             s.debug.show_expand_height = false;
         });
@@ -314,8 +314,8 @@ mod tests {
             let mut h_normal = 0.0;
             let mut h_perfect = 0.0;
 
-            let _ = ctx.run(egui::RawInput::default(), |ctx| {
-                egui::CentralPanel::default().show(ctx, |ui| {
+            let mut out1 = ctx.run_ui(egui::RawInput::default(), |ui| {
+                egui::CentralPanel::default().show(ui, |ui| {
                     let px = super::Px::new(scale);
                     let settings_open =
                         std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -337,9 +337,10 @@ mod tests {
                     h_detecting = ui.cursor().top() - start_y;
                 });
             });
+            out1.textures_delta.clear();
 
-            let _ = ctx.run(egui::RawInput::default(), |ctx| {
-                egui::CentralPanel::default().show(ctx, |ui| {
+            let mut out2 = ctx.run_ui(egui::RawInput::default(), |ui| {
+                egui::CentralPanel::default().show(ui, |ui| {
                     let px = super::Px::new(scale);
                     let settings_open =
                         std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -361,9 +362,10 @@ mod tests {
                     h_no_badge = ui.cursor().top() - start_y;
                 });
             });
+            out2.textures_delta.clear();
 
-            let _ = ctx.run(egui::RawInput::default(), |ctx| {
-                egui::CentralPanel::default().show(ctx, |ui| {
+            let mut out3 = ctx.run_ui(egui::RawInput::default(), |ui| {
+                egui::CentralPanel::default().show(ui, |ui| {
                     let px = super::Px::new(scale);
                     let settings_open =
                         std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -385,9 +387,10 @@ mod tests {
                     h_normal = ui.cursor().top() - start_y;
                 });
             });
+            out3.textures_delta.clear();
 
-            let _ = ctx.run(egui::RawInput::default(), |ctx| {
-                egui::CentralPanel::default().show(ctx, |ui| {
+            let mut out4 = ctx.run_ui(egui::RawInput::default(), |ui| {
+                egui::CentralPanel::default().show(ui, |ui| {
                     let px = super::Px::new(scale);
                     let settings_open =
                         std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -409,6 +412,7 @@ mod tests {
                     h_perfect = ui.cursor().top() - start_y;
                 });
             });
+            out4.textures_delta.clear();
 
             println!(
                 "Scale: {:.2} -> detecting: {}, no_badge: {}, normal: {}, perfect: {}",

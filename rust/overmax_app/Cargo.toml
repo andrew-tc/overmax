@@ -22,32 +22,32 @@ path = "src/bin/verify_pipeline.rs"
 
 [dependencies]
 overmax-engine = { path = "../overmax_engine" }
-eframe = { version = "0.33.2", default-features = false, features = [
+eframe = { version = "0.36.1", default-features = false, features = [
     "default_fonts",
     "glow",
     "wayland",
     "x11",
 ] }
-egui = "0.33.2"
+egui = "0.36.1"
 overmax-core = { path = "../overmax_core" }
 overmax-data = { path = "../overmax_data" }
 overmax_cv = { path = "../overmax_cv" }
-reqwest = { version = "0.13.3", default-features = false, features = [
+reqwest = { version = "0.13.4", default-features = false, features = [
     "blocking",
     "json",
     "native-tls",
 ] }
-serde = { version = "1.0.228", features = ["derive"] }
+serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10.8"
 zip = { version = "2.4", default-features = false, features = ["deflate"] }
 rfd = "0.15"
-image = { version = "0.25", default-features = false, features = ["png", "ico", "jpeg"] }
+image = { version = "0.25.10", default-features = false, features = ["png", "ico", "jpeg"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 smithay-client-toolkit = { version = "0.20", default-features = false }
 wayland-client = { version = "0.31", features = ["system"] }
-egui-wgpu = { version = "0.33.3", default-features = false }
+egui-wgpu = { version = "0.36.1", default-features = false }
 # ponytail: M0's Intel target has a Vulkan ICD; add GLES only after a supported target needs it.
 wgpu = { version = "27.0.1", default-features = false, features = ["std", "wgsl", "vulkan"] }
 raw-window-handle = "0.6"

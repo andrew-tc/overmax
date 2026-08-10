@@ -49,7 +49,7 @@ pub fn close_if_requested(ctx: &egui::Context, open: &Arc<AtomicBool>) {
 }
 
 pub fn render_debug(
-    ctx: &egui::Context,
+    ui: &mut egui::Ui,
     class: ViewportClass,
     title: &str,
     lines: &Arc<Mutex<VecDeque<Arc<str>>>>,
@@ -57,10 +57,10 @@ pub fn render_debug(
     filters: &Arc<Mutex<std::collections::HashMap<String, bool>>>,
     app_state: &DebugAppStateSnapshot,
 ) {
-    apply_secondary_window_style(ctx);
+    apply_secondary_window_style(ui.ctx());
 
-    if class == ViewportClass::Embedded {
-        egui::Window::new(title).show(ctx, |ui| {
+    if class == ViewportClass::EmbeddedWindow {
+        egui::Window::new(title).show(ui.ctx(), |ui| {
             render_app_state_dashboard(ui, app_state);
             ui.add_space(8.0);
             render_controls(ui, lines, paused, filters);
@@ -74,7 +74,7 @@ pub fn render_debug(
                     .fill(Theme::PANEL_BG)
                     .inner_margin(Margin::same(20)),
             )
-            .show(ctx, |ui| {
+            .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 8.0;
                     ui.label(

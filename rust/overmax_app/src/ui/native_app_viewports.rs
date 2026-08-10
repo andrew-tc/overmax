@@ -50,20 +50,21 @@ impl NativeApp {
         ctx.show_viewport_deferred(
             native_helpers::vp_debug(),
             Self::auxiliary_viewport(&title, [720.0, 480.0]),
-            move |ctx, class| {
+            move |ui, class| {
                 // 디버그 창이 비활성(Inactive) 상태라도 게임 플레이 중 탐지 결과 및 로그가 실시간 모니터링되도록 갱신 요청
-                ctx.request_repaint_after(std::time::Duration::from_millis(200));
+                ui.ctx()
+                    .request_repaint_after(std::time::Duration::from_millis(200));
 
                 #[cfg(debug_assertions)]
-                ctx.style_mut(|s| {
+                ui.ctx().all_styles_mut(|s| {
                     s.debug.show_expand_width = false;
                     s.debug.show_expand_height = false;
                     s.debug.show_resize = false;
                     s.debug.show_unaligned = false;
                     s.debug.debug_on_hover = false;
                 });
-                debug_ui::render_debug(ctx, class, &title, &lines, &paused, &filters, &app_state);
-                debug_ui::close_if_requested(ctx, &open);
+                debug_ui::render_debug(ui, class, &title, &lines, &paused, &filters, &app_state);
+                debug_ui::close_if_requested(ui.ctx(), &open);
             },
         );
     }
@@ -191,10 +192,10 @@ impl NativeApp {
         ctx.show_viewport_deferred(
             native_helpers::vp_settings(),
             Self::auxiliary_viewport("Overmax 설정", [520.0, 560.0]),
-            move |ctx, class| {
-                ctx.set_pixels_per_point(1.0);
+            move |ui, class| {
+                ui.ctx().set_pixels_per_point(1.0);
                 #[cfg(debug_assertions)]
-                ctx.style_mut(|s| {
+                ui.ctx().all_styles_mut(|s| {
                     s.debug.show_expand_width = false;
                     s.debug.show_expand_height = false;
                     s.debug.show_resize = false;
@@ -202,13 +203,13 @@ impl NativeApp {
                     s.debug.debug_on_hover = false;
                 });
                 let mut local_draft = overmax_core::lock_clone_or_default(&draft);
-                egui::TopBottomPanel::bottom("sett_actions")
+                egui::Panel::bottom("sett_actions")
                     .frame(
                         egui::Frame::new()
                             .fill(Theme::PANEL_BG)
                             .inner_margin(egui::Margin::symmetric(24, 16)),
                     )
-                    .show(ctx, |ui| {
+                    .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.with_layout(
                                 egui::Layout::right_to_left(egui::Align::Center),
@@ -252,7 +253,7 @@ impl NativeApp {
                         });
                     });
                 settings_ui::render_settings_deferred(
-                    ctx,
+                    ui,
                     class,
                     "설정",
                     &mut local_draft,
@@ -261,7 +262,7 @@ impl NativeApp {
                 if let Ok(mut d) = draft.lock() {
                     *d = local_draft;
                 }
-                settings_ui::close_if_requested(ctx, &open);
+                settings_ui::close_if_requested(ui.ctx(), &open);
             },
         );
     }
@@ -283,10 +284,10 @@ impl NativeApp {
         ctx.show_viewport_deferred(
             native_helpers::vp_sync(),
             Self::auxiliary_viewport("V-Archive 동기화", [560.0, 720.0]),
-            move |ctx, class| {
-                ctx.set_pixels_per_point(1.0);
+            move |ui, class| {
+                ui.ctx().set_pixels_per_point(1.0);
                 #[cfg(debug_assertions)]
-                ctx.style_mut(|s| {
+                ui.ctx().all_styles_mut(|s| {
                     s.debug.show_expand_width = false;
                     s.debug.show_expand_height = false;
                     s.debug.show_resize = false;
@@ -298,7 +299,7 @@ impl NativeApp {
                 let mut steam_g = overmax_core::lock_or_recover(&sync_state.steam_id);
                 let status_s = overmax_core::lock_clone_or_default(&sync_state.status);
                 sync_ui::render_sync(
-                    ctx,
+                    ui,
                     class,
                     sync_ui::SyncProps {
                         steam_id: &mut steam_g,
@@ -320,7 +321,7 @@ impl NativeApp {
                         },
                     },
                 );
-                sync_ui::close_if_requested(ctx, &open);
+                sync_ui::close_if_requested(ui.ctx(), &open);
             },
         );
     }
@@ -374,7 +375,8 @@ fn read_overlay_settings(
 }
 
 impl eframe::App for NativeApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
         if let Ok(mut holder) = self.ctx_holder.lock() {
             if holder.is_none() {
                 *holder = Some(ctx.clone());
@@ -388,7 +390,7 @@ impl eframe::App for NativeApp {
             }
             STYLE_INIT.with(|init| {
                 if !init.get() {
-                    ctx.style_mut(|s| {
+                    ctx.all_styles_mut(|s| {
                         s.debug.show_expand_width = false;
                         s.debug.show_expand_height = false;
                         s.debug.show_resize = false;
@@ -416,13 +418,13 @@ impl eframe::App for NativeApp {
             return;
         }
 
-        self.poll_and_drain_events(ctx);
+        self.poll_and_drain_events(&ctx);
 
-        self.show_debug_viewport(ctx);
-        self.show_settings_viewport(ctx);
-        self.show_sync_viewport(ctx);
+        self.show_debug_viewport(&ctx);
+        self.show_settings_viewport(&ctx);
+        self.show_sync_viewport(&ctx);
 
-        self.update_platform_overlay(ctx);
+        self.update_platform_overlay(ui);
     }
 
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
@@ -433,16 +435,17 @@ impl eframe::App for NativeApp {
 }
 
 impl NativeApp {
-    fn update_platform_overlay(&mut self, ctx: &egui::Context) {
+    fn update_platform_overlay(&mut self, ui: &mut egui::Ui) {
         #[cfg(target_os = "linux")]
-        self.publish_linux_overlay(ctx);
+        self.publish_linux_overlay(ui.ctx());
 
         #[cfg(target_os = "windows")]
-        self.render_windows_overlay(ctx);
+        self.render_windows_overlay(ui);
     }
 
     #[cfg(target_os = "windows")]
-    fn render_windows_overlay(&mut self, ctx: &egui::Context) {
+    fn render_windows_overlay(&mut self, ui: &mut egui::Ui) {
+        let ctx = ui.ctx();
         let ovs = read_overlay_settings(&self.settings.merged);
         let scale = ovs.scale;
         let opacity = ovs.opacity;
@@ -473,7 +476,7 @@ impl NativeApp {
         );
 
         self.render_overlay_panel(
-            ctx,
+            ui,
             scale,
             height,
             &snap_position,
@@ -772,7 +775,7 @@ impl NativeApp {
     #[cfg(target_os = "windows")]
     fn render_overlay_panel(
         &mut self,
-        ctx: &egui::Context,
+        ui: &mut egui::Ui,
         scale: f32,
         height: f32,
         snap_position: &str,
@@ -780,10 +783,10 @@ impl NativeApp {
         force_topmost: &mut bool,
     ) {
         let local_mouse =
-            crate::ui::platform::get_local_mouse_pos(ctx, self.platform.win_cache.cached_hwnd);
+            crate::ui::platform::get_local_mouse_pos(ui.ctx(), self.platform.win_cache.cached_hwnd);
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE.fill(Color32::from_rgba_unmultiplied(0, 0, 0, 0)))
-            .show(ctx, |ui| {
+            .show(ui, |ui| {
                 if !overlay_on {
                     self.platform.last_painted_rect = None;
                     return;
@@ -798,9 +801,10 @@ impl NativeApp {
                     let now = std::time::Instant::now();
                     if now >= toast.expires_at {
                         self.toast = None;
-                        ctx.request_repaint();
+                        ui.ctx().request_repaint();
                     } else {
-                        ctx.request_repaint_after(toast.expires_at.saturating_duration_since(now));
+                        ui.ctx()
+                            .request_repaint_after(toast.expires_at.saturating_duration_since(now));
                     }
                 }
 
@@ -827,17 +831,17 @@ impl NativeApp {
                 if actions.start_drag {
                     self.platform.is_dragging = true;
                 }
-                if actions.restore_game_focus || ctx.input(|i| !i.pointer.any_down()) {
+                if actions.restore_game_focus || ui.ctx().input(|i| !i.pointer.any_down()) {
                     self.platform.is_dragging = false;
                 }
 
-                self.handle_window_drag(ctx, actions.start_drag);
+                self.handle_window_drag(ui.ctx(), actions.start_drag);
 
                 if actions.restore_game_focus {
                     let settings = self.settings.get_merged();
                     window_tracker::restore_foreground_by_title(game_window_title(&settings));
 
-                    if let Some(rect) = ctx.input(|i| i.viewport().outer_rect) {
+                    if let Some(rect) = ui.ctx().input(|i| i.viewport().outer_rect) {
                         self.handle_ui_command(
                             crate::ui::ui_command::UiCommand::SetOverlayPosition {
                                 x: rect.min.x as i32,
@@ -848,7 +852,7 @@ impl NativeApp {
                 }
                 if let Some(command) = actions.command {
                     self.handle_ui_command(command);
-                    ctx.request_repaint();
+                    ui.ctx().request_repaint();
                 }
                 if actions.restore_game_focus || actions.start_drag {
                     *force_topmost = true;

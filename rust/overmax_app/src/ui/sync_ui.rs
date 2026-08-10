@@ -1,9 +1,7 @@
 //! V-Archive sync window: list candidates and trigger scan / upload.
 
 use crate::ui::overlay_theme::{apply_secondary_window_style, Theme};
-use eframe::egui::{
-    self, Color32, CornerRadius, Frame, Margin, RichText, ScrollArea, Stroke, ViewportClass,
-};
+use eframe::egui::{self, Color32, CornerRadius, Frame, Margin, RichText, Stroke, ViewportClass};
 use overmax_data::{matches_filter, RecordKey, SyncCandidate, SyncFilterSettings, LEVEL_LABELS};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -27,7 +25,7 @@ where
 }
 
 pub fn render_sync<F1, F2, F3, F4>(
-    ctx: &egui::Context,
+    ui: &mut egui::Ui,
     class: ViewportClass,
     props: SyncProps<F1, F2, F3, F4>,
 ) where
@@ -444,8 +442,8 @@ pub fn render_sync<F1, F2, F3, F4>(
             }
         }
 
-        ScrollArea::vertical()
-            .auto_shrink([false, false])
+        egui::ScrollArea::vertical()
+            .auto_shrink([false; 2])
             .show(ui, |ui| {
                 ui.style_mut().spacing.item_spacing.y = 12.0;
                 for c in sorted_candidates {
@@ -454,8 +452,8 @@ pub fn render_sync<F1, F2, F3, F4>(
             });
     };
 
-    if class == ViewportClass::Embedded {
-        egui::Window::new("V-Archive 동기화").show(ctx, |ui| body(ui));
+    if class == ViewportClass::EmbeddedWindow {
+        egui::Window::new("V-Archive 동기화").show(ui.ctx(), |ui| body(ui));
     } else {
         egui::CentralPanel::default()
             .frame(
@@ -463,7 +461,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                     .fill(Theme::PANEL_BG)
                     .inner_margin(Margin::same(24)),
             )
-            .show(ctx, |ui| body(ui));
+            .show(ui, |ui| body(ui));
     }
 }
 
@@ -497,7 +495,7 @@ fn toggle_btn(ui: &mut egui::Ui, text: &str, active: &mut bool, active_color: Co
 
 fn dual_thumb_range_slider(
     ui: &mut egui::Ui,
-    id_source: impl std::hash::Hash,
+    id_source: impl std::hash::Hash + std::fmt::Debug,
     min_val: &mut f64,
     max_val: &mut f64,
     min_limit: f64,

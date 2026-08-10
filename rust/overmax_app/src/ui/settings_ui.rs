@@ -625,14 +625,14 @@ fn recommend_provider_section(ui: &mut egui::Ui, draft: &mut Value) {
 }
 
 pub fn render_settings_deferred(
-    ctx: &egui::Context,
+    ui: &mut egui::Ui,
     class: ViewportClass,
     title: &str,
     draft: &mut Value,
     settings_ctx: &SettingsUiContext,
 ) {
-    if class == ViewportClass::Embedded {
-        egui::Window::new(title).show(ctx, |ui| render_settings_form(ui, draft, settings_ctx));
+    if class == ViewportClass::EmbeddedWindow {
+        egui::Window::new(title).show(ui.ctx(), |ui| render_settings_form(ui, draft, settings_ctx));
     } else {
         egui::CentralPanel::default()
             .frame(
@@ -640,7 +640,7 @@ pub fn render_settings_deferred(
                     .fill(Theme::PANEL_BG)
                     .inner_margin(Margin::same(24)),
             )
-            .show(ctx, |ui| render_settings_form(ui, draft, settings_ctx));
+            .show(ui, |ui| render_settings_form(ui, draft, settings_ctx));
     }
 }
 
