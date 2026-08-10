@@ -1112,7 +1112,7 @@ fn overlay_props(snapshot: &LinuxOverlaySnapshot) -> OverlayProps<'_> {
         varchive_upload_needed: snapshot.varchive_upload_needed,
         varchive_account_configured: snapshot.varchive_account_configured,
         lite_mode: snapshot.lite_mode,
-        is_snap_manual: snapshot.snap == "manual",
+        is_snap_manual: uses_manual_position(snapshot),
         record_manager: snapshot.record_manager.as_ref(),
         session_initial_record: snapshot.session_initial_record,
         toast: snapshot.toast.as_ref(),
@@ -1162,17 +1162,11 @@ fn degraded_message(snapshot: &LinuxOverlaySnapshot) -> &str {
     if let Some(error) = snapshot.capture_fatal.as_deref() {
         return error;
     }
-    match snapshot.window_snapshot {
-        Some(window) if !window.fullscreen => "Borderless fullscreen is required",
-        _ => "DJMAX RESPECT V window not found",
-    }
+    "DJMAX RESPECT V window not found"
 }
 
 fn is_degraded(snapshot: &LinuxOverlaySnapshot) -> bool {
-    snapshot.capture_fatal.is_some()
-        || snapshot
-            .window_snapshot
-            .is_none_or(|window| !window.fullscreen)
+    snapshot.capture_fatal.is_some() || snapshot.window_snapshot.is_none()
 }
 
 fn is_hidden(snapshot: &LinuxOverlaySnapshot) -> bool {
@@ -1180,7 +1174,6 @@ fn is_hidden(snapshot: &LinuxOverlaySnapshot) -> bool {
         && snapshot.window_snapshot.is_some_and(|window| {
             !window.foreground
                 || (!snapshot.always_visible
-                    && window.fullscreen
                     && snapshot.state.scene == overmax_core::SceneType::Unknown)
         })
 }
@@ -1208,13 +1201,25 @@ fn panel_size(snapshot: Option<&LinuxOverlaySnapshot>) -> (u32, u32) {
     )
 }
 
+fn uses_manual_position(snapshot: &LinuxOverlaySnapshot) -> bool {
+    snapshot.snap == "manual"
+        || snapshot
+            .window_snapshot
+            .is_some_and(|window| !window.fullscreen)
+}
+
 fn panel_margin(
     snapshot: &LinuxOverlaySnapshot,
     size: (u32, u32),
     output_origin: (i32, i32),
 ) -> (i32, i32) {
+    let snap = if uses_manual_position(snapshot) {
+        "manual"
+    } else {
+        &snapshot.snap
+    };
     calculate_margin(
-        &snapshot.snap,
+        snap,
         snapshot.position,
         snapshot.window_snapshot.map(|window| window.rect),
         size,
@@ -1596,8 +1601,9 @@ impl ProvidesRegistryState for Backend {
 #[cfg(test)]
 mod tests {
     use super::{
-        calculate_margin, intersection_area, panel_size, physical_size, LinuxLayerOverlayHandle,
-        LinuxOverlaySnapshot, PublishedSnapshots,
+        calculate_margin, intersection_area, overlay_props, panel_margin, panel_size,
+        physical_size, uses_manual_position, LinuxLayerOverlayHandle, LinuxOverlaySnapshot,
+        PublishedSnapshots,
     };
     use overmax_core::{GameSessionState, SceneType};
     use overmax_data::{RecommendResult, RecordDB, RecordManager};
@@ -1720,7 +1726,15 @@ mod tests {
         background.state.scene = SceneType::Freestyle;
         assert_eq!(panel_size(Some(&background)), (360, 406));
         background.window_snapshot.as_mut().unwrap().fullscreen = false;
-        assert_eq!(panel_size(Some(&background)), (320, 116));
+        background.snap = "bottom_right".to_string();
+        background.position = Some((25, 35));
+        assert_eq!(panel_size(Some(&background)), (360, 406));
+        assert!(uses_manual_position(&background));
+        assert!(overlay_props(&background).is_snap_manual);
+        assert_eq!(panel_margin(&background, (360, 406), (0, 0)), (25, 35));
+        background.window_snapshot.as_mut().unwrap().fullscreen = true;
+        assert!(!uses_manual_position(&background));
+        assert_eq!(panel_margin(&background, (360, 406), (0, 0)), (1544, 658));
 
         let (mut reader, writer) = UnixStream::pair().expect("UnixStream pair");
         reader
