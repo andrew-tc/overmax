@@ -428,9 +428,7 @@ impl eframe::App for NativeApp {
     }
 
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
-        // [R, G, B, A] - 윈도우 버퍼를 완전 투명하게 설정.
-        // OS 레벨의 전역 투명도(Layered Window Alpha)와 함께 작동함.
-        [0.0, 0.0, 0.0, 0.0]
+        egui::Rgba::TRANSPARENT.to_array()
     }
 }
 
@@ -642,8 +640,8 @@ impl NativeApp {
 
             if overlay_on {
                 ctx.send_viewport_cmd(ViewportCommand::InnerSize(Vec2::new(
-                    (overlay_ui::BASE_WIDTH * scale).ceil() + 2.0,
-                    (height * scale).ceil() + 2.0,
+                    (overlay_ui::BASE_WIDTH * scale).ceil(),
+                    (height * scale).ceil(),
                 )));
             } else {
                 ctx.send_viewport_cmd(ViewportCommand::InnerSize(Vec2::new(1.0, 1.0)));
@@ -711,8 +709,8 @@ impl NativeApp {
 
                         // 2. 현재 패널 높이(height)와 scale에 맞는 목표 물리적 크기(Physical Pixels) 구하기
                         let target_phys_w =
-                            (((overlay_ui::BASE_WIDTH * scale).ceil() + 2.0) * dpi_scale) as i32;
-                        let target_phys_h = (((height * scale).ceil() + 2.0) * dpi_scale) as i32;
+                            ((overlay_ui::BASE_WIDTH * scale).ceil() * dpi_scale) as i32;
+                        let target_phys_h = ((height * scale).ceil() * dpi_scale) as i32;
 
                         let margin_px = (16.0 * dpi_scale) as i32;
 
@@ -785,7 +783,11 @@ impl NativeApp {
         let local_mouse =
             crate::ui::platform::get_local_mouse_pos(ui.ctx(), self.platform.win_cache.cached_hwnd);
         egui::CentralPanel::default()
-            .frame(egui::Frame::NONE.fill(Color32::from_rgba_unmultiplied(0, 0, 0, 0)))
+            .frame(
+                egui::Frame::NONE
+                    .fill(Color32::from_rgba_unmultiplied(0, 0, 0, 0))
+                    .stroke(egui::Stroke::NONE),
+            )
             .show(ui, |ui| {
                 if !overlay_on {
                     self.platform.last_painted_rect = None;
@@ -836,6 +838,15 @@ impl NativeApp {
                 }
 
                 self.handle_window_drag(ui.ctx(), actions.start_drag);
+
+                if let Some(rect) = actions.response_rect {
+                    self.platform.last_painted_rect = Some(rect);
+                    let exact_size = rect.size();
+                    if exact_size.x > 1.0 && exact_size.y > 1.0 {
+                        ui.ctx()
+                            .send_viewport_cmd(ViewportCommand::InnerSize(exact_size));
+                    }
+                }
 
                 if actions.restore_game_focus {
                     let settings = self.settings.get_merged();

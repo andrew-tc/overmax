@@ -5,7 +5,7 @@ pub struct Theme;
 impl Theme {
     // Backgrounds
     pub const PANEL_BG: Color32 = Color32::from_rgb(18, 24, 38);
-    pub const PANEL_STROKE: Color32 = Color32::from_rgb(18, 24, 38);
+    pub const PANEL_STROKE: Color32 = Color32::TRANSPARENT;
     pub const HEADER_BG: Color32 = Color32::from_rgb(30, 40, 62);
     pub const SECTION_BG: Color32 = Color32::from_rgb(22, 30, 48);
     pub const ROW_BG: Color32 = Color32::from_rgb(36, 46, 70);
@@ -98,6 +98,7 @@ pub fn apply_secondary_window_style(ctx: &egui::Context) {
         s.visuals.selection.bg_fill = Theme::SECONDARY;
 
         s.visuals.window_corner_radius = Theme::R_LG.into();
+        s.visuals.window_stroke = egui::Stroke::NONE;
         s.visuals.window_shadow = egui::Shadow::NONE;
 
         s.spacing.item_spacing = egui::vec2(12.0, 12.0);

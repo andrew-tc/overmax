@@ -149,6 +149,7 @@ pub fn native_options(settings: &overmax_data::Settings) -> eframe::NativeOption
         .with_resizable(false)
         .with_decorations(false)
         .with_transparent(true)
+        .with_has_shadow(false)
         .with_taskbar(false)
         .with_always_on_top()
         .with_visible(!is_lite);

@@ -376,7 +376,12 @@ impl Backend {
         let renderer =
             egui_wgpu::Renderer::new(&device, format, egui_wgpu::RendererOptions::default());
         let egui_ctx = egui::Context::default();
-        egui_ctx.set_visuals(egui::Visuals::dark());
+        let mut visuals = egui::Visuals::dark();
+        visuals.panel_fill = egui::Color32::TRANSPARENT;
+        visuals.window_fill = egui::Color32::TRANSPARENT;
+        visuals.window_stroke = egui::Stroke::NONE;
+        visuals.window_shadow = egui::Shadow::NONE;
+        egui_ctx.set_visuals(visuals);
         if !overlay_ui::install_cjk_fonts(&egui_ctx) {
             return Err("No Korean font was found through fontconfig".to_string());
         }
