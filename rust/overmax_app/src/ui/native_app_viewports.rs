@@ -328,10 +328,13 @@ impl NativeApp {
 }
 
 struct OverlaySettingsSnapshot {
+    #[cfg(target_os = "windows")]
     scale: f32,
     opacity: f32,
+    #[cfg(target_os = "windows")]
     is_lite: bool,
     always_visible: bool,
+    #[cfg(target_os = "windows")]
     snap_position: String,
 }
 
@@ -340,15 +343,19 @@ fn read_overlay_settings(
 ) -> OverlaySettingsSnapshot {
     let Ok(m) = settings.lock() else {
         return OverlaySettingsSnapshot {
+            #[cfg(target_os = "windows")]
             scale: 1.0,
             opacity: 0.8,
+            #[cfg(target_os = "windows")]
             is_lite: false,
             always_visible: false,
+            #[cfg(target_os = "windows")]
             snap_position: "manual".into(),
         };
     };
     let overlay = m.get("overlay");
     OverlaySettingsSnapshot {
+        #[cfg(target_os = "windows")]
         scale: overlay
             .and_then(|o| o.get("scale"))
             .and_then(|v| v.as_f64())
@@ -357,6 +364,7 @@ fn read_overlay_settings(
             .and_then(|o| o.get("base_opacity"))
             .and_then(|v| v.as_f64())
             .unwrap_or(0.8) as f32,
+        #[cfg(target_os = "windows")]
         is_lite: overlay
             .and_then(|o| o.get("lite_mode"))
             .and_then(|v| v.as_bool())
@@ -365,6 +373,7 @@ fn read_overlay_settings(
             .and_then(|o| o.get("always_visible"))
             .and_then(|v| v.as_bool())
             .unwrap_or(false),
+        #[cfg(target_os = "windows")]
         snap_position: overlay
             .and_then(|o| o.get("position"))
             .and_then(|p| p.get("snap"))

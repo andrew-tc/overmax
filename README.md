@@ -83,7 +83,7 @@ cargo build --release -p overmax-app
 ### 빌드 및 배포 스크립트
 
 - `scripts/package-rust.ps1`: 전체 빌드 및 배포용 `overmax.zip`, `release_manifest.json` 생성 자동화 스크립트 (기존 배포 레이아웃과 동일한 규격 유지)
-- `scripts/package-linux.sh`: glibc 2.39 ABI 기준 x86_64 Linux `tar.gz` 생성
+- `scripts/package-linux.sh`: Ubuntu 22.04/glibc 2.35 ABI 기준 x86_64 Linux `tar.gz` 생성 및 smoke 검증
 
 ---
 

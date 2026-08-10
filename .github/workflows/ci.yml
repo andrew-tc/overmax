@@ -8,6 +8,7 @@ on:
       - 'Cargo.lock'
       - 'clippy.toml'
       - 'scripts/package-linux.sh'
+      - 'scripts/smoke-linux-bundle.sh'
       - 'scripts/package-rust.ps1'
       - '.github/**'
   push:
@@ -18,6 +19,7 @@ on:
       - 'Cargo.lock'
       - 'clippy.toml'
       - 'scripts/package-linux.sh'
+      - 'scripts/smoke-linux-bundle.sh'
       - 'scripts/package-rust.ps1'
       - '.github/**'
   workflow_dispatch:
@@ -44,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-latest]
+        os: [ubuntu-22.04, windows-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -60,7 +62,7 @@ jobs:
       - name: Clippy
         if: runner.os == 'Linux'
         run: cargo clippy --workspace --all-targets --locked
-      - name: Package Linux bundle
+      - name: Package and smoke Linux bundle
         if: github.event_name == 'workflow_dispatch' && runner.os == 'Linux' && (inputs.package_target == 'all' || inputs.package_target == 'linux')
         run: bash scripts/package-linux.sh
       - name: Upload Linux artifact

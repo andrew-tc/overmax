@@ -23,7 +23,7 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 - 인게임 성능 영향 최소화 (최우선 과제)
 - 자가 업데이트 및 락 제어: 업데이트 후 재시작 시 중복 실행 락(Named Mutex) 해제 지연으로 새 인스턴스가 조기 종료되는 것을 방지하기 위해, 부모 프로세스의 락 가드(`SingleInstanceGuard`)를 명시적으로 `drop()`한 후 새 프로세스를 spawn하고 기존 프로세스를 즉시 종료하는 안전한 재시작 워크플로우를 유지함.
 - Python 레거시 코드 완전 제거 및 순수 Rust 코드베이스로 전환 완료 (`rust/` workspace)
-- 스팀(Steam) 경로 탐색 및 계정 연동: V-Archive 연동 등을 위한 스팀 계정 정보(`loginusers.vdf`)를 탐색할 때, 하드코딩된 기본 경로 및 HKCU/HKLM 레지스트리를 먼저 조회합니다. 만약 검색에 실패할 경우 최종 폴백으로 실행 중인 `steam.exe` 프로세스를 Win32 Toolhelp 스냅샷 API로 스캔하여 실행 경로를 동적으로 검출합니다.
+- 스팀(Steam) 경로 탐색 및 계정 연동: V-Archive 연동 등을 위한 스팀 계정 정보(`loginusers.vdf`)를 탐색할 때 Windows는 기본 경로와 HKCU/HKLM 레지스트리, 실행 중인 `steam.exe` 순으로 조회한다. Linux는 `XDG_DATA_HOME`, native Steam 기본 경로, Flatpak Steam 데이터 경로 순으로 조회한다.
 - 현재 Windows 릴리스 및 실동작 지원 기준은 Windows 10 (버전 1809) / 11 64-bit이다.
 - 기존 사용자 파일과의 호환성 유지:
   - `settings.user.json` (사용자 설정 델타 저장)
@@ -36,12 +36,12 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 # Linux Support
 
 - **현재 상태**: Linux 핵심 실행 경로(창 추적 → 캡처 → 기존 디텍션 파이프라인 → native overlay)와 배포 번들 생성, hosted CI 검증이 연결되어 있다. Windows와 같은 범용 Linux 지원은 아니며 아래 범위만 지원 대상으로 본다.
-- **지원 범위**: x86_64, glibc 2.39 이상, Wayland `wlr-layer-shell`, XWayland의 XComposite 0.2 이상과 MIT-SHM 1.2 이상, Vulkan, fontconfig와 한글 글꼴이 필요하다. 게임과 앱은 같은 `DISPLAY`에서 실행하며 borderless fullscreen 단일 출력만 지원한다.
+- **지원 범위**: x86_64, glibc 2.35 이상, Wayland `wlr-layer-shell`, XWayland의 XComposite 0.2 이상과 MIT-SHM 1.2 이상, Vulkan, fontconfig와 한글 글꼴이 필요하다. 게임과 앱은 같은 `DISPLAY`에서 실행하며 borderless fullscreen 단일 출력만 지원한다.
 - **추적 및 캡처**: EWMH exact-title로 단일 X11 window를 선택하고 XComposite redirect와 MIT-SHM buffer는 유지한다. XWayland의 backing pixmap 교체로 frozen frame이 발생하지 않도록 named pixmap은 매 캡처마다 재획득·해제한다.
 - **오버레이**: Linux 전용 layer-shell surface가 공용 overlay snapshot을 렌더링한다. background window와 fullscreen의 `SceneType::Unknown` 상태에서는 숨기며, egui의 즉시·지연 repaint 요청을 Wayland frame callback과 poll timeout으로 처리한다.
 - **오류 처리**: 일시적 window/pixmap 오류는 다음 tick에 재시도하고, X11 transport 오류만 tracker와 capturer를 재연결한다. 지원하지 않는 extension·pixel layout 같은 영구 capability 오류는 fail closed 상태를 표시하고 재연결 루프를 중단한다.
 - **단일 인스턴스**: `XDG_RUNTIME_DIR/overmax.lock`을 프로세스 수명 동안 보유하여 캡처 워커, overlay, 설정 및 SQLite 캐시의 중복 실행을 방지한다.
-- **배포 및 CI**: 공식 x86_64 Linux tarball은 glibc 2.39 ABI 기준의 고정 CI 환경에서 생성한다. Linux/Windows build·test와 Linux clippy를 `--locked`로 실행하고, Xvfb+Openbox에서 window tracker, XComposite/MIT-SHM lifecycle 및 extension 부재 fail-closed 경로를 검증한다. 앱 시작 시 GitHub Releases의 Linux tarball에서 실행 파일만 원자적으로 교체하며, 사용자 승인 후 단일 인스턴스 락을 해제하고 재시작한다.
+- **배포 및 CI**: 공식 x86_64 Linux tarball은 Ubuntu 22.04/glibc 2.35 ABI 기준의 고정 CI 환경에서 생성한다. checksum, 번들 레이아웃, 실행 권한, headless `--version`, 동적 라이브러리와 GLIBC symbol 상한을 패키징 직후 검사하고, 실제 updater archive 계약으로 실행 파일 교체 및 사용자 설정·캐시 보존을 테스트한다. Linux/Windows build·test와 Linux clippy를 `--locked`로 실행하고, Xvfb+Openbox에서 window tracker, XComposite/MIT-SHM lifecycle 및 extension 부재 fail-closed 경로를 검증한다. 앱 시작 시 GitHub Releases의 Linux tarball에서 실행 파일만 원자적으로 교체하며, 사용자 승인 후 단일 인스턴스 락을 해제하고 재시작한다.
 - **실행 편의성**: 설정의 System 탭에서 현재 실행 파일과 실행 디렉터리를 사용하는 XDG 사용자 앱 메뉴용 `overmax.desktop`을 생성한다. Steam 시작 옵션은 Overmax를 백그라운드로 실행하되 `%command%` 게임 프로세스를 전면에 유지한다.
 - **미지원 범위**: Gamescope/Steam Deck Gaming Mode, native Wayland 게임 surface, XWayland 또는 `wlr-layer-shell`이 없는 세션, 창모드, 다중 출력, non-SHM 캡처 fallback과 시스템 트레이는 현재 지원하지 않는다.
 - **호환 원칙**: Linux 구현은 플랫폼 전용 코드와 공용 계약의 최소 확장만 허용한다. 공용 인식 로직, history 기반 안정화, 사용자 설정과 DB 구조의 기존 호환성을 Linux 검증 목적으로 변경하지 않는다.
@@ -264,3 +264,5 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 | 2026-08-03 | 캡처 오류 복구 정책 분리 | transport 오류만 재연결하고 영구 capability 오류의 반복 probe·로그·repaint를 중단해 성능 우선 제약을 유지 | [capture_engine.rs](rust/overmax_engine/src/capture/capture_engine.rs) / [detection_worker.rs](rust/overmax_engine/src/detector/detection_worker.rs) |
 | 2026-08-04 | Linux 앱 자동 업데이트 연결 | 기존 `self_update`와 공용 락 해제·재시작 흐름을 재사용하고 Linux tarball에서 실행 파일만 원자적으로 교체해 설정·캐시 호환성을 유지 | [linux.rs](rust/overmax_app/src/system/updater/linux.rs) / [package-linux.sh](scripts/package-linux.sh) |
 | 2026-08-04 | Linux 앱 메뉴 바로가기 및 Steam 동시 실행 안내 추가 | 실행 디렉터리 기반 설정·캐시 계약을 유지하면서 터미널 없는 실행과 게임 동시 시작을 지원 | [desktop_entry_linux.rs](rust/overmax_app/src/system/desktop_entry_linux.rs) / [linux-support.md](docs/linux-support.md) |
+| 2026-08-11 | Linux 배포 기준을 Ubuntu 22.04/glibc 2.35로 하향 | Ubuntu Base 22.04.5에서 실제 release tarball 생성·설치·업데이트와 max GLIBC_2.35를 확인하고, 동일한 smoke gate로 우발적인 ABI 상승을 차단 | [package-linux.sh](scripts/package-linux.sh) / [smoke-linux-bundle.sh](scripts/smoke-linux-bundle.sh) / [ci.yml](.github/workflows/ci.yml) |
+| 2026-08-11 | Flatpak Steam 경로 추가 | Flatpak 설치의 `loginusers.vdf`를 native 경로 다음 fallback으로 탐색해 기존 계정 연동 흐름을 그대로 재사용 | [linux.rs](rust/overmax_app/src/system/steam_session/linux.rs) |

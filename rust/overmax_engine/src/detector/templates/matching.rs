@@ -29,7 +29,7 @@ impl fmt::Debug for RateTelemetry {
 
 /// Rate 영역을 Pure Rust CV 템플릿 매칭으로 감지합니다.
 pub fn detect_rate(rate: &ImageView) -> (Option<f32>, String, Option<RateTelemetry>) {
-    let cv_templates = get_digit_templates(&super::digit::DIGIT_TEMPLATES_RATE);
+    let cv_templates = get_digit_templates(super::digit::DIGIT_TEMPLATES_RATE);
     let matched = match match_digits_template(rate, &cv_templates) {
         Ok(m) => m,
         Err(_) => return (None, String::new(), None),
@@ -59,7 +59,7 @@ pub fn detect_rate(rate: &ImageView) -> (Option<f32>, String, Option<RateTelemet
 
 /// Score 영역을 템플릿 매칭을 통해 정수로 파싱합니다.
 pub fn detect_score(score: &ImageView) -> Option<u32> {
-    let cv_templates = get_digit_templates(&super::digit::DIGIT_TEMPLATES_SCORE);
+    let cv_templates = get_digit_templates(super::digit::DIGIT_TEMPLATES_SCORE);
     match match_digits_template(score, &cv_templates) {
         Ok((matched_str, _, _, _)) => {
             let parsed = parse_score_text(&matched_str);

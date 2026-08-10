@@ -4,7 +4,7 @@ Overmax의 Linux 지원은 초기 단계입니다. Windows와 같은 범용 지�
 
 ## 지원 범위
 
-- x86_64 Linux와 glibc 2.39 이상
+- x86_64 Linux와 glibc 2.35 이상
 - Wayland 세션과 `wlr-layer-shell`을 지원하는 compositor
 - 같은 세션에서 동작하는 XWayland
 - XComposite 0.2 이상과 MIT-SHM 1.2 이상
@@ -13,7 +13,7 @@ Overmax의 Linux 지원은 초기 단계입니다. Windows와 같은 범용 지�
 - 같은 `DISPLAY`에서 Proton/XWayland로 실행한 DJMAX RESPECT V
 - 테두리 없는 전체화면과 단일 출력
 
-공식 Linux 배포 번들은 glibc 2.39 ABI를 기준으로 고정된 CI 환경에서 빌드합니다.
+공식 Linux 배포 번들은 Ubuntu 22.04의 glibc 2.35 ABI를 기준으로 고정된 CI 환경에서 빌드합니다. Ubuntu Base 22.04.5에서 release 빌드와 실제 tarball 설치·업데이트 smoke를 통과했으며, 배포 전 checksum, 번들 레이아웃, 실행 권한, `--version`, 동적 라이브러리와 GLIBC symbol 상한을 다시 확인합니다.
 
 ## 내 환경 확인하기
 
@@ -29,7 +29,7 @@ fc-match ':lang=ko' | head -n 1
 ```
 
 - `uname -m`: `x86_64`
-- `getconf GNU_LIBC_VERSION`: `glibc 2.39` 이상
+- `getconf GNU_LIBC_VERSION`: `glibc 2.35` 이상
 - 세션: `session=wayland`이며 `WAYLAND_DISPLAY`와 `DISPLAY`가 모두 설정됨
 - `ldd`: `not found`인 공유 라이브러리가 없음
 - `fc-match`: 사용할 한글 글꼴이 출력됨
@@ -67,7 +67,7 @@ Overmax는 백그라운드에서 시작하고 DJMAX는 Steam이 추적하는 게
 | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Permission denied`                                   | `chmod +x ./overmax`를 실행합니다.                                                                                                             |
 | `Exec format error` 또는 `uname -m`이 `x86_64`가 아님 | 현재 배포 번들은 x86_64에서만 실행할 수 있습니다.                                                                                              |
-| `GLIBC_2.39 not found` 또는 glibc 2.39 미만           | glibc 2.39 이상인 배포판에서 실행합니다. 시스템의 glibc 파일만 수동 교체하면 안 됩니다.                                                        |
+| `GLIBC_2.35 not found` 또는 glibc 2.35 미만           | glibc 2.35 이상인 배포판에서 실행합니다. 시스템의 glibc 파일만 수동 교체하면 안 됩니다.                                                        |
 | `ldd`에 `not found`가 표시됨                          | 표시된 공유 라이브러리를 제공하는 배포판 패키지를 설치합니다. `.so` 파일을 임의로 복사하지 마세요.                                             |
 | `WAYLAND_DISPLAY is not set`                          | 로그아웃한 뒤 Wayland 세션으로 로그인하고 같은 세션의 터미널에서 실행합니다. X11 전용 세션은 현재 지원하지 않습니다.                           |
 | `DISPLAY is not set` 또는 `X11 connect failed`        | XWayland를 활성화하고 게임과 Overmax를 같은 데스크톱 세션에서 실행합니다. 환경 변수 값을 임의로 만들지 마세요.                                 |

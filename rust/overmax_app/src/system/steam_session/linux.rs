@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub(super) fn find_steam_path() -> Option<String> {
     if let Ok(xdg_data_home) = std::env::var("XDG_DATA_HOME") {
@@ -12,6 +12,11 @@ pub(super) fn find_steam_path() -> Option<String> {
         for path in [
             home.join(".steam").join("steam"),
             home.join(".local").join("share").join("Steam"),
+            home.join(".var")
+                .join("app")
+                .join("com.valvesoftware.Steam")
+                .join("data")
+                .join("Steam"),
         ] {
             if has_loginusers_vdf(&path) {
                 return Some(path.to_string_lossy().into_owned());
@@ -21,6 +26,6 @@ pub(super) fn find_steam_path() -> Option<String> {
     None
 }
 
-fn has_loginusers_vdf(path: &PathBuf) -> bool {
+fn has_loginusers_vdf(path: &Path) -> bool {
     path.join("config").join("loginusers.vdf").exists()
 }
