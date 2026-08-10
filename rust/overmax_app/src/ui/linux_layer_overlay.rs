@@ -601,10 +601,10 @@ impl Backend {
         let mut actions = OverlayActions::default();
         let mut control_command = None;
         let ctx = self.egui_ctx.clone();
-        let full_output = ctx.run(raw_input, |ctx| {
+        let full_output = ctx.run_ui(raw_input, |ctx| {
             if let Some(snapshot) = &self.snapshot {
                 if !is_hidden(snapshot) && !is_degraded(snapshot) {
-                    egui::TopBottomPanel::bottom("linux_overlay_controls")
+                    egui::Panel::bottom("linux_overlay_controls")
                         .exact_height(CONTROLS_HEIGHT * snapshot.scale)
                         .frame(egui::Frame::NONE)
                         .show(ctx, |ui| {

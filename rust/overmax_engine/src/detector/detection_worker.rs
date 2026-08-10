@@ -176,7 +176,7 @@ impl DetectionWorker {
         }
     }
 
-    fn sync_live_settings(&mut self, capturer: &mut Box<dyn CaptureEngine>) {
+    fn sync_live_settings(&mut self, _capturer: &mut Box<dyn CaptureEngine>) {
         if let Ok(guard) = self.merged_settings.lock() {
             if let Ok(new_settings) = serde_json::from_value::<Settings>(guard.clone()) {
                 #[cfg(target_os = "windows")]
@@ -197,7 +197,7 @@ impl DetectionWorker {
                         self.log(format!(
                             "[Detection] capture backend updated: {old_pref:?} -> {new_pref:?}"
                         ));
-                        capturer.set_preferred_engine(new_pref);
+                        _capturer.set_preferred_engine(new_pref);
                     }
                 }
                 self.settings = new_settings;

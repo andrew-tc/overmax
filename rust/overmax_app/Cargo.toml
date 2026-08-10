@@ -49,7 +49,7 @@ smithay-client-toolkit = { version = "0.20", default-features = false }
 wayland-client = { version = "0.31", features = ["system"] }
 egui-wgpu = { version = "0.36.1", default-features = false }
 # ponytail: M0's Intel target has a Vulkan ICD; add GLES only after a supported target needs it.
-wgpu = { version = "27.0.1", default-features = false, features = ["std", "wgsl", "vulkan"] }
+wgpu = { version = "30.0.0", default-features = false, features = ["std", "wgsl", "vulkan"] }
 raw-window-handle = "0.6"
 pollster = "0.4"
 rustix = { version = "1", features = ["event"] }
