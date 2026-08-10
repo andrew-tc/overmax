@@ -86,7 +86,9 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
   - [x] `overlay.always_visible` 설정 항목 추가 (씬 감지 결과에 상관없이 오버레이를 항상 화면에 띄우도록 설정)
   - [x] 설정 UI(`settings_ui.rs`) 오버레이 탭에 "오버레이 항상 표시" 체크박스 추가 및 `native_app_viewports.rs` `overlay_on` 판정식에 연동
 - [x] **캡처 파이프라인 및 백엔드 설정 옵션화 (`capture`)**
-  - [x] `capture.engine` 설정 추가 (DXGI 기본값 / GDI 선택 지원)
+  - [x] `capture.engine` 설정 추가 (GDI 기본값 / DXGI 선택 지원)
+  - [x] `capture.engine` 런타임 동적 스위칭 지원 (앱 재시작 없이 런타임 변경 반영)
+  - [x] DXGI 캡처 백엔드의 다중 모니터(서브 모니터) Output 자동 탐색 및 가상 좌표 오프셋 변환 지원
   - [x] `capture.content_protected` 설정 추가 (기본값 `true`, 캡처 시 오버레이 화면 보호 및 캡처 노출 여부 제어)
   - [x] 설정 UI(`settings_ui.rs`)에 캡처 백엔드 드롭다운 및 Content Protection 체크박스/경고 문구 연동
 - [x] **디버그 창 실시간화 및 Real-time App State 대시보드 구축 (`debug`)**
