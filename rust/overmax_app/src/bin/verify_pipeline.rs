@@ -72,14 +72,28 @@ fn main() {
     // 3. DetectionPipeline 초기화
     let mut pipeline = DetectionPipeline::new(image_db);
 
-    // 4. 대상 폴더 매핑
-    let target_dirs = [
+    // 4. 대상 폴더/파일 구성
+    let args: Vec<String> = std::env::args().collect();
+    let default_dirs = [
         ("freestyle_songselect", "scratch/freestyle_songselect"),
         ("openmatch_songselect", "scratch/openmatch_songselect"),
         ("freestyle_results", "scratch/freestyle_results"),
         ("openmatch_results", "scratch/openmatch3_results"),
         ("other_screenshots", "scratch/other_screenshots"),
     ];
+
+    let scan_list: Vec<(String, String)> = if args.len() > 1 {
+        args[1..]
+            .iter()
+            .enumerate()
+            .map(|(i, arg)| (format!("custom_target_{}", i + 1), arg.clone()))
+            .collect()
+    } else {
+        default_dirs
+            .iter()
+            .map(|(l, d)| (l.to_string(), d.to_string()))
+            .collect()
+    };
 
     let mut txt_log = String::new();
     let mut md_summary = String::new();
@@ -93,14 +107,11 @@ fn main() {
 
     let mut global_file_idx = 0;
 
-    for &(label, dir_path) in &target_dirs {
+    for (label, dir_path) in &scan_list {
         let path = Path::new(dir_path);
         if !path.exists() {
-            eprintln!("\nDirectory {} does not exist. Skipping.", dir_path);
-            txt_log.push_str(&format!(
-                "\nDirectory {} does not exist. Skipping.\n",
-                dir_path
-            ));
+            eprintln!("\nPath {} does not exist. Skipping.", dir_path);
+            txt_log.push_str(&format!("\nPath {} does not exist. Skipping.\n", dir_path));
             continue;
         }
 
@@ -117,7 +128,9 @@ fn main() {
         md_summary.push_str("| :--- | :---: | :---: | :--- | :---: | :---: | :--- |\n");
 
         let mut files = Vec::new();
-        if let Ok(entries) = fs::read_dir(path) {
+        if path.is_file() {
+            files.push(path.to_path_buf());
+        } else if let Ok(entries) = fs::read_dir(path) {
             for entry in entries.filter_map(|e| e.ok()) {
                 let p = entry.path();
                 let ext = p

@@ -16,16 +16,9 @@ name = "overmax-rs"
 path = "src/main.rs"
 
 [[bin]]
-name = "test_screenshots"
-path = "src/bin/test_screenshots.rs"
+name = "verify_pipeline"
+path = "src/bin/verify_pipeline.rs"
 
-[[bin]]
-name = "sweep_test"
-path = "src/bin/sweep_test.rs"
-
-[[bin]]
-name = "test_freestyle_ocr"
-path = "src/bin/test_freestyle_ocr.rs"
 
 [dependencies]
 overmax-engine = { path = "../overmax_engine" }

@@ -16,16 +16,6 @@ name = "db_builder"
 path = "src/bin/db_builder.rs"
 required-features = ["db_builder"]
 
-[[bin]]
-name = "hash_only_test"
-path = "src/bin/hash_only_test.rs"
-required-features = ["db_builder"]
-
-[[bin]]
-name = "spike_histogram_test"
-path = "src/bin/spike_histogram_test.rs"
-required-features = ["db_builder"]
-
 
 [features]
 default = []
