@@ -841,10 +841,13 @@ impl NativeApp {
 
                 if let Some(rect) = actions.response_rect {
                     self.platform.last_painted_rect = Some(rect);
-                    let exact_size = rect.size();
-                    if exact_size.x > 1.0 && exact_size.y > 1.0 {
+                    let target_w = (overlay_ui::BASE_WIDTH * scale).ceil();
+                    let fit_h = rect.height().ceil();
+                    if target_w > 1.0 && fit_h > 1.0 {
                         ui.ctx()
-                            .send_viewport_cmd(ViewportCommand::InnerSize(exact_size));
+                            .send_viewport_cmd(ViewportCommand::InnerSize(Vec2::new(
+                                target_w, fit_h,
+                            )));
                     }
                 }
 
