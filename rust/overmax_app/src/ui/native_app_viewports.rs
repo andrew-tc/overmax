@@ -30,6 +30,8 @@ impl NativeApp {
             .with_inner_size(size)
             .with_visible(true)
             .with_resizable(true)
+            .with_decorations(true)
+            .with_transparent(false)
             .with_taskbar(true)
             .with_always_on_top()
     }
@@ -479,31 +481,19 @@ impl NativeApp {
             &mut force_topmost,
         );
 
-        // Windows 전용: 전체 창 투명도 및 최상위 권한 적용
-        if overlay_on {
-            let found = self.apply_window_opacity(opacity, force_topmost);
-            if !found && !self.platform.win_cache.logged_opacity_fail {
-                debug_ui::push_log(
-                    &self.debug_state.log_lines,
-                    self.max_log_lines(),
-                    format!(
-                        "[Overlay] 투명도 조절용 창 핸들을 찾지 못함 (Opacity: {:.2})",
-                        opacity
-                    ),
-                );
-                self.platform.win_cache.logged_opacity_fail = true;
-            }
-        } else {
-            // 숨겨질 때: 투명도를 즉시 0.0(완전 투명)으로 덮어씌워 윈도우 잔상 소멸을 보장
-            if let Some(hwnd) = self.find_overlay_window() {
-                unsafe {
-                    windows_sys::Win32::UI::WindowsAndMessaging::SetLayeredWindowAttributes(
-                        hwnd as _, 0, 0, 0x00000002,
-                    );
-                }
-            }
-            self.platform.win_cache.cached_hwnd = None;
-            self.platform.win_cache.last_applied_opacity = None;
+        // Windows 전용: 전체 창 투명도 및 최상위 권한 적용 (게임 미실행 시에도 opacity 0.0 및 WS_EX_LAYERED를 즉시 적용하여 까만 뷰포트 노출 차단)
+        let target_opacity = if overlay_on { opacity } else { 0.0 };
+        let found = self.apply_window_opacity(target_opacity, force_topmost);
+        if !found && overlay_on && !self.platform.win_cache.logged_opacity_fail {
+            debug_ui::push_log(
+                &self.debug_state.log_lines,
+                self.max_log_lines(),
+                format!(
+                    "[Overlay] 투명도 조절용 창 핸들을 찾지 못함 (Opacity: {:.2})",
+                    opacity
+                ),
+            );
+            self.platform.win_cache.logged_opacity_fail = true;
         }
     }
 }
