@@ -363,6 +363,8 @@ impl Backend {
             backends: wgpu::Backends::VULKAN,
             flags: wgpu::InstanceFlags::default(),
             backend_options: wgpu::BackendOptions::default(),
+            display: None,
+            memory_budget_thresholds: Default::default(),
         });
         let surface = create_wgpu_surface(&connection, &instance, &layer)?;
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
@@ -707,7 +709,6 @@ impl Backend {
                 .into_iter()
                 .chain(std::iter::once(encoder.finish())),
         );
-        frame.present();
         Ok(())
     }
 
@@ -724,16 +725,18 @@ impl Backend {
                 return Ok(None);
             };
             match surface.get_current_texture() {
-                wgpu::CurrentSurfaceTexture::Surface(frame)
+                wgpu::CurrentSurfaceTexture::Success(frame)
                 | wgpu::CurrentSurfaceTexture::Suboptimal(frame) => return Ok(Some(frame)),
                 wgpu::CurrentSurfaceTexture::Lost | wgpu::CurrentSurfaceTexture::Outdated => {
                     self.configure_surface();
                 }
-                wgpu::CurrentSurfaceTexture::Timeout => {
+                wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
                     self.needs_redraw = true;
                     return Ok(None);
                 }
-                _ => return Ok(None),
+                wgpu::CurrentSurfaceTexture::Validation => {
+                    return Err("Validation error getting current texture".to_string());
+                }
             }
         }
         self.needs_redraw = true;
