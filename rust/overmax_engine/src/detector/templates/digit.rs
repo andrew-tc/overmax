@@ -9,7 +9,7 @@ pub struct FontTemplate {
 }
 
 // Template for '0'
-const TEMPLATE_MASK_0: [u8; 576] = [
+const TEMPLATE_MASK_BOLD_0: [u8; 576] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -45,7 +45,7 @@ const TEMPLATE_MASK_0: [u8; 576] = [
 ];
 
 // Template for '1'
-const TEMPLATE_MASK_1: [u8; 480] = [
+const TEMPLATE_MASK_BOLD_1: [u8; 480] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -81,7 +81,7 @@ const TEMPLATE_MASK_1: [u8; 480] = [
 ];
 
 // Template for '2'
-const TEMPLATE_MASK_2: [u8; 512] = [
+const TEMPLATE_MASK_BOLD_2: [u8; 512] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -117,7 +117,7 @@ const TEMPLATE_MASK_2: [u8; 512] = [
 ];
 
 // Template for '8'
-const TEMPLATE_MASK_8: [u8; 512] = [
+const TEMPLATE_MASK_BOLD_8: [u8; 512] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -153,7 +153,7 @@ const TEMPLATE_MASK_8: [u8; 512] = [
 ];
 
 // Template for '3'
-const TEMPLATE_MASK_3: [u8; 544] = [
+const TEMPLATE_MASK_BOLD_3: [u8; 544] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -189,7 +189,7 @@ const TEMPLATE_MASK_3: [u8; 544] = [
 ];
 
 // Template for '4'
-const TEMPLATE_MASK_4: [u8; 608] = [
+const TEMPLATE_MASK_BOLD_4: [u8; 608] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -225,7 +225,7 @@ const TEMPLATE_MASK_4: [u8; 608] = [
 ];
 
 // Template for '5'
-const TEMPLATE_MASK_5: [u8; 512] = [
+const TEMPLATE_MASK_BOLD_5: [u8; 512] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -261,7 +261,7 @@ const TEMPLATE_MASK_5: [u8; 512] = [
 ];
 
 // Template for '6'
-const TEMPLATE_MASK_6: [u8; 544] = [
+const TEMPLATE_MASK_BOLD_6: [u8; 544] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -297,7 +297,7 @@ const TEMPLATE_MASK_6: [u8; 544] = [
 ];
 
 // Template for '7'
-const TEMPLATE_MASK_7: [u8; 480] = [
+const TEMPLATE_MASK_BOLD_7: [u8; 480] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -333,7 +333,7 @@ const TEMPLATE_MASK_7: [u8; 480] = [
 ];
 
 // Template for '9'
-const TEMPLATE_MASK_9: [u8; 512] = [
+const TEMPLATE_MASK_BOLD_9: [u8; 512] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -369,7 +369,7 @@ const TEMPLATE_MASK_9: [u8; 512] = [
 ];
 
 // Template for '.'
-const TEMPLATE_MASK_DOT: [u8; 160] = [
+const TEMPLATE_MASK_BOLD_DOT: [u8; 160] = [
     0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 
@@ -405,7 +405,7 @@ const TEMPLATE_MASK_DOT: [u8; 160] = [
 ];
 
 // Template for '%'
-const TEMPLATE_MASK_PERCENT: [u8; 736] = [
+const TEMPLATE_MASK_BOLD_PERCENT: [u8; 736] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -441,7 +441,7 @@ const TEMPLATE_MASK_PERCENT: [u8; 736] = [
 ];
 
 // Template for '0'
-const TEMPLATE_MASK_SCORE_0: [u8; 576] = [
+const TEMPLATE_MASK_LIGHT_0: [u8; 576] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -477,7 +477,7 @@ const TEMPLATE_MASK_SCORE_0: [u8; 576] = [
 ];
 
 // Template for '1'
-const TEMPLATE_MASK_SCORE_1: [u8; 448] = [
+const TEMPLATE_MASK_LIGHT_1: [u8; 448] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -513,7 +513,7 @@ const TEMPLATE_MASK_SCORE_1: [u8; 448] = [
 ];
 
 // Template for '2'
-const TEMPLATE_MASK_SCORE_2: [u8; 512] = [
+const TEMPLATE_MASK_LIGHT_2: [u8; 512] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -549,7 +549,7 @@ const TEMPLATE_MASK_SCORE_2: [u8; 512] = [
 ];
 
 // Template for '8'
-const TEMPLATE_MASK_SCORE_8: [u8; 512] = [
+const TEMPLATE_MASK_LIGHT_8: [u8; 512] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -585,7 +585,7 @@ const TEMPLATE_MASK_SCORE_8: [u8; 512] = [
 ];
 
 // Template for '3'
-const TEMPLATE_MASK_SCORE_3: [u8; 512] = [
+const TEMPLATE_MASK_LIGHT_3: [u8; 512] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -621,7 +621,7 @@ const TEMPLATE_MASK_SCORE_3: [u8; 512] = [
 ];
 
 // Template for '4'
-const TEMPLATE_MASK_SCORE_4: [u8; 608] = [
+const TEMPLATE_MASK_LIGHT_4: [u8; 608] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -657,7 +657,7 @@ const TEMPLATE_MASK_SCORE_4: [u8; 608] = [
 ];
 
 // Template for '5'
-const TEMPLATE_MASK_SCORE_5: [u8; 480] = [
+const TEMPLATE_MASK_LIGHT_5: [u8; 480] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -693,7 +693,7 @@ const TEMPLATE_MASK_SCORE_5: [u8; 480] = [
 ];
 
 // Template for '6'
-const TEMPLATE_MASK_SCORE_6: [u8; 512] = [
+const TEMPLATE_MASK_LIGHT_6: [u8; 512] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -729,7 +729,7 @@ const TEMPLATE_MASK_SCORE_6: [u8; 512] = [
 ];
 
 // Template for '7'
-const TEMPLATE_MASK_SCORE_7: [u8; 512] = [
+const TEMPLATE_MASK_LIGHT_7: [u8; 512] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -765,7 +765,7 @@ const TEMPLATE_MASK_SCORE_7: [u8; 512] = [
 ];
 
 // Template for '9'
-const TEMPLATE_MASK_SCORE_9: [u8; 480] = [
+const TEMPLATE_MASK_LIGHT_9: [u8; 480] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -805,132 +805,135 @@ pub const DIGIT_TEMPLATES: [FontTemplate; 22] = [
         char_val: '0',
         width: 18,
         height: 32,
-        mask: &TEMPLATE_MASK_0,
-    },
-    FontTemplate {
-        char_val: '1',
-        width: 15,
-        height: 32,
-        mask: &TEMPLATE_MASK_1,
-    },
-    FontTemplate {
-        char_val: '2',
-        width: 16,
-        height: 32,
-        mask: &TEMPLATE_MASK_2,
-    },
-    FontTemplate {
-        char_val: '8',
-        width: 16,
-        height: 32,
-        mask: &TEMPLATE_MASK_8,
-    },
-    FontTemplate {
-        char_val: '3',
-        width: 17,
-        height: 32,
-        mask: &TEMPLATE_MASK_3,
-    },
-    FontTemplate {
-        char_val: '4',
-        width: 19,
-        height: 32,
-        mask: &TEMPLATE_MASK_4,
-    },
-    FontTemplate {
-        char_val: '5',
-        width: 16,
-        height: 32,
-        mask: &TEMPLATE_MASK_5,
-    },
-    FontTemplate {
-        char_val: '6',
-        width: 17,
-        height: 32,
-        mask: &TEMPLATE_MASK_6,
-    },
-    FontTemplate {
-        char_val: '7',
-        width: 15,
-        height: 32,
-        mask: &TEMPLATE_MASK_7,
-    },
-    FontTemplate {
-        char_val: '9',
-        width: 16,
-        height: 32,
-        mask: &TEMPLATE_MASK_9,
-    },
-    FontTemplate {
-        char_val: '.',
-        width: 5,
-        height: 32,
-        mask: &TEMPLATE_MASK_DOT,
-    },
-    FontTemplate {
-        char_val: '%',
-        width: 23,
-        height: 32,
-        mask: &TEMPLATE_MASK_PERCENT,
-    },
-    FontTemplate {
-        char_val: '0',
-        width: 18,
-        height: 32,
-        mask: &TEMPLATE_MASK_SCORE_0,
+        mask: &TEMPLATE_MASK_LIGHT_0,
     },
     FontTemplate {
         char_val: '1',
         width: 14,
         height: 32,
-        mask: &TEMPLATE_MASK_SCORE_1,
+        mask: &TEMPLATE_MASK_LIGHT_1,
     },
     FontTemplate {
         char_val: '2',
         width: 16,
         height: 32,
-        mask: &TEMPLATE_MASK_SCORE_2,
+        mask: &TEMPLATE_MASK_LIGHT_2,
     },
     FontTemplate {
         char_val: '8',
         width: 16,
         height: 32,
-        mask: &TEMPLATE_MASK_SCORE_8,
+        mask: &TEMPLATE_MASK_LIGHT_8,
     },
     FontTemplate {
         char_val: '3',
         width: 16,
         height: 32,
-        mask: &TEMPLATE_MASK_SCORE_3,
+        mask: &TEMPLATE_MASK_LIGHT_3,
     },
     FontTemplate {
         char_val: '4',
         width: 19,
         height: 32,
-        mask: &TEMPLATE_MASK_SCORE_4,
+        mask: &TEMPLATE_MASK_LIGHT_4,
     },
     FontTemplate {
         char_val: '5',
         width: 15,
         height: 32,
-        mask: &TEMPLATE_MASK_SCORE_5,
+        mask: &TEMPLATE_MASK_LIGHT_5,
     },
     FontTemplate {
         char_val: '6',
         width: 16,
         height: 32,
-        mask: &TEMPLATE_MASK_SCORE_6,
+        mask: &TEMPLATE_MASK_LIGHT_6,
     },
     FontTemplate {
         char_val: '7',
         width: 16,
         height: 32,
-        mask: &TEMPLATE_MASK_SCORE_7,
+        mask: &TEMPLATE_MASK_LIGHT_7,
     },
     FontTemplate {
         char_val: '9',
         width: 15,
         height: 32,
-        mask: &TEMPLATE_MASK_SCORE_9,
+        mask: &TEMPLATE_MASK_LIGHT_9,
+    },
+    FontTemplate {
+        char_val: '0',
+        width: 18,
+        height: 32,
+        mask: &TEMPLATE_MASK_BOLD_0,
+    },
+    FontTemplate {
+        char_val: '1',
+        width: 15,
+        height: 32,
+        mask: &TEMPLATE_MASK_BOLD_1,
+    },
+    FontTemplate {
+        char_val: '2',
+        width: 16,
+        height: 32,
+        mask: &TEMPLATE_MASK_BOLD_2,
+    },
+    FontTemplate {
+        char_val: '8',
+        width: 16,
+        height: 32,
+        mask: &TEMPLATE_MASK_BOLD_8,
+    },
+    FontTemplate {
+        char_val: '3',
+        width: 17,
+        height: 32,
+        mask: &TEMPLATE_MASK_BOLD_3,
+    },
+    FontTemplate {
+        char_val: '4',
+        width: 19,
+        height: 32,
+        mask: &TEMPLATE_MASK_BOLD_4,
+    },
+    FontTemplate {
+        char_val: '5',
+        width: 16,
+        height: 32,
+        mask: &TEMPLATE_MASK_BOLD_5,
+    },
+    FontTemplate {
+        char_val: '6',
+        width: 17,
+        height: 32,
+        mask: &TEMPLATE_MASK_BOLD_6,
+    },
+    FontTemplate {
+        char_val: '7',
+        width: 15,
+        height: 32,
+        mask: &TEMPLATE_MASK_BOLD_7,
+    },
+    FontTemplate {
+        char_val: '9',
+        width: 16,
+        height: 32,
+        mask: &TEMPLATE_MASK_BOLD_9,
+    },
+    FontTemplate {
+        char_val: '.',
+        width: 5,
+        height: 32,
+        mask: &TEMPLATE_MASK_BOLD_DOT,
+    },
+    FontTemplate {
+        char_val: '%',
+        width: 23,
+        height: 32,
+        mask: &TEMPLATE_MASK_BOLD_PERCENT,
     },
 ];
+
+pub const DIGIT_TEMPLATES_RATE: &[FontTemplate] = DIGIT_TEMPLATES.split_at(10).1;
+pub const DIGIT_TEMPLATES_SCORE: &[FontTemplate] = DIGIT_TEMPLATES.split_at(20).0;
