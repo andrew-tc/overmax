@@ -359,9 +359,10 @@ impl Backend {
         let margin = (DEFAULT_MARGIN, DEFAULT_MARGIN);
         let layer = create_layer(&compositor, &layer_shell, &qh, requested_size, margin, 1);
 
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN,
-            ..Default::default()
+            flags: wgpu::InstanceFlags::default(),
+            backend_options: wgpu::BackendOptions::default(),
         });
         let surface = create_wgpu_surface(&connection, &instance, &layer)?;
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
@@ -605,7 +606,7 @@ impl Backend {
             if let Some(snapshot) = &self.snapshot {
                 if !is_hidden(snapshot) && !is_degraded(snapshot) {
                     egui::Panel::bottom("linux_overlay_controls")
-                        .exact_height(CONTROLS_HEIGHT * snapshot.scale)
+                        .exact_size(CONTROLS_HEIGHT * snapshot.scale)
                         .frame(egui::Frame::NONE)
                         .show(ctx, |ui| {
                             ui.set_opacity(snapshot.opacity.clamp(0.0, 1.0));
@@ -651,9 +652,11 @@ impl Backend {
             ],
             pixels_per_point: full_output.pixels_per_point,
         };
-        for (id, delta) in &full_output.textures_delta.set {
-            self.renderer
-                .update_texture(&self.device, &self.queue, *id, delta);
+        for (id, deltas) in &full_output.textures_delta.set {
+            for delta in deltas {
+                self.renderer
+                    .update_texture(&self.device, &self.queue, *id, delta);
+            }
         }
         let mut encoder = self
             .device
@@ -721,15 +724,16 @@ impl Backend {
                 return Ok(None);
             };
             match surface.get_current_texture() {
-                Ok(frame) => return Ok(Some(frame)),
-                Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                wgpu::CurrentSurfaceTexture::Surface(frame)
+                | wgpu::CurrentSurfaceTexture::Suboptimal(frame) => return Ok(Some(frame)),
+                wgpu::CurrentSurfaceTexture::Lost | wgpu::CurrentSurfaceTexture::Outdated => {
                     self.configure_surface();
                 }
-                Err(wgpu::SurfaceError::Timeout) => {
+                wgpu::CurrentSurfaceTexture::Timeout => {
                     self.needs_redraw = true;
                     return Ok(None);
                 }
-                Err(error) => return Err(error.to_string()),
+                _ => return Ok(None),
             }
         }
         self.needs_redraw = true;
@@ -826,7 +830,7 @@ fn create_wgpu_surface(
     unsafe {
         instance
             .create_surface_unsafe(wgpu::SurfaceTargetUnsafe::RawHandle {
-                raw_display_handle,
+                raw_display_handle: Some(raw_display_handle),
                 raw_window_handle,
             })
             .map_err(|error| error.to_string())
