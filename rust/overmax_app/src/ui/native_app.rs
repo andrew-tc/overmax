@@ -378,6 +378,7 @@ impl NativeApp {
         detection_worker::spawn(
             (*root).clone(),
             app_settings.clone(),
+            merged_settings.clone(),
             log_tx.clone(),
             game_found_tx,
             detection_tx,

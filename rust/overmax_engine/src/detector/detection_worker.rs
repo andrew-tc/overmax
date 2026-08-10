@@ -12,6 +12,7 @@ use overmax_core::{Changed, GameSessionState};
 use overmax_data::{DataCompatibility, ImageIndexDb, Settings};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 const LOG_INTERVAL: Duration = Duration::from_secs(3);
@@ -26,6 +27,7 @@ enum LinuxTickResult {
 pub fn spawn(
     root: PathBuf,
     settings: Settings,
+    merged_settings: Arc<Mutex<serde_json::Value>>,
     log_tx: Sender<String>,
     game_found_tx: Sender<()>,
     detection_tx: Sender<DetectionOutput>,
@@ -36,6 +38,7 @@ pub fn spawn(
         let mut worker = DetectionWorker::new(
             root,
             settings,
+            merged_settings,
             log_tx,
             game_found_tx,
             detection_tx,
@@ -60,6 +63,7 @@ fn initialize_winrt(_log_tx: &Sender<String>) {}
 struct DetectionWorker {
     root: PathBuf,
     settings: Settings,
+    merged_settings: Arc<Mutex<serde_json::Value>>,
     log_tx: Sender<String>,
     game_found_tx: Sender<()>,
     detection_tx: Sender<DetectionOutput>,
@@ -86,6 +90,7 @@ impl DetectionWorker {
     fn new(
         root: PathBuf,
         settings: Settings,
+        merged_settings: Arc<Mutex<serde_json::Value>>,
         log_tx: Sender<String>,
         game_found_tx: Sender<()>,
         detection_tx: Sender<DetectionOutput>,
@@ -94,6 +99,7 @@ impl DetectionWorker {
         Self {
             root,
             settings,
+            merged_settings,
             log_tx,
             game_found_tx,
             detection_tx,
@@ -146,6 +152,7 @@ impl DetectionWorker {
         self.log("[Detection] Pure Rust Native Engine initialized".to_string());
 
         loop {
+            self.sync_live_settings(&mut capturer);
             #[cfg(target_os = "windows")]
             self.tick(&tracker, &mut capturer, &mut pipeline);
             #[cfg(target_os = "linux")]
@@ -166,6 +173,35 @@ impl DetectionWorker {
                 }
             }
             std::thread::sleep(self.sleep_duration());
+        }
+    }
+
+    fn sync_live_settings(&mut self, capturer: &mut Box<dyn CaptureEngine>) {
+        if let Ok(guard) = self.merged_settings.lock() {
+            if let Ok(new_settings) = serde_json::from_value::<Settings>(guard.clone()) {
+                #[cfg(target_os = "windows")]
+                {
+                    let old_pref: crate::capture::capture_engine::PreferredCaptureEngine = self
+                        .settings
+                        .screen_capture()
+                        .engine
+                        .parse()
+                        .unwrap_or_default();
+                    let new_pref: crate::capture::capture_engine::PreferredCaptureEngine =
+                        new_settings
+                            .screen_capture()
+                            .engine
+                            .parse()
+                            .unwrap_or_default();
+                    if old_pref != new_pref {
+                        self.log(format!(
+                            "[Detection] capture backend updated: {old_pref:?} -> {new_pref:?}"
+                        ));
+                        capturer.set_preferred_engine(new_pref);
+                    }
+                }
+                self.settings = new_settings;
+            }
         }
     }
 
@@ -709,6 +745,7 @@ mod tests {
         let mut worker = DetectionWorker::new(
             std::path::PathBuf::new(),
             Settings::default(),
+            std::sync::Arc::new(std::sync::Mutex::new(serde_json::Value::Null)),
             log_tx,
             game_tx,
             detection_tx,
@@ -737,6 +774,7 @@ mod tests {
         let mut worker = DetectionWorker::new(
             std::path::PathBuf::new(),
             Settings::default(),
+            std::sync::Arc::new(std::sync::Mutex::new(serde_json::Value::Null)),
             log_tx,
             game_tx,
             detection_tx,

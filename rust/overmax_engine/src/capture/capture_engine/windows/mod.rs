@@ -73,6 +73,10 @@ impl AdaptiveCaptureEngine {
 }
 
 impl CaptureEngine for AdaptiveCaptureEngine {
+    fn set_preferred_engine(&mut self, preferred: PreferredCaptureEngine) {
+        self.set_preferred_engine(preferred);
+    }
+
     fn capture_bgra(&mut self, rect: WindowRect) -> Result<CapturedFrame, String> {
         let mut frame = CapturedFrame::default();
         self.capture_bgra_inplace(rect, &mut frame)?;

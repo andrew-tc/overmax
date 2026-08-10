@@ -33,4 +33,7 @@ pub trait CaptureEngine: Send + Sync {
     fn error_action(&self) -> CaptureErrorAction {
         CaptureErrorAction::Retry
     }
+
+    #[cfg(target_os = "windows")]
+    fn set_preferred_engine(&mut self, _preferred: windows::PreferredCaptureEngine) {}
 }
