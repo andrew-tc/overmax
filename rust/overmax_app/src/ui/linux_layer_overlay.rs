@@ -886,6 +886,7 @@ fn overlay_props(snapshot: &LinuxOverlaySnapshot) -> OverlayProps<'_> {
         settings_open: snapshot.settings_open.clone(),
         sync_open: snapshot.sync_open.clone(),
         scale: snapshot.scale,
+        opacity: snapshot.opacity,
         varchive_upload_needed: snapshot.varchive_upload_needed,
         varchive_account_configured: snapshot.varchive_account_configured,
         lite_mode: snapshot.lite_mode,
