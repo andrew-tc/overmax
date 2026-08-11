@@ -1,4 +1,5 @@
 use crate::store::image_index::{ImageEntry, ImageMatch};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 macro_rules! debug_println {
@@ -37,6 +38,8 @@ pub struct JacketMatcher {
     /// Global Centroid Kernel (전체 자켓 DB 대표 중심점 히스토그램 및 허용 반경)
     centroid_hist: Option<[u8; 384]>,
     centroid_max_diff: u32,
+    total_calls: AtomicU64,
+    centroid_early_exits: AtomicU64,
 }
 
 impl JacketMatcher {
@@ -113,11 +116,33 @@ impl JacketMatcher {
             hist_list,
             centroid_hist,
             centroid_max_diff,
+            total_calls: AtomicU64::new(0),
+            centroid_early_exits: AtomicU64::new(0),
         }
     }
 
     pub fn similarity_threshold(&self) -> f32 {
         self.config.similarity_threshold
+    }
+
+    /// 0.5us 초고속 사전 게이트: 자켓 ROI 4x4 히스토그램이 자켓 DB 대표 중심점 반경 내에 존재하는지 검사합니다.
+    pub fn check_centroid_kernel(
+        &self,
+        data: &[u8],
+        width: usize,
+        height: usize,
+        channels: usize,
+    ) -> bool {
+        let Some(c_hist) = &self.centroid_hist else {
+            return true;
+        };
+        let q_grid_hist = overmax_cv::compute_grid_histogram(data, width, height, channels);
+        let c_diff: u32 = q_grid_hist
+            .iter()
+            .zip(c_hist.iter())
+            .map(|(&q, &c)| q.abs_diff(c) as u32)
+            .sum();
+        c_diff <= self.centroid_max_diff
     }
 
     fn update_cache(&self, idx: usize) {
@@ -152,6 +177,8 @@ impl JacketMatcher {
         // 2. 4x4 분할 RGB 그리드 히스토그램 추출 (BGRA 직접 입력, grayscale 변환 불필요)
         let q_grid_hist = overmax_cv::compute_grid_histogram(data, width, height, channels);
 
+        let total = self.total_calls.fetch_add(1, Ordering::Relaxed) + 1;
+
         // [Global Centroid Kernel Early Exit Gate]
         if let Some(c_hist) = &self.centroid_hist {
             let c_diff: u32 = q_grid_hist
@@ -159,12 +186,27 @@ impl JacketMatcher {
                 .zip(c_hist.iter())
                 .map(|(&q, &c)| q.abs_diff(c) as u32)
                 .sum();
-            if c_diff > self.centroid_max_diff {
+            let is_exit = c_diff > self.centroid_max_diff;
+            if is_exit {
+                let exits = self.centroid_early_exits.fetch_add(1, Ordering::Relaxed) + 1;
+                let exit_pct = (exits as f64 / total as f64) * 100.0;
                 debug_println!(
-                    "    [GlobalCentroidKernel] Early Exit! c_diff={} > max_diff={}",
-                    c_diff, self.centroid_max_diff
+                    "[telemetry_kernel] EARLY EXIT #{}/{} ({:.1}%) c_diff={} > max_diff={}",
+                    exits,
+                    total,
+                    exit_pct,
+                    c_diff,
+                    self.centroid_max_diff
                 );
                 return None;
+            } else {
+                debug_println!(
+                    "[telemetry_kernel] PASS #{}/{} c_diff={} <= max_diff={}",
+                    self.centroid_early_exits.load(Ordering::Relaxed),
+                    total,
+                    c_diff,
+                    self.centroid_max_diff
+                );
             }
         }
 
