@@ -106,4 +106,18 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
   - [x] Win32 `SetLayeredWindowAttributes` 사각형 전체 알파 덮어쓰기를 차단하고 `Theme::with_opacity` 패널 fill RGBA 렌더링으로 전환해 Windows 10/11 둥근 모서리 바깥쪽 반투명 틴트 사각형 비침 현상 100% 소거
   - [x] Win11 전용 `DWMWA_BORDER_COLOR` (`0xFFFFFFFE`) 속성 주입으로 Windows 11 1px 테두리 보더 100% 제거
 
+## 9. 씬 감지 파이프라인 경량화 (게임 플레이 중 프레임 드랍 완화)
+
+- [ ] **Step 0: 사전 확인 (죽은 코드 확인)**
+  - [ ] `logo_roi` / `get_roi("logo")` 경로가 실제 판별 흐름에서 쓰이는지 확인 (`rg -n 'get_roi\("logo"|get_roi_for_scene\("logo"|logo_roi\(\)' rust/`) (정보 수집 목적, 삭제 금지)
+- [ ] **Step 1: 게이트 short-circuit 적용 (엣지/밴드 중복 계산 제거)**
+  - [ ] `detect_result_scene_via_edge`, `detect_freestyle_scene_via_edge`, `detect_openmatch_scene_via_edge` 3개 함수에 `check_category_band_solid` || `detect_jacket_edges` short-circuit 평가 순서 적용
+  - [ ] `cargo check`, `cargo test`, `cargo clippy` 검증 및 씬 전이 유닛 테스트 통과 확인
+- [ ] **Step 2: `match_jacket` 호출 빈도 실측 (Unknown 씬 구간 한정)**
+  - [ ] `detect_result_scene_via_edge` / `detect_freestyle_scene_via_edge` / `detect_openmatch_scene_via_edge` 내 `gate_ok` 통과 시 `last_logo_scene == Unknown` 조건 한정 `debug_println!` 텔레메트리 로그 추가
+  - [ ] 디버그 빌드 실행 후 게임 플레이 시 `match_jacket` 분당 호출 빈도 실측 및 기록
+- [ ] **Step 3: 추가 프루닝 (조건부, 보류)**
+  - [ ] Step 2 실측 결과 확인 후 분당 호출 횟수에 따라 추가 프루닝 설계 여부 결정 (사용자 승인 필요)
+
+
 
