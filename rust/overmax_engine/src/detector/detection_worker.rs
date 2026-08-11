@@ -706,7 +706,7 @@ impl WindowQueryScheduler {
         self.last_query_ts = Instant::now();
 
         if let (Some(prev), Some(curr)) = (self.cached_rect, rect) {
-            self.is_window_moving = prev != curr;
+            self.is_window_moving = prev.left != curr.left || prev.top != curr.top;
         } else {
             self.is_window_moving = false;
         }

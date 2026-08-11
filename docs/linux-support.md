@@ -90,7 +90,6 @@ x86_64가 아니거나 compositor가 `wlr-layer-shell`을 지원하지 않는 �
 
 - 창모드에서 게임 창을 따라가는 자동 오버레이 배치
 - 다중 출력의 창모드
-- 게임 창 일부가 출력 경계 밖에 있는 창모드
 - Gamescope 및 Steam Deck Gaming Mode
 - Linux 시스템 트레이 아이콘
 
