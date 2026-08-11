@@ -116,8 +116,10 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
 - [x] **Step 2: `match_jacket` 호출 빈도 실측 (Unknown 씬 구간 한정)**
   - [x] `detect_result_scene_via_edge` / `detect_freestyle_scene_via_edge` / `detect_openmatch_scene_via_edge` 내 `gate_ok` 통과 시 `last_logo_scene == Unknown` 조건 한정 `debug_println!` 텔레메트리 로그 추가
   - [x] 디버그 빌드 실행 후 게임 플레이 시 `match_jacket` 분당 호출 빈도 실측 및 기록 (실측 결과: 인게임 99.2초 동안 `match_jacket` 총 68회 트리거, **분당 41.13회**)
-- [ ] **Step 3: 추가 프루닝 (조건부, 보류)**
-  - [ ] Step 2 실측 결과 확인 후 분당 호출 횟수에 따라 추가 프루닝 설계 여부 결정 (사용자 승인 필요)
+- [x] **Step 3: 추가 프루닝 (카테고리 띠 단단화 & Result 앵커 주입)**
+  - [x] 불안정한 `edge_ok` 씬 게이트 조건 전면 제거 및 100% 신뢰성의 `check_category_band_solid` 카테고리 띠 단독 게이트 적용
+  - [x] `detect_result_scene_via_edge`에 결과창 고정 앵커(`mode_colorbar` 평균 BGR / `check_open_match_badge`) 게이트 주입
+  - [x] `cargo check`, `cargo test`, `cargo clippy` 검증 통과
 
 
 

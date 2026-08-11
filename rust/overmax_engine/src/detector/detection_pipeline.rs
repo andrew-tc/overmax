@@ -12,6 +12,7 @@ const JACKET_MATCH_INTERVAL: f64 = 0.25;
 const JACKET_CHANGE_THRESHOLD: f32 = 2.5;
 const JACKET_FORCE_RECHECK_SEC: f64 = 2.0;
 const JACKET_FORCE_RECHECK_LONG_SEC: f64 = 30.0;
+#[allow(dead_code)]
 const JACKET_EDGE_THRESHOLD: f32 = 15.0;
 const STRICT_EDGE_THRESHOLD: f32 = 25.0;
 
@@ -502,12 +503,13 @@ fn detect_result_scene_via_edge(
     is_unknown: bool,
 ) -> Option<(SceneType, i32)> {
     // ResultFreestyle, ResultOpen3, ResultOpen2 재킷 ROI는 같은 위치를 공유함
-    // 따라서 ResultFreestyle 재킷 ROI를 기준으로 엣지 디텍션을 수행하고, 추가 확인을 통해 분기함
     let jacket_roi = rois.get_roi_for_scene("jacket", SceneType::ResultFreestyle)?;
-    let gate_ok = check_category_band_solid(frame, jacket_roi, rois.scale())
-        || detect_jacket_edges(frame, jacket_roi, rois.scale())
-            .map(|edge_strength| edge_strength >= JACKET_EDGE_THRESHOLD)
-            .unwrap_or(false);
+    let colorbar_roi = rois.get_roi_for_scene("mode_colorbar", SceneType::ResultFreestyle)?;
+    let mean = crate::capture::frame_utils::region_mean_bgr(frame, colorbar_roi);
+
+    let is_freestyle_result = detect_freestyle_result_colorbar_match(mean);
+    let open_match_scene = check_open_match_badge(frame, rois);
+    let gate_ok = is_freestyle_result || open_match_scene.is_some();
 
     if gate_ok {
         if is_unknown {
@@ -540,14 +542,7 @@ fn detect_result_scene_via_edge(
 
         // 재킷 매칭이 확실히 성공한 경우에만 결과창 씬으로 반환
         if let Some(id) = song_id {
-            let colorbar_roi =
-                rois.get_roi_for_scene("mode_colorbar", SceneType::ResultFreestyle)?;
-            let mean = crate::capture::frame_utils::region_mean_bgr(frame, colorbar_roi);
-            debug_println!(
-                "    [detect_result_scene_via_edge] Result screen detected via jacket edge/band. Colorbar mean BGR={:?}",
-                mean
-            );
-            if detect_freestyle_result_colorbar_match(mean)
+            if is_freestyle_result
                 && detect_rect_edges(frame, colorbar_roi)
                     .map(|edge_strength| edge_strength >= STRICT_EDGE_THRESHOLD)
                     .unwrap_or(false)
@@ -556,7 +551,7 @@ fn detect_result_scene_via_edge(
                 return Some((SceneType::ResultFreestyle, id));
             }
 
-            if let Some(fallback_scene) = check_open_match_badge(frame, rois) {
+            if let Some(fallback_scene) = open_match_scene {
                 debug_println!("    [detect_result_scene_via_edge] Result screen detected via openmatch badge!");
                 return Some((fallback_scene, id));
             }
@@ -572,10 +567,7 @@ fn detect_freestyle_scene_via_edge(
     is_unknown: bool,
 ) -> Option<(SceneType, i32, f32)> {
     let jacket_roi = rois.get_roi_for_scene("jacket", SceneType::Freestyle)?;
-    let gate_ok = check_category_band_solid(frame, jacket_roi, rois.scale())
-        || detect_jacket_edges(frame, jacket_roi, rois.scale())
-            .map(|edge_strength| edge_strength >= JACKET_EDGE_THRESHOLD)
-            .unwrap_or(false);
+    let gate_ok = check_category_band_solid(frame, jacket_roi, rois.scale());
 
     if gate_ok {
         if is_unknown {
@@ -595,7 +587,7 @@ fn detect_freestyle_scene_via_edge(
             let threshold = matcher.similarity_threshold();
             if match_res.similarity >= threshold {
                 if let Ok(song_id) = match_res.image_id.parse::<i32>() {
-                    debug_println!("    [detect_freestyle_scene_via_edge] Freestyle screen detected via jacket edge/band and similarity ({:.4})!", match_res.similarity);
+                    debug_println!("    [detect_freestyle_scene_via_edge] Freestyle screen detected via jacket band and similarity ({:.4})!", match_res.similarity);
                     return Some((SceneType::Freestyle, song_id, match_res.similarity));
                 }
             }
@@ -611,10 +603,7 @@ fn detect_openmatch_scene_via_edge(
     is_unknown: bool,
 ) -> Option<(SceneType, i32, f32)> {
     let jacket_roi = rois.get_roi_for_scene("jacket", SceneType::OpenMatch)?;
-    let gate_ok = check_category_band_solid(frame, jacket_roi, rois.scale())
-        || detect_jacket_edges(frame, jacket_roi, rois.scale())
-            .map(|edge_strength| edge_strength >= JACKET_EDGE_THRESHOLD)
-            .unwrap_or(false);
+    let gate_ok = check_category_band_solid(frame, jacket_roi, rois.scale());
 
     if gate_ok {
         if is_unknown {
@@ -634,7 +623,7 @@ fn detect_openmatch_scene_via_edge(
             let threshold = matcher.similarity_threshold();
             if match_res.similarity >= threshold {
                 if let Ok(song_id) = match_res.image_id.parse::<i32>() {
-                    debug_println!("    [detect_openmatch_scene_via_edge] OpenMatch screen detected via jacket edge/band and similarity ({:.4})!", match_res.similarity);
+                    debug_println!("    [detect_openmatch_scene_via_edge] OpenMatch screen detected via jacket band and similarity ({:.4})!", match_res.similarity);
                     return Some((SceneType::OpenMatch, song_id, match_res.similarity));
                 }
             }
@@ -692,6 +681,7 @@ fn detect_rect_edges(frame: &CapturedFrame, roi: crate::detector::roi::RoiRect) 
         .and_then(frame, |ext_img| ext_img.detect_edges(margin as usize).ok())
 }
 
+#[allow(dead_code)]
 fn detect_jacket_edges(
     frame: &CapturedFrame,
     jacket_roi: crate::detector::roi::RoiRect,
@@ -701,6 +691,7 @@ fn detect_jacket_edges(
     detect_jacket_edges_with_margin(frame, jacket_roi, margin)
 }
 
+#[allow(dead_code)]
 fn detect_jacket_edges_with_margin(
     frame: &CapturedFrame,
     jacket_roi: crate::detector::roi::RoiRect,
