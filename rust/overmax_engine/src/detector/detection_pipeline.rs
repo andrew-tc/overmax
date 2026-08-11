@@ -230,8 +230,9 @@ impl DetectionPipeline {
             return None;
         }
 
+        let is_unknown = self.last_logo_scene == SceneType::Unknown;
         let Some((scene, raw_text, matched_song_id)) =
-            parse_static_scene(frame, &self.rois, &self.jacket_matcher)
+            parse_static_scene(frame, &self.rois, &self.jacket_matcher, is_unknown)
         else {
             debug_println!("    [detect_logo_if_due] logo crop failed! now={}", now);
             self.last_logo_scene = SceneType::Unknown;
@@ -498,6 +499,7 @@ fn detect_result_scene_via_edge(
     frame: &CapturedFrame,
     rois: &RoiManager,
     matcher: &overmax_data::JacketMatcher,
+    is_unknown: bool,
 ) -> Option<(SceneType, i32)> {
     // ResultFreestyle, ResultOpen3, ResultOpen2 재킷 ROI는 같은 위치를 공유함
     // 따라서 ResultFreestyle 재킷 ROI를 기준으로 엣지 디텍션을 수행하고, 추가 확인을 통해 분기함
@@ -508,6 +510,11 @@ fn detect_result_scene_via_edge(
             .unwrap_or(false);
 
     if gate_ok {
+        if is_unknown {
+            debug_println!(
+                "    [telemetry] match_jacket triggered while scene=Unknown, candidate=result"
+            );
+        }
         // 결과창 재킷 매칭 시도
         let mut song_id = None;
         if let Some(match_res) = jacket_roi.and_then(frame, |jacket_img| {
@@ -562,6 +569,7 @@ fn detect_freestyle_scene_via_edge(
     frame: &CapturedFrame,
     rois: &RoiManager,
     matcher: &overmax_data::JacketMatcher,
+    is_unknown: bool,
 ) -> Option<(SceneType, i32, f32)> {
     let jacket_roi = rois.get_roi_for_scene("jacket", SceneType::Freestyle)?;
     let gate_ok = check_category_band_solid(frame, jacket_roi, rois.scale())
@@ -570,6 +578,11 @@ fn detect_freestyle_scene_via_edge(
             .unwrap_or(false);
 
     if gate_ok {
+        if is_unknown {
+            debug_println!(
+                "    [telemetry] match_jacket triggered while scene=Unknown, candidate=freestyle"
+            );
+        }
         if let Some(match_res) = jacket_roi.and_then(frame, |jacket_img| {
             let region = jacket_img.to_image_region();
             matcher.match_jacket(
@@ -595,6 +608,7 @@ fn detect_openmatch_scene_via_edge(
     frame: &CapturedFrame,
     rois: &RoiManager,
     matcher: &overmax_data::JacketMatcher,
+    is_unknown: bool,
 ) -> Option<(SceneType, i32, f32)> {
     let jacket_roi = rois.get_roi_for_scene("jacket", SceneType::OpenMatch)?;
     let gate_ok = check_category_band_solid(frame, jacket_roi, rois.scale())
@@ -603,6 +617,11 @@ fn detect_openmatch_scene_via_edge(
             .unwrap_or(false);
 
     if gate_ok {
+        if is_unknown {
+            debug_println!(
+                "    [telemetry] match_jacket triggered while scene=Unknown, candidate=openmatch"
+            );
+        }
         if let Some(match_res) = jacket_roi.and_then(frame, |jacket_img| {
             let region = jacket_img.to_image_region();
             matcher.match_jacket(
@@ -628,15 +647,17 @@ fn parse_static_scene(
     frame: &CapturedFrame,
     rois: &RoiManager,
     matcher: &overmax_data::JacketMatcher,
+    is_unknown: bool,
 ) -> Option<(SceneType, String, Option<i32>)> {
     // 1. 결과창 감지 우선 (Bypass OCR)
-    if let Some((scene, song_id)) = detect_result_scene_via_edge(frame, rois, matcher) {
+    if let Some((scene, song_id)) = detect_result_scene_via_edge(frame, rois, matcher, is_unknown)
+    {
         return Some((scene, String::new(), Some(song_id)));
     }
 
     // 2. 프리스타일 및 오픈매치 선곡창 자켓 매칭 동시 비교하여 경합 (Bypass OCR)
-    let freestyle_res = detect_freestyle_scene_via_edge(frame, rois, matcher);
-    let openmatch_res = detect_openmatch_scene_via_edge(frame, rois, matcher);
+    let freestyle_res = detect_freestyle_scene_via_edge(frame, rois, matcher, is_unknown);
+    let openmatch_res = detect_openmatch_scene_via_edge(frame, rois, matcher, is_unknown);
 
     match (freestyle_res, openmatch_res) {
         (Some((f_scene, f_id, f_sim)), Some((o_scene, o_id, o_sim))) => {
@@ -660,7 +681,7 @@ pub fn detect_scene_from_logo(
     rois: &RoiManager,
     matcher: &overmax_data::JacketMatcher,
 ) -> SceneType {
-    parse_static_scene(frame, rois, matcher)
+    parse_static_scene(frame, rois, matcher, true)
         .map(|(scene, _, _)| scene)
         .unwrap_or(SceneType::Unknown)
 }
