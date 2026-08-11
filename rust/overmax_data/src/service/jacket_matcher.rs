@@ -125,6 +125,26 @@ impl JacketMatcher {
         self.config.similarity_threshold
     }
 
+    /// 0.5us 초고속 사전 게이트: 자켓 ROI 4x4 히스토그램이 자켓 DB 대표 중심점 반경 내에 존재하는지 검사합니다.
+    pub fn check_centroid_kernel(
+        &self,
+        data: &[u8],
+        width: usize,
+        height: usize,
+        channels: usize,
+    ) -> bool {
+        let Some(c_hist) = &self.centroid_hist else {
+            return true;
+        };
+        let q_grid_hist = overmax_cv::compute_grid_histogram(data, width, height, channels);
+        let c_diff: u32 = q_grid_hist
+            .iter()
+            .zip(c_hist.iter())
+            .map(|(&q, &c)| q.abs_diff(c) as u32)
+            .sum();
+        c_diff <= self.centroid_max_diff
+    }
+
     fn update_cache(&self, idx: usize) {
         if let Ok(mut guard) = self.cache.lock() {
             if let Some(pos) = guard.recent_indices.iter().position(|&x| x == idx) {
@@ -172,13 +192,20 @@ impl JacketMatcher {
                 let exit_pct = (exits as f64 / total as f64) * 100.0;
                 debug_println!(
                     "[telemetry_kernel] EARLY EXIT #{}/{} ({:.1}%) c_diff={} > max_diff={}",
-                    exits, total, exit_pct, c_diff, self.centroid_max_diff
+                    exits,
+                    total,
+                    exit_pct,
+                    c_diff,
+                    self.centroid_max_diff
                 );
                 return None;
             } else {
                 debug_println!(
                     "[telemetry_kernel] PASS #{}/{} c_diff={} <= max_diff={}",
-                    self.centroid_early_exits.load(Ordering::Relaxed), total, c_diff, self.centroid_max_diff
+                    self.centroid_early_exits.load(Ordering::Relaxed),
+                    total,
+                    c_diff,
+                    self.centroid_max_diff
                 );
             }
         }

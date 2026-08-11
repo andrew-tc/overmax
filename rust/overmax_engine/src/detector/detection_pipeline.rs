@@ -135,8 +135,8 @@ impl DetectionPipeline {
     pub fn process_frame_cached(&mut self, frame: &CapturedFrame, now: f64) -> DetectionOutput {
         self.rois.update_window_size(frame.width, frame.height);
 
-        let scene_detected =
-            self.last_static_scene != SceneType::Unknown && self.last_static_scene != SceneType::Online;
+        let scene_detected = self.last_static_scene != SceneType::Unknown
+            && self.last_static_scene != SceneType::Online;
         self.process_frame_shared(frame, scene_detected, now)
     }
 
@@ -533,9 +533,31 @@ fn detect_freestyle_scene_via_edge(
     is_unknown: bool,
 ) -> Option<(SceneType, i32, f32)> {
     let jacket_roi = rois.get_roi_for_scene("jacket", SceneType::Freestyle)?;
-    let gate_ok = check_category_band_solid(frame, jacket_roi, rois.scale());
 
-    if gate_ok {
+    // 1차 게이트: Centroid Kernel 사전 검사
+    let kernel_ok = jacket_roi
+        .and_then(frame, |jacket_img| {
+            let region = jacket_img.to_image_region();
+            Some(matcher.check_centroid_kernel(
+                &region.bgra,
+                region.width as usize,
+                region.height as usize,
+                4,
+            ))
+        })
+        .unwrap_or(false);
+
+    if !kernel_ok {
+        if is_unknown {
+            debug_println!("    [scene_gate] Rejected by 1st Centroid Kernel Gate for freestyle");
+        }
+        return None;
+    }
+
+    // 2차 게이트: 카테고리 띠 단색성 검사
+    let band_ok = check_category_band_solid(frame, jacket_roi, rois.scale());
+
+    if band_ok {
         if is_unknown {
             debug_println!(
                 "    [telemetry] match_jacket triggered while scene=Unknown, candidate=freestyle"
@@ -569,9 +591,31 @@ fn detect_openmatch_scene_via_edge(
     is_unknown: bool,
 ) -> Option<(SceneType, i32, f32)> {
     let jacket_roi = rois.get_roi_for_scene("jacket", SceneType::OpenMatch)?;
-    let gate_ok = check_category_band_solid(frame, jacket_roi, rois.scale());
 
-    if gate_ok {
+    // 1차 초고속 게이트: Centroid Kernel 사전 검사
+    let kernel_ok = jacket_roi
+        .and_then(frame, |jacket_img| {
+            let region = jacket_img.to_image_region();
+            Some(matcher.check_centroid_kernel(
+                &region.bgra,
+                region.width as usize,
+                region.height as usize,
+                4,
+            ))
+        })
+        .unwrap_or(false);
+
+    if !kernel_ok {
+        if is_unknown {
+            debug_println!("    [scene_gate] Rejected by 1st Centroid Kernel Gate for openmatch");
+        }
+        return None;
+    }
+
+    // 2차 게이트: 카테고리 띠 단색성 검사
+    let band_ok = check_category_band_solid(frame, jacket_roi, rois.scale());
+
+    if band_ok {
         if is_unknown {
             debug_println!(
                 "    [telemetry] match_jacket triggered while scene=Unknown, candidate=openmatch"
@@ -605,8 +649,7 @@ fn parse_static_scene(
     is_unknown: bool,
 ) -> Option<(SceneType, Option<i32>)> {
     // 1. 결과창 감지 우선 (Native CV)
-    if let Some((scene, song_id)) = detect_result_scene_via_edge(frame, rois, matcher, is_unknown)
-    {
+    if let Some((scene, song_id)) = detect_result_scene_via_edge(frame, rois, matcher, is_unknown) {
         return Some((scene, Some(song_id)));
     }
 
