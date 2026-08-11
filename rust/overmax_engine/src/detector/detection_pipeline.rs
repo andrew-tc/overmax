@@ -502,12 +502,12 @@ fn detect_result_scene_via_edge(
     // ResultFreestyle, ResultOpen3, ResultOpen2 재킷 ROI는 같은 위치를 공유함
     // 따라서 ResultFreestyle 재킷 ROI를 기준으로 엣지 디텍션을 수행하고, 추가 확인을 통해 분기함
     let jacket_roi = rois.get_roi_for_scene("jacket", SceneType::ResultFreestyle)?;
-    let edge_ok = detect_jacket_edges(frame, jacket_roi, rois.scale())
-        .map(|edge_strength| edge_strength >= JACKET_EDGE_THRESHOLD)
-        .unwrap_or(false);
-    let band_ok = check_category_band_solid(frame, jacket_roi, rois.scale());
+    let gate_ok = check_category_band_solid(frame, jacket_roi, rois.scale())
+        || detect_jacket_edges(frame, jacket_roi, rois.scale())
+            .map(|edge_strength| edge_strength >= JACKET_EDGE_THRESHOLD)
+            .unwrap_or(false);
 
-    if edge_ok || band_ok {
+    if gate_ok {
         // 결과창 재킷 매칭 시도
         let mut song_id = None;
         if let Some(match_res) = jacket_roi.and_then(frame, |jacket_img| {
@@ -564,12 +564,12 @@ fn detect_freestyle_scene_via_edge(
     matcher: &overmax_data::JacketMatcher,
 ) -> Option<(SceneType, i32, f32)> {
     let jacket_roi = rois.get_roi_for_scene("jacket", SceneType::Freestyle)?;
-    let edge_ok = detect_jacket_edges(frame, jacket_roi, rois.scale())
-        .map(|edge_strength| edge_strength >= JACKET_EDGE_THRESHOLD)
-        .unwrap_or(false);
-    let band_ok = check_category_band_solid(frame, jacket_roi, rois.scale());
+    let gate_ok = check_category_band_solid(frame, jacket_roi, rois.scale())
+        || detect_jacket_edges(frame, jacket_roi, rois.scale())
+            .map(|edge_strength| edge_strength >= JACKET_EDGE_THRESHOLD)
+            .unwrap_or(false);
 
-    if edge_ok || band_ok {
+    if gate_ok {
         if let Some(match_res) = jacket_roi.and_then(frame, |jacket_img| {
             let region = jacket_img.to_image_region();
             matcher.match_jacket(
@@ -597,12 +597,12 @@ fn detect_openmatch_scene_via_edge(
     matcher: &overmax_data::JacketMatcher,
 ) -> Option<(SceneType, i32, f32)> {
     let jacket_roi = rois.get_roi_for_scene("jacket", SceneType::OpenMatch)?;
-    let edge_ok = detect_jacket_edges(frame, jacket_roi, rois.scale())
-        .map(|edge_strength| edge_strength >= JACKET_EDGE_THRESHOLD)
-        .unwrap_or(false);
-    let band_ok = check_category_band_solid(frame, jacket_roi, rois.scale());
+    let gate_ok = check_category_band_solid(frame, jacket_roi, rois.scale())
+        || detect_jacket_edges(frame, jacket_roi, rois.scale())
+            .map(|edge_strength| edge_strength >= JACKET_EDGE_THRESHOLD)
+            .unwrap_or(false);
 
-    if edge_ok || band_ok {
+    if gate_ok {
         if let Some(match_res) = jacket_roi.and_then(frame, |jacket_img| {
             let region = jacket_img.to_image_region();
             matcher.match_jacket(
