@@ -120,6 +120,8 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
   - [x] 불안정한 `edge_ok` 씬 게이트 조건 전면 제거 및 100% 신뢰성의 `check_category_band_solid` 카테고리 띠 단독 게이트 적용
   - [x] `detect_result_scene_via_edge`에 결과창 고정 앵커(`mode_colorbar` 평균 BGR / `check_open_match_badge`) 게이트 주입
   - [x] `cargo check`, `cargo test`, `cargo clippy` 검증 통과
+- [x] **Global Jacket Centroid Kernel Early-Exit Gate 기법 도입**
+  - [x] DB 내 자켓 4x4 히스토그램 대표 중심점(Centroid) 및 허용 반경(Radius) 사전 계산을 통해, 비자켓 노이즈 이미지 입력 시 600+ 곡 전체 DB SoA 매칭 순회 전 0.001ms 만에 Early-Exit 하는 초고속 사전 게이트 적용
 
 
 
