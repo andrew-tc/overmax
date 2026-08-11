@@ -100,19 +100,8 @@ impl RoiManager {
         self.calculate_transform();
     }
 
-    fn logo_roi(&self) -> RoiRect {
-        // logo ROI는 씬과 무관하게 고정 좌표를 가짐 (설정의 config.logo 데이터 활용)
-        self.transform_roi(RoiRect::from(self.config.logo.clone()))
-    }
-
     /// 지정된 씬의 ROI 영역을 반환합니다.
-    ///
-    /// # Special Cases
-    /// - `"logo"`: 씬과 무관한 전역 고정 ROI인 `logo_roi`를 반환합니다.
     pub fn get_roi_for_scene(&self, name: &str, scene: SceneType) -> Option<RoiRect> {
-        if name == "logo" {
-            return Some(self.logo_roi());
-        }
         let roi = self.config.scenes.get(&scene)?.rois.get(name)?;
         Some(self.transform_roi(RoiRect::from(roi.clone())))
     }
@@ -214,7 +203,7 @@ mod tests {
     fn applies_letterbox_offset_for_16_10() {
         let mut manager = RoiManager::new(1920, 1200);
         manager.set_scene(SceneType::Freestyle);
-        assert_eq!(manager.get_roi("logo").unwrap().y1, 78);
+        assert_eq!(manager.get_roi("jacket").unwrap().y1, 593);
     }
 
     #[test]
