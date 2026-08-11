@@ -24,6 +24,18 @@ enum LinuxTickResult {
     Stop,
 }
 
+#[cfg(target_os = "linux")]
+fn capture_target_resized(
+    previous: Option<WindowSnapshot>,
+    current: Option<WindowSnapshot>,
+) -> bool {
+    previous.zip(current).is_some_and(|(previous, current)| {
+        previous.window == current.window
+            && (previous.rect.width != current.rect.width
+                || previous.rect.height != current.rect.height)
+    })
+}
+
 pub fn spawn(
     root: PathBuf,
     settings: Settings,
@@ -300,6 +312,7 @@ impl DetectionWorker {
             };
             let target_changed =
                 self.window_snapshot.map(|s| s.window) != snapshot.map(|s| s.window);
+            let target_resized = capture_target_resized(previous_snapshot, snapshot);
             let capture_state_changed = previous_snapshot
                 .map(|current| (current.window, current.foreground, current.fullscreen))
                 != snapshot.map(|current| (current.window, current.foreground, current.fullscreen));
@@ -325,6 +338,8 @@ impl DetectionWorker {
                     })
             }) {
                 self.on_capture_interrupted(pipeline, "game window is in the background");
+            } else if target_resized {
+                self.on_capture_interrupted(pipeline, "capture target resized");
             }
         }
 
@@ -335,11 +350,6 @@ impl DetectionWorker {
         if !self.on_window_found(snapshot.rect, snapshot.foreground) {
             return LinuxTickResult::Continue;
         }
-        if !snapshot.fullscreen {
-            self.on_capture_interrupted(pipeline, "borderless fullscreen is required");
-            return LinuxTickResult::Continue;
-        }
-
         match capturer.capture_bgra_inplace(snapshot.rect, &mut self.frame_buffer) {
             Ok(()) => {
                 self.capture_failure_active = false;
@@ -708,14 +718,23 @@ impl WindowQueryScheduler {
 
 #[cfg(all(test, target_os = "linux"))]
 mod tests {
-    use super::{DetectionPipeline, DetectionWorker, LinuxTickResult};
+    use super::{capture_target_resized, DetectionPipeline, DetectionWorker, LinuxTickResult};
     use crate::capture::capture_engine::{CaptureEngine, CaptureErrorAction};
     use crate::capture::frame::CapturedFrame;
-    use crate::capture::window_tracker::WindowRect;
+    use crate::capture::window_tracker::{WindowRect, WindowSnapshot};
     use overmax_data::{ImageIndexDb, Settings};
     use std::sync::mpsc;
 
     struct FailedCapture(CaptureErrorAction);
+
+    fn snapshot(rect: WindowRect) -> WindowSnapshot {
+        WindowSnapshot {
+            window: 7,
+            rect,
+            foreground: true,
+            fullscreen: false,
+        }
+    }
 
     impl CaptureEngine for FailedCapture {
         fn capture_bgra(&mut self, _rect: WindowRect) -> Result<CapturedFrame, String> {
@@ -733,6 +752,29 @@ mod tests {
         fn error_action(&self) -> CaptureErrorAction {
             self.0
         }
+    }
+
+    #[test]
+    fn resets_only_when_the_capture_size_changes() {
+        let initial = snapshot(WindowRect {
+            left: 20,
+            top: 30,
+            width: 1280,
+            height: 720,
+        });
+        let moved = snapshot(WindowRect {
+            left: 50,
+            top: 60,
+            ..initial.rect
+        });
+        let resized = snapshot(WindowRect {
+            width: 1600,
+            height: 900,
+            ..initial.rect
+        });
+
+        assert!(!capture_target_resized(Some(initial), Some(moved)));
+        assert!(capture_target_resized(Some(initial), Some(resized)));
     }
 
     #[test]
