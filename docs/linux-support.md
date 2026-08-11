@@ -13,9 +13,7 @@ Overmax의 Linux 지원은 초기 단계입니다. Windows와 같은 범용 지�
 - 같은 `DISPLAY`에서 Proton/XWayland로 실행한 DJMAX RESPECT V
 - 테두리 없는 전체화면
 
-오버레이는 게임 창과 가장 많이 겹치는 Wayland 출력을 선택하고, 해당 출력의 논리 좌표 원점을 뺀 로컬 margin으로 배치합니다. 출력의 정수 배율은 기존 buffer scale로 처리하고 fractional 배율은 `wp_fractional_scale_v1`의 preferred scale과 `wp_viewporter`로 실제 렌더 버퍼 크기에 반영합니다.
-
-공식 Linux 배포 번들은 Ubuntu 22.04의 glibc 2.35 ABI를 기준으로 고정된 CI 환경에서 빌드합니다. Ubuntu Base 22.04.5에서 release 빌드와 실제 tarball 설치·업데이트 smoke를 통과했으며, 배포 전 checksum, 번들 레이아웃, 실행 권한, `--version`, 동적 라이브러리와 GLIBC symbol 상한을 다시 확인합니다.
+공식 Linux 배포 번들은 Ubuntu 22.04의 glibc 2.35 ABI를 기준으로 고정된 CI 환경에서 빌드합니다.
 
 ## 내 환경 확인하기
 
