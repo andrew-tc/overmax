@@ -18,7 +18,7 @@ const STRICT_EDGE_THRESHOLD: f32 = 25.0;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct DetectionOutput {
-    pub logo_detected: bool,
+    pub scene_detected: bool,
     pub is_song_select: bool,
     pub is_result: bool,
     pub is_leaving: bool,
@@ -58,8 +58,8 @@ pub struct DetectionPipeline {
     hysteresis: HysteresisBuffer,
     play_state: PlayStateDetector,
     current_song_id: Option<i32>,
-    last_logo_ocr_ts: f64,
-    last_logo_scene: SceneType,
+    last_scene_check_ts: f64,
+    last_static_scene: SceneType,
     last_jacket_ts: f64,
     last_jacket_match_ts: f64,
     last_jacket_thumb: Option<Vec<u8>>,
@@ -79,8 +79,8 @@ impl DetectionPipeline {
             hysteresis: HysteresisBuffer::new(4, 0.5, 2, 0.25, 2),
             play_state: PlayStateDetector::new(5),
             current_song_id: None,
-            last_logo_ocr_ts: 0.0,
-            last_logo_scene: SceneType::Unknown,
+            last_scene_check_ts: 0.0,
+            last_static_scene: SceneType::Unknown,
             last_jacket_ts: 0.0,
             last_jacket_match_ts: 0.0,
             last_jacket_thumb: None,
@@ -93,8 +93,8 @@ impl DetectionPipeline {
 
     pub fn reset(&mut self) {
         self.current_song_id = None;
-        self.last_logo_ocr_ts = 0.0;
-        self.last_logo_scene = SceneType::Unknown;
+        self.last_scene_check_ts = 0.0;
+        self.last_static_scene = SceneType::Unknown;
         self.last_jacket_ts = 0.0;
         self.last_jacket_match_ts = 0.0;
         self.last_jacket_thumb = None;
@@ -108,14 +108,14 @@ impl DetectionPipeline {
     }
 
     pub fn detect(&mut self, frame: &CapturedFrame, now: f64) -> DetectionOutput {
-        if let Some(scene) = self.detect_logo_if_due(frame, now) {
-            self.process_frame_with_logo(frame, scene, now)
+        if let Some(scene) = self.detect_scene_if_due(frame, now) {
+            self.process_frame_with_scene(frame, scene, now)
         } else {
             self.process_frame_cached(frame, now)
         }
     }
 
-    pub fn process_frame_with_logo(
+    pub fn process_frame_with_scene(
         &mut self,
         frame: &CapturedFrame,
         scene: SceneType,
@@ -123,30 +123,30 @@ impl DetectionPipeline {
     ) -> DetectionOutput {
         self.rois.update_window_size(frame.width, frame.height);
 
-        let logo_detected = scene != SceneType::Unknown && scene != SceneType::Online;
-        if logo_detected {
+        let scene_detected = scene != SceneType::Unknown && scene != SceneType::Online;
+        if scene_detected {
             self.rois.set_scene(scene);
         }
 
-        self.hysteresis.update(logo_detected);
-        self.process_frame_shared(frame, logo_detected, now)
+        self.hysteresis.update(scene_detected);
+        self.process_frame_shared(frame, scene_detected, now)
     }
 
     pub fn process_frame_cached(&mut self, frame: &CapturedFrame, now: f64) -> DetectionOutput {
         self.rois.update_window_size(frame.width, frame.height);
 
-        let logo_detected =
-            self.last_logo_scene != SceneType::Unknown && self.last_logo_scene != SceneType::Online;
-        self.process_frame_shared(frame, logo_detected, now)
+        let scene_detected =
+            self.last_static_scene != SceneType::Unknown && self.last_static_scene != SceneType::Online;
+        self.process_frame_shared(frame, scene_detected, now)
     }
 
     fn process_frame_shared(
         &mut self,
         frame: &CapturedFrame,
-        logo_detected: bool,
+        scene_detected: bool,
         now: f64,
     ) -> DetectionOutput {
-        let is_result = self.last_logo_scene.is_result();
+        let is_result = self.last_static_scene.is_result();
         let is_song_select = self.hysteresis.is_active || is_result;
         let is_leaving = if is_result {
             false
@@ -158,7 +158,7 @@ impl DetectionPipeline {
         if !is_song_select {
             self.reset_on_screen_exit();
             return self.output(
-                logo_detected,
+                scene_detected,
                 false,
                 false, // is_result
                 is_leaving,
@@ -171,7 +171,7 @@ impl DetectionPipeline {
 
         if is_leaving {
             return self.output(
-                logo_detected,
+                scene_detected,
                 true,
                 false, // is_result
                 true,
@@ -193,7 +193,7 @@ impl DetectionPipeline {
                 .detect(frame, &self.rois, self.current_song_id, now);
 
         self.output(
-            logo_detected,
+            scene_detected,
             true,
             is_result,
             false,
@@ -204,10 +204,10 @@ impl DetectionPipeline {
         )
     }
 
-    fn detect_logo_if_due(&mut self, frame: &CapturedFrame, now: f64) -> Option<SceneType> {
+    fn detect_scene_if_due(&mut self, frame: &CapturedFrame, now: f64) -> Option<SceneType> {
         // 씬이 Unknown인 경우(진입 대기): 빠른 인식을 위해 0.3초 주기로 감시
         // 씬이 이미 확정된 경우(유지 중): CPU 소모 최소화를 위해 2.0초 주기로 완화 (이탈은 픽셀 매칭으로 즉시 처리되므로 반응성 무관)
-        let acquiring = self.last_logo_scene == SceneType::Unknown || !self.hysteresis.is_active;
+        let acquiring = self.last_static_scene == SceneType::Unknown || !self.hysteresis.is_active;
         if acquiring {
             if self.unknown_since.is_none() {
                 self.unknown_since = Some(now);
@@ -227,17 +227,17 @@ impl DetectionPipeline {
             2.0
         };
 
-        if now - self.last_logo_ocr_ts < cooldown {
+        if now - self.last_scene_check_ts < cooldown {
             return None;
         }
 
-        let is_unknown = self.last_logo_scene == SceneType::Unknown;
-        let Some((scene, raw_text, matched_song_id)) =
+        let is_unknown = self.last_static_scene == SceneType::Unknown;
+        let Some((scene, matched_song_id)) =
             parse_static_scene(frame, &self.rois, &self.jacket_matcher, is_unknown)
         else {
-            debug_println!("    [detect_logo_if_due] logo crop failed! now={}", now);
-            self.last_logo_scene = SceneType::Unknown;
-            self.last_logo_ocr_ts = now;
+            debug_println!("    [detect_scene_if_due] static scene miss! now={}", now);
+            self.last_static_scene = SceneType::Unknown;
+            self.last_scene_check_ts = now;
             return Some(SceneType::Unknown);
         };
 
@@ -252,55 +252,21 @@ impl DetectionPipeline {
         }
 
         debug_println!(
-            "    [detect_logo_if_due] now={}, OCR raw='{}', static_scene={:?}",
+            "    [detect_scene_if_due] now={}, static_scene={:?}",
             now,
-            raw_text,
             scene
         );
 
-        let scene_candidate = self.process_frame_fallback(scene, &raw_text);
-
-        if scene_candidate != SceneType::Unknown && scene_candidate != SceneType::Online {
-            self.rois.set_scene(scene_candidate);
+        if scene != SceneType::Unknown && scene != SceneType::Online {
+            self.rois.set_scene(scene);
         }
 
-        let final_scene = self.commit_result_scene(frame, scene_candidate, &raw_text);
-        self.last_logo_ocr_ts = now;
+        let final_scene = self.commit_result_scene(scene);
+        self.last_scene_check_ts = now;
         Some(final_scene)
     }
 
-    fn process_frame_fallback(&self, scene_candidate: SceneType, raw_text: &str) -> SceneType {
-        let mut scene = scene_candidate;
-        if scene == SceneType::Unknown {
-            scene = self.try_keyword_lockin(raw_text).unwrap_or(scene);
-        }
-        scene
-    }
-
-    fn try_keyword_lockin(&self, raw_text: &str) -> Option<SceneType> {
-        let is_prev_result = self.last_logo_scene.is_result();
-        if !is_prev_result {
-            return None;
-        }
-        let norm_logo = raw_text.to_uppercase();
-        let has_logo_keyword = norm_logo.contains("BUTTON")
-            || norm_logo.contains("TUNES")
-            || norm_logo.contains("TIJNFS")
-            || norm_logo.contains("TUNE");
-        if has_logo_keyword {
-            debug_println!("    [detect_logo_if_due] Lock-in: keeping previous result scene {:?} due to logo keyword match", self.last_logo_scene);
-            Some(self.last_logo_scene)
-        } else {
-            None
-        }
-    }
-
-    fn commit_result_scene(
-        &mut self,
-        _frame: &CapturedFrame,
-        candidate: SceneType,
-        _raw_text: &str,
-    ) -> SceneType {
+    fn commit_result_scene(&mut self, candidate: SceneType) -> SceneType {
         let is_detected_result = candidate.is_result();
 
         if is_detected_result {
@@ -313,15 +279,15 @@ impl DetectionPipeline {
 
             // 1프레임 대기 후, 2프레임차에 최종 검증 수행
             if self.result_scene_streak >= 2 {
-                self.last_logo_scene = candidate;
+                self.last_static_scene = candidate;
             }
         } else {
             self.result_scene_streak = 0;
             self.last_detected_result_scene = SceneType::Unknown;
-            self.last_logo_scene = candidate;
+            self.last_static_scene = candidate;
         }
 
-        self.last_logo_scene
+        self.last_static_scene
     }
 
     fn update_song_id_from_jacket(&mut self, frame: &CapturedFrame, now: f64) -> JacketMatchStatus {
@@ -407,7 +373,7 @@ impl DetectionPipeline {
     #[allow(clippy::too_many_arguments)]
     fn output(
         &self,
-        logo_detected: bool,
+        scene_detected: bool,
         is_song_select: bool,
         is_result: bool,
         is_leaving: bool,
@@ -417,7 +383,7 @@ impl DetectionPipeline {
         rate_telemetry: Option<RateTelemetry>,
     ) -> DetectionOutput {
         DetectionOutput {
-            logo_detected,
+            scene_detected,
             is_song_select,
             is_result,
             is_leaving,
@@ -637,14 +603,14 @@ fn parse_static_scene(
     rois: &RoiManager,
     matcher: &overmax_data::JacketMatcher,
     is_unknown: bool,
-) -> Option<(SceneType, String, Option<i32>)> {
-    // 1. 결과창 감지 우선 (Bypass OCR)
+) -> Option<(SceneType, Option<i32>)> {
+    // 1. 결과창 감지 우선 (Native CV)
     if let Some((scene, song_id)) = detect_result_scene_via_edge(frame, rois, matcher, is_unknown)
     {
-        return Some((scene, String::new(), Some(song_id)));
+        return Some((scene, Some(song_id)));
     }
 
-    // 2. 프리스타일 및 오픈매치 선곡창 자켓 매칭 동시 비교하여 경합 (Bypass OCR)
+    // 2. 프리스타일 및 오픈매치 선곡창 자켓 매칭 동시 비교하여 경합 (Native CV)
     let freestyle_res = detect_freestyle_scene_via_edge(frame, rois, matcher, is_unknown);
     let openmatch_res = detect_openmatch_scene_via_edge(frame, rois, matcher, is_unknown);
 
@@ -653,25 +619,25 @@ fn parse_static_scene(
             // 둘 다 임계치를 넘었을 경우, 유사도(Similarity)가 더 높은 씬을 승자로 채택
             if f_sim >= o_sim {
                 debug_println!("    [parse_static_scene] Both matched. Freestyle selected by similarity ({:.4} vs {:.4})", f_sim, o_sim);
-                Some((f_scene, String::new(), Some(f_id)))
+                Some((f_scene, Some(f_id)))
             } else {
                 debug_println!("    [parse_static_scene] Both matched. OpenMatch selected by similarity ({:.4} vs {:.4})", o_sim, f_sim);
-                Some((o_scene, String::new(), Some(o_id)))
+                Some((o_scene, Some(o_id)))
             }
         }
-        (Some((f_scene, f_id, _)), None) => Some((f_scene, String::new(), Some(f_id))),
-        (None, Some((o_scene, o_id, _))) => Some((o_scene, String::new(), Some(o_id))),
+        (Some((f_scene, f_id, _)), None) => Some((f_scene, Some(f_id))),
+        (None, Some((o_scene, o_id, _))) => Some((o_scene, Some(o_id))),
         (None, None) => None,
     }
 }
 
-pub fn detect_scene_from_logo(
+pub fn detect_static_scene(
     frame: &CapturedFrame,
     rois: &RoiManager,
     matcher: &overmax_data::JacketMatcher,
 ) -> SceneType {
     parse_static_scene(frame, rois, matcher, true)
-        .map(|(scene, _, _)| scene)
+        .map(|(scene, _)| scene)
         .unwrap_or(SceneType::Unknown)
 }
 
@@ -796,8 +762,8 @@ mod tests {
         let frame = blank_frame();
         use overmax_core::SceneType;
 
-        let first = pipeline.process_frame_with_logo(&frame, SceneType::Freestyle, 1.0);
-        let second = pipeline.process_frame_with_logo(&frame, SceneType::Freestyle, 2.0);
+        let first = pipeline.process_frame_with_scene(&frame, SceneType::Freestyle, 1.0);
+        let second = pipeline.process_frame_with_scene(&frame, SceneType::Freestyle, 2.0);
 
         assert!(!first.is_song_select);
         assert_eq!(first.jacket_status, JacketMatchStatus::NotSongSelect);
@@ -812,9 +778,9 @@ mod tests {
         use overmax_core::SceneType;
 
         for idx in 0..2 {
-            pipeline.process_frame_with_logo(&frame, SceneType::Freestyle, idx as f64);
+            pipeline.process_frame_with_scene(&frame, SceneType::Freestyle, idx as f64);
         }
-        let output = pipeline.process_frame_with_logo(&frame, SceneType::Unknown, 10.0);
+        let output = pipeline.process_frame_with_scene(&frame, SceneType::Unknown, 10.0);
 
         assert!(output.is_song_select);
         assert!(output.state.context.is_none());
@@ -826,9 +792,9 @@ mod tests {
         let frame = blank_frame();
         use overmax_core::SceneType;
 
-        pipeline.process_frame_with_logo(&frame, SceneType::Freestyle, 1.0);
-        pipeline.process_frame_with_logo(&frame, SceneType::Freestyle, 2.0);
-        let miss = pipeline.process_frame_with_logo(&frame, SceneType::Unknown, 3.0);
+        pipeline.process_frame_with_scene(&frame, SceneType::Freestyle, 1.0);
+        pipeline.process_frame_with_scene(&frame, SceneType::Freestyle, 2.0);
+        let miss = pipeline.process_frame_with_scene(&frame, SceneType::Unknown, 3.0);
         assert!(miss.is_song_select);
         assert!(!miss.is_leaving);
 
@@ -845,10 +811,10 @@ mod tests {
         let frame = blank_frame();
         use overmax_core::SceneType;
 
-        let fresh = pipeline.process_frame_with_logo(&frame, SceneType::Freestyle, 1.0);
-        pipeline.last_logo_scene = SceneType::Freestyle;
+        let fresh = pipeline.process_frame_with_scene(&frame, SceneType::Freestyle, 1.0);
+        pipeline.last_static_scene = SceneType::Freestyle;
         let cached = pipeline.process_frame_cached(&frame, 1.1);
-        let second_fresh = pipeline.process_frame_with_logo(&frame, SceneType::Freestyle, 1.2);
+        let second_fresh = pipeline.process_frame_with_scene(&frame, SceneType::Freestyle, 1.2);
 
         assert!(!fresh.is_song_select);
         assert!(!cached.is_song_select);
@@ -942,7 +908,7 @@ mod tests {
             for step in 0..10 {
                 let t = step as f64 * 0.4;
                 let _ = pipeline.detect(&frame, t);
-                final_scene = pipeline.last_logo_scene;
+                final_scene = pipeline.last_static_scene;
             }
             println!("IMAGE: {} -> Detected Scene: {:?}", img_name, final_scene);
 

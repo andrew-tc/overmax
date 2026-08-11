@@ -75,7 +75,7 @@ struct DetectionWorker {
     repaint_callback: Box<dyn Fn() + Send + Sync + 'static>,
     last_song_id: Changed<Option<i32>>,
     last_is_song_select: Changed<bool>,
-    last_logo_detected: Changed<bool>,
+    last_scene_detected: Changed<bool>,
     last_jacket_status: Changed<JacketMatchStatus>,
     last_is_fullscreen: Changed<bool>,
     frame_buffer: CapturedFrame,
@@ -111,7 +111,7 @@ impl DetectionWorker {
             repaint_callback,
             last_song_id: Changed::new(None),
             last_is_song_select: Changed::new(false),
-            last_logo_detected: Changed::new(false),
+            last_scene_detected: Changed::new(false),
             last_jacket_status: Changed::new(JacketMatchStatus::NotSongSelect),
             last_is_fullscreen: Changed::new(false),
             frame_buffer: CapturedFrame {
@@ -264,12 +264,12 @@ impl DetectionWorker {
                 let jacket_changed = self.last_jacket_status.update(out.jacket_status.clone());
                 let song_changed = self.last_song_id.update(out.current_song_id);
                 let song_select_changed = self.last_is_song_select.update(out.is_song_select);
-                let logo_changed = self.last_logo_detected.update(out.logo_detected);
+                let scene_changed = self.last_scene_detected.update(out.scene_detected);
                 let fullscreen_changed = self.last_is_fullscreen.update(out.state.is_fullscreen);
                 let state_changed = jacket_changed
                     | song_changed
                     | song_select_changed
-                    | logo_changed
+                    | scene_changed
                     | fullscreen_changed;
 
                 let _ = self.detection_tx.send(out);
@@ -354,12 +354,12 @@ impl DetectionWorker {
                 let jacket_changed = self.last_jacket_status.update(out.jacket_status.clone());
                 let song_changed = self.last_song_id.update(out.current_song_id);
                 let song_select_changed = self.last_is_song_select.update(out.is_song_select);
-                let logo_changed = self.last_logo_detected.update(out.logo_detected);
+                let scene_changed = self.last_scene_detected.update(out.scene_detected);
                 let fullscreen_changed = self.last_is_fullscreen.update(out.state.is_fullscreen);
                 let state_changed = jacket_changed
                     | song_changed
                     | song_select_changed
-                    | logo_changed
+                    | scene_changed
                     | fullscreen_changed;
 
                 let _ = self.detection_tx.send(out);
@@ -403,7 +403,7 @@ impl DetectionWorker {
     #[cfg(target_os = "linux")]
     fn linux_detecting_output(&self, capture_fatal: Option<String>) -> DetectionOutput {
         DetectionOutput {
-            logo_detected: false,
+            scene_detected: false,
             is_song_select: false,
             is_result: false,
             is_leaving: false,
@@ -485,7 +485,7 @@ impl DetectionWorker {
     fn on_window_missing(&mut self) {
         if self.was_found {
             let _ = self.detection_tx.send(DetectionOutput {
-                logo_detected: false,
+                scene_detected: false,
                 is_song_select: false,
                 is_result: false,
                 is_leaving: false,
@@ -513,8 +513,8 @@ impl DetectionWorker {
     fn log_detection_summary(&mut self, out: &DetectionOutput) {
         if !out.is_song_select {
             self.log_detection_throttled(format!(
-                "[Detection] song-select=false logo={} confidence={:.2}",
-                out.logo_detected, out.confidence
+                "[Detection] song-select=false scene={} confidence={:.2}",
+                out.scene_detected, out.confidence
             ));
             return;
         }
@@ -540,7 +540,7 @@ impl DetectionWorker {
         let capture_settings = self.settings.screen_capture();
         if self.was_found {
             if self.is_foreground {
-                if *self.last_is_song_select || *self.last_logo_detected {
+                if *self.last_is_song_select || *self.last_scene_detected {
                     Duration::from_millis(capture_settings.active_sleep_ms)
                 } else {
                     Duration::from_millis(1000)
