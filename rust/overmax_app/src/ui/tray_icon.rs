@@ -285,14 +285,6 @@ unsafe fn show_context_menu(hwnd: HWND) {
     }
     append_item(menu, CMD_SETTINGS, t("설정"));
     append_item(menu, CMD_SYNC, t("V-Archive 동기화"));
-    let debug_enabled = ACTIONS
-        .get()
-        .map(|a| overmax_core::lock_or_recover(&a.settings))
-        .and_then(|s| s.get("debug").and_then(|v| v.as_bool()))
-        .unwrap_or(false);
-    if debug_enabled {
-        append_item(menu, CMD_DEBUG, t("디버그 로그"));
-    }
     AppendMenuW(menu, MF_SEPARATOR, 0, null());
     append_item(menu, CMD_EXIT, t("종료"));
 
