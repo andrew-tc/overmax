@@ -15,7 +15,17 @@ use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
     delegate_compositor, delegate_layer, delegate_output, delegate_pointer, delegate_registry,
     delegate_seat,
-    output::{OutputHandler, OutputState},
+    output::{OutputHandler, OutputInfo, OutputState},
+    reexports::protocols::wp::{
+        fractional_scale::v1::client::{
+            wp_fractional_scale_manager_v1::{self, WpFractionalScaleManagerV1},
+            wp_fractional_scale_v1::{self, WpFractionalScaleV1},
+        },
+        viewporter::client::{
+            wp_viewport::{self, WpViewport},
+            wp_viewporter::{self, WpViewporter},
+        },
+    },
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
     seat::{
@@ -41,7 +51,7 @@ use wayland_client::{
     backend::WaylandError,
     globals::registry_queue_init,
     protocol::{wl_output, wl_pointer, wl_seat, wl_surface},
-    Connection, Proxy, QueueHandle,
+    Connection, Dispatch, Proxy, QueueHandle,
 };
 
 const DEFAULT_MARGIN: i32 = 40;
@@ -279,7 +289,7 @@ fn run(
         }
         if wake_ready {
             let connected = drain_wake_socket(&wake_reader);
-            backend.consume_published();
+            backend.consume_published(&event_queue.handle());
             if !connected {
                 return Ok(());
             }
@@ -307,8 +317,15 @@ struct Backend {
     output_state: OutputState,
     compositor: CompositorState,
     layer_shell: LayerShell,
+    viewporter: Option<WpViewporter>,
+    fractional_scale_manager: Option<WpFractionalScaleManagerV1>,
     connection: Connection,
     layer: Option<LayerSurface>,
+    viewport: Option<WpViewport>,
+    fractional_scale: Option<WpFractionalScaleV1>,
+    target_output: Option<wl_output::WlOutput>,
+    surface_output: Option<wl_output::WlOutput>,
+    output_origin: (i32, i32),
     pointer: Option<wl_pointer::WlPointer>,
     pointer_position: Option<egui::Pos2>,
     recreate_on_output: bool,
@@ -324,7 +341,7 @@ struct Backend {
     configured: bool,
     requested_size: (u32, u32),
     logical_size: (u32, u32),
-    output_scale: i32,
+    render_scale: f64,
 
     egui_ctx: egui::Context,
     events: Vec<egui::Event>,
@@ -355,9 +372,29 @@ impl Backend {
             .map_err(|_| "wl_compositor is unavailable".to_string())?;
         let layer_shell = LayerShell::bind(&globals, &qh)
             .map_err(|_| "zwlr_layer_shell_v1 is unavailable".to_string())?;
+        let viewporter = globals.bind::<WpViewporter, _, _>(&qh, 1..=1, ()).ok();
+        let fractional_scale_manager = viewporter.as_ref().and_then(|_| {
+            globals
+                .bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ())
+                .ok()
+        });
         let requested_size = panel_size(None);
         let margin = (DEFAULT_MARGIN, DEFAULT_MARGIN);
-        let layer = create_layer(&compositor, &layer_shell, &qh, requested_size, margin, 1);
+        let layer = create_layer(
+            &compositor,
+            &layer_shell,
+            &qh,
+            requested_size,
+            margin,
+            1,
+            None,
+        );
+        let viewport = viewporter
+            .as_ref()
+            .map(|manager| create_viewport(manager, &layer, &qh, requested_size));
+        let fractional_scale = fractional_scale_manager
+            .as_ref()
+            .map(|manager| manager.get_fractional_scale(layer.wl_surface(), &qh, ()));
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN,
@@ -375,7 +412,7 @@ impl Backend {
         let (device, queue) =
             pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
                 .map_err(|error| error.to_string())?;
-        let (format, surface_config) = surface_settings(&surface, &adapter, requested_size, 1)?;
+        let (format, surface_config) = surface_settings(&surface, &adapter, requested_size, 1.0)?;
         let renderer =
             egui_wgpu::Renderer::new(&device, format, egui_wgpu::RendererOptions::default());
         let egui_ctx = egui::Context::default();
@@ -397,8 +434,15 @@ impl Backend {
                 output_state: OutputState::new(&globals, &qh),
                 compositor,
                 layer_shell,
+                viewporter,
+                fractional_scale_manager,
                 connection,
                 layer: Some(layer),
+                viewport,
+                fractional_scale,
+                target_output: None,
+                surface_output: None,
+                output_origin: (0, 0),
                 pointer: None,
                 pointer_position: None,
                 recreate_on_output: false,
@@ -413,7 +457,7 @@ impl Backend {
                 configured: false,
                 requested_size,
                 logical_size: requested_size,
-                output_scale: 1,
+                render_scale: 1.0,
                 egui_ctx,
                 events: Vec::new(),
                 start: Instant::now(),
@@ -452,28 +496,29 @@ impl Backend {
         Ok(())
     }
 
-    fn consume_published(&mut self) {
+    fn consume_published(&mut self, qh: &QueueHandle<Self>) {
         let snapshot = self
             .published
             .lock()
             .ok()
             .and_then(|mut published| published.latest.take());
         if let Some(snapshot) = snapshot {
-            self.apply_snapshot(snapshot);
+            self.apply_snapshot(snapshot, qh);
         }
     }
 
-    fn apply_snapshot(&mut self, snapshot: Arc<LinuxOverlaySnapshot>) {
+    fn apply_snapshot(&mut self, snapshot: Arc<LinuxOverlaySnapshot>, qh: &QueueHandle<Self>) {
         let size = panel_size(Some(&snapshot));
         let size_changed = self.requested_size != size;
+        let output_changed = self.select_output(snapshot.window_snapshot.map(|window| window.rect));
         let reposition = self.snapshot.as_ref().is_none_or(|previous| {
             previous.snap != snapshot.snap
                 || previous.position != snapshot.position
                 || previous.window_snapshot != snapshot.window_snapshot
                 || size_changed
-        });
+        }) || output_changed;
         let margin = if reposition {
-            panel_margin(&snapshot, size)
+            panel_margin(&snapshot, size, self.output_origin)
         } else {
             self.margin
         };
@@ -483,15 +528,118 @@ impl Backend {
         if reposition && self.dragging {
             self.reset_pointer_state();
         }
+        if output_changed {
+            self.drop_surface();
+            self.create_surface(qh).unwrap_or_else(|error| {
+                self.recreate_on_output = true;
+                eprintln!("[LinuxOverlay] output switch failed: {error}");
+            });
+            return;
+        }
         if let Some(layer) = &self.layer {
             if size_changed {
                 self.configured = false;
             }
             layer.set_size(size.0, size.1);
+            if let Some(viewport) = &self.viewport {
+                viewport.set_destination(size.0 as i32, size.1 as i32);
+            }
             layer.set_margin(margin.1, 0, 0, margin.0);
             layer.commit();
         }
         self.needs_redraw = true;
+    }
+
+    fn select_output(&mut self, game_rect: Option<WindowRect>) -> bool {
+        let Some(rect) = game_rect else {
+            return false;
+        };
+        let selected = self
+            .output_state
+            .outputs()
+            .filter_map(|output| {
+                let info = self.output_state.info(&output)?;
+                let geometry = output_geometry(&info)?;
+                Some((output, geometry, intersection_area(rect, geometry.rect)))
+            })
+            .max_by_key(|(_, _, overlap)| *overlap)
+            .filter(|(_, _, overlap)| *overlap > 0);
+        let Some((output, info, _)) = selected else {
+            return false;
+        };
+        let target = Some(output);
+        let origin = (info.rect.left, info.rect.top);
+        let mut scale = info.scale;
+        if self.viewporter.is_none() {
+            scale = scale.round().max(1.0);
+        }
+        let changed = self.target_output != target
+            || self.output_origin != origin
+            || (self.render_scale - scale).abs() > f64::EPSILON;
+        if changed {
+            let name = target
+                .as_ref()
+                .and_then(|output| self.output_state.info(output))
+                .and_then(|info| info.name)
+                .unwrap_or_else(|| "compositor-default".to_string());
+            eprintln!(
+                "[LinuxOverlay] output={name} origin={},{} scale={scale:.3}",
+                origin.0, origin.1
+            );
+        }
+        self.target_output = target;
+        self.output_origin = origin;
+        if (self.render_scale - scale).abs() > f64::EPSILON {
+            self.render_scale = scale;
+            self.configure_surface();
+        }
+        changed
+    }
+
+    fn refresh_output(&mut self, qh: &QueueHandle<Self>) {
+        let game_rect = self
+            .snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.window_snapshot.map(|window| window.rect));
+        if !self.select_output(game_rect) {
+            return;
+        }
+        if let Some(snapshot) = &self.snapshot {
+            self.margin = panel_margin(snapshot, self.requested_size, self.output_origin);
+        }
+        self.drop_surface();
+        if let Err(error) = self.create_surface(qh) {
+            self.recreate_on_output = true;
+            eprintln!("[LinuxOverlay] output refresh failed: {error}");
+        }
+    }
+
+    fn update_surface_scale(&mut self, output: &wl_output::WlOutput) {
+        if self.target_output.is_some() || self.fractional_scale.is_some() {
+            return;
+        }
+        let Some(info) = self.output_state.info(output) else {
+            return;
+        };
+        let Some(geometry) = output_geometry(&info) else {
+            return;
+        };
+        let scale = if self.viewporter.is_some() {
+            geometry.scale
+        } else {
+            geometry.scale.round().max(1.0)
+        };
+        if (self.render_scale - scale).abs() <= f64::EPSILON {
+            return;
+        }
+        self.render_scale = scale;
+        self.configure_surface();
+        self.needs_redraw = true;
+        eprintln!(
+            "[LinuxOverlay] entered output={} logical={:?} scale={scale:.3}",
+            info.name.as_deref().unwrap_or("unknown"),
+            info.logical_size,
+        );
     }
 
     fn create_surface(&mut self, qh: &QueueHandle<Self>) -> Result<(), String> {
@@ -501,8 +649,17 @@ impl Backend {
             qh,
             self.requested_size,
             self.margin,
-            self.output_scale,
+            fallback_buffer_scale(self.render_scale, self.viewporter.is_some()),
+            self.target_output.as_ref(),
         );
+        self.viewport = self
+            .viewporter
+            .as_ref()
+            .map(|manager| create_viewport(manager, &layer, qh, self.requested_size));
+        self.fractional_scale = self
+            .fractional_scale_manager
+            .as_ref()
+            .map(|manager| manager.get_fractional_scale(layer.wl_surface(), qh, ()));
         let surface = create_wgpu_surface(&self.connection, &self.instance, &layer)?;
         let capabilities = surface.get_capabilities(&self.adapter);
         if !capabilities.formats.contains(&self.format) {
@@ -512,7 +669,7 @@ impl Backend {
             &surface,
             &self.adapter,
             self.requested_size,
-            self.output_scale,
+            self.render_scale,
         )?;
         config.format = self.format;
         self.layer = Some(layer);
@@ -521,14 +678,22 @@ impl Backend {
         self.logical_size = self.requested_size;
         self.configured = false;
         self.needs_redraw = true;
+        self.recreate_on_output = false;
         Ok(())
     }
 
     fn drop_surface(&mut self) {
         self.reset_pointer_state();
+        if let Some(viewport) = self.viewport.take() {
+            viewport.destroy();
+        }
+        if let Some(fractional_scale) = self.fractional_scale.take() {
+            fractional_scale.destroy();
+        }
         self.surface = None;
         self.surface_config = None;
         self.layer = None;
+        self.surface_output = None;
         self.configured = false;
         self.needs_redraw = false;
         self.next_repaint = None;
@@ -561,16 +726,7 @@ impl Backend {
         let Some(config) = &mut self.surface_config else {
             return;
         };
-        config.width = self
-            .logical_size
-            .0
-            .saturating_mul(self.output_scale as u32)
-            .max(1);
-        config.height = self
-            .logical_size
-            .1
-            .saturating_mul(self.output_scale as u32)
-            .max(1);
+        (config.width, config.height) = physical_size(self.logical_size, self.render_scale);
         surface.configure(&self.device, config);
     }
 
@@ -598,13 +754,13 @@ impl Backend {
             ..Default::default()
         };
         if let Some(viewport) = raw_input.viewports.get_mut(&egui::ViewportId::ROOT) {
-            viewport.native_pixels_per_point = Some(self.output_scale as f32);
+            viewport.native_pixels_per_point = Some(self.render_scale as f32);
         }
 
         let mut actions = OverlayActions::default();
         let mut control_command = None;
         let ctx = self.egui_ctx.clone();
-        let full_output = ctx.run_ui(raw_input, |ctx| {
+        let mut full_output = ctx.run_ui(raw_input, |ctx| {
             if let Some(snapshot) = &self.snapshot {
                 if !is_hidden(snapshot) && !is_degraded(snapshot) {
                     egui::Panel::bottom("linux_overlay_controls")
@@ -647,11 +803,9 @@ impl Backend {
         self.apply_actions(actions);
 
         let clipped = ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
+        let physical = physical_size(self.logical_size, self.render_scale);
         let screen = egui_wgpu::ScreenDescriptor {
-            size_in_pixels: [
-                self.logical_size.0.saturating_mul(self.output_scale as u32),
-                self.logical_size.1.saturating_mul(self.output_scale as u32),
-            ],
+            size_in_pixels: [physical.0, physical.1],
             pixels_per_point: full_output.pixels_per_point,
         };
         for (id, deltas) in &full_output.textures_delta.set {
@@ -691,6 +845,7 @@ impl Backend {
         for id in &full_output.textures_delta.free {
             self.renderer.free_texture(id);
         }
+        full_output.textures_delta.clear();
 
         let repaint_delay = full_output
             .viewport_output
@@ -709,6 +864,7 @@ impl Backend {
                 .into_iter()
                 .chain(std::iter::once(encoder.finish())),
         );
+        self.queue.present(frame);
         Ok(())
     }
 
@@ -805,11 +961,12 @@ fn create_layer(
     size: (u32, u32),
     margin: (i32, i32),
     output_scale: i32,
+    output: Option<&wl_output::WlOutput>,
 ) -> LayerSurface {
     let surface = compositor.create_surface(qh);
     surface.set_buffer_scale(output_scale.max(1));
     let layer =
-        layer_shell.create_layer_surface(qh, surface, Layer::Overlay, Some("overmax"), None);
+        layer_shell.create_layer_surface(qh, surface, Layer::Overlay, Some("overmax"), output);
     layer.set_anchor(Anchor::TOP | Anchor::LEFT);
     layer.set_margin(margin.1, 0, 0, margin.0);
     layer.set_size(size.0, size.1);
@@ -817,6 +974,18 @@ fn create_layer(
     layer.set_exclusive_zone(-1);
     layer.commit();
     layer
+}
+
+fn create_viewport(
+    manager: &WpViewporter,
+    layer: &LayerSurface,
+    qh: &QueueHandle<Backend>,
+    logical_size: (u32, u32),
+) -> WpViewport {
+    layer.wl_surface().set_buffer_scale(1);
+    let viewport = manager.get_viewport(layer.wl_surface(), qh, ());
+    viewport.set_destination(logical_size.0 as i32, logical_size.1 as i32);
+    viewport
 }
 
 fn create_wgpu_surface(
@@ -844,7 +1013,7 @@ fn surface_settings(
     surface: &wgpu::Surface<'static>,
     adapter: &wgpu::Adapter,
     logical_size: (u32, u32),
-    output_scale: i32,
+    render_scale: f64,
 ) -> Result<(wgpu::TextureFormat, wgpu::SurfaceConfiguration), String> {
     let capabilities = surface.get_capabilities(adapter);
     let format = capabilities
@@ -859,12 +1028,9 @@ fn surface_settings(
         })
         .or_else(|| capabilities.formats.first().copied())
         .ok_or_else(|| "Wayland surface exposes no texture format".to_string())?;
+    let physical = physical_size(logical_size, render_scale);
     let mut config = surface
-        .get_default_config(
-            adapter,
-            logical_size.0.saturating_mul(output_scale as u32).max(1),
-            logical_size.1.saturating_mul(output_scale as u32).max(1),
-        )
+        .get_default_config(adapter, physical.0, physical.1)
         .ok_or_else(|| "GPU adapter cannot render to the Wayland surface".to_string())?;
     config.format = format;
     if !capabilities
@@ -875,6 +1041,62 @@ fn surface_settings(
     }
     config.alpha_mode = wgpu::CompositeAlphaMode::PreMultiplied;
     Ok((format, config))
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct OutputGeometry {
+    rect: WindowRect,
+    scale: f64,
+}
+
+fn output_geometry(info: &OutputInfo) -> Option<OutputGeometry> {
+    let current_mode = info.modes.iter().find(|mode| mode.current);
+    let (position, logical_size) = match (info.logical_position, info.logical_size) {
+        (Some(position), Some(size)) if size.0 > 0 && size.1 > 0 => (position, size),
+        _ => {
+            let mode = current_mode?;
+            let scale = info.scale_factor.max(1);
+            (
+                info.location,
+                (mode.dimensions.0 / scale, mode.dimensions.1 / scale),
+            )
+        }
+    };
+    let scale = current_mode.map_or(info.scale_factor.max(1) as f64, |mode| {
+        let physical_area = f64::from(mode.dimensions.0) * f64::from(mode.dimensions.1);
+        let logical_area = f64::from(logical_size.0) * f64::from(logical_size.1);
+        (physical_area / logical_area).sqrt()
+    });
+    Some(OutputGeometry {
+        rect: WindowRect {
+            left: position.0,
+            top: position.1,
+            width: logical_size.0,
+            height: logical_size.1,
+        },
+        scale: scale.max(1.0),
+    })
+}
+
+fn intersection_area(a: WindowRect, b: WindowRect) -> i64 {
+    let width = (a.left + a.width).min(b.left + b.width) - a.left.max(b.left);
+    let height = (a.top + a.height).min(b.top + b.height) - a.top.max(b.top);
+    i64::from(width.max(0)) * i64::from(height.max(0))
+}
+
+fn physical_size(logical: (u32, u32), scale: f64) -> (u32, u32) {
+    (
+        (f64::from(logical.0) * scale).ceil().max(1.0) as u32,
+        (f64::from(logical.1) * scale).ceil().max(1.0) as u32,
+    )
+}
+
+fn fallback_buffer_scale(render_scale: f64, has_viewporter: bool) -> i32 {
+    if has_viewporter {
+        1
+    } else {
+        render_scale.round().max(1.0) as i32
+    }
 }
 
 fn overlay_props(snapshot: &LinuxOverlaySnapshot) -> OverlayProps<'_> {
@@ -986,12 +1208,17 @@ fn panel_size(snapshot: Option<&LinuxOverlaySnapshot>) -> (u32, u32) {
     )
 }
 
-fn panel_margin(snapshot: &LinuxOverlaySnapshot, size: (u32, u32)) -> (i32, i32) {
+fn panel_margin(
+    snapshot: &LinuxOverlaySnapshot,
+    size: (u32, u32),
+    output_origin: (i32, i32),
+) -> (i32, i32) {
     calculate_margin(
         &snapshot.snap,
         snapshot.position,
         snapshot.window_snapshot.map(|window| window.rect),
         size,
+        output_origin,
     )
 }
 
@@ -1000,6 +1227,7 @@ fn calculate_margin(
     position: Option<(i32, i32)>,
     game_rect: Option<WindowRect>,
     size: (u32, u32),
+    output_origin: (i32, i32),
 ) -> (i32, i32) {
     let manual = || {
         let (x, y) = position.unwrap_or((DEFAULT_MARGIN, DEFAULT_MARGIN));
@@ -1008,9 +1236,11 @@ fn calculate_margin(
     if snap == "manual" {
         return manual();
     }
-    let Some(rect) = game_rect else {
+    let Some(mut rect) = game_rect else {
         return manual();
     };
+    rect.left -= output_origin.0;
+    rect.top -= output_origin.1;
     let right = (rect.left + rect.width - size.0 as i32 - SNAP_MARGIN).max(0);
     let bottom = (rect.top + rect.height - size.1 as i32 - SNAP_MARGIN).max(0);
     match snap {
@@ -1040,8 +1270,13 @@ impl CompositorHandler for Backend {
         {
             return;
         }
-        self.output_scale = factor.max(1);
-        surface.set_buffer_scale(self.output_scale);
+        if self.target_output.is_none() && self.viewport.is_none() {
+            self.render_scale = f64::from(factor.max(1));
+        }
+        surface.set_buffer_scale(fallback_buffer_scale(
+            self.render_scale,
+            self.viewport.is_some(),
+        ));
         self.configure_surface();
         self.needs_redraw = true;
     }
@@ -1075,18 +1310,36 @@ impl CompositorHandler for Backend {
         &mut self,
         _connection: &Connection,
         _qh: &QueueHandle<Self>,
-        _surface: &wl_surface::WlSurface,
-        _output: &wl_output::WlOutput,
+        surface: &wl_surface::WlSurface,
+        output: &wl_output::WlOutput,
     ) {
+        if self.target_output.is_some()
+            || !self
+                .layer
+                .as_ref()
+                .is_some_and(|layer| layer.wl_surface() == surface)
+        {
+            return;
+        }
+        self.surface_output = Some(output.clone());
+        self.update_surface_scale(output);
     }
 
     fn surface_leave(
         &mut self,
         _connection: &Connection,
         _qh: &QueueHandle<Self>,
-        _surface: &wl_surface::WlSurface,
-        _output: &wl_output::WlOutput,
+        surface: &wl_surface::WlSurface,
+        output: &wl_output::WlOutput,
     ) {
+        if self
+            .layer
+            .as_ref()
+            .is_some_and(|layer| layer.wl_surface() == surface)
+            && self.surface_output.as_ref() == Some(output)
+        {
+            self.surface_output = None;
+        }
     }
 }
 
@@ -1121,6 +1374,9 @@ impl LayerShellHandler for Backend {
                 configure.new_size.1
             },
         );
+        if let Some(viewport) = &self.viewport {
+            viewport.set_destination(self.logical_size.0 as i32, self.logical_size.1 as i32);
+        }
         self.configure_surface();
         self.configured = true;
         self.needs_redraw = true;
@@ -1229,19 +1485,96 @@ impl OutputHandler for Backend {
     fn update_output(
         &mut self,
         _connection: &Connection,
-        _qh: &QueueHandle<Self>,
-        _output: wl_output::WlOutput,
+        qh: &QueueHandle<Self>,
+        output: wl_output::WlOutput,
     ) {
+        if self.surface_output.as_ref() == Some(&output) {
+            self.update_surface_scale(&output);
+        }
+        self.refresh_output(qh);
     }
 
     fn output_destroyed(
         &mut self,
         _connection: &Connection,
-        _qh: &QueueHandle<Self>,
-        _output: wl_output::WlOutput,
+        qh: &QueueHandle<Self>,
+        output: wl_output::WlOutput,
     ) {
-        self.recreate_on_output = false;
-        self.drop_surface();
+        if self.target_output.as_ref() == Some(&output) {
+            self.target_output = None;
+            self.output_origin = (0, 0);
+            self.render_scale = 1.0;
+            self.drop_surface();
+            if let Err(error) = self.create_surface(qh) {
+                self.recreate_on_output = true;
+                eprintln!("[LinuxOverlay] output removal fallback failed: {error}");
+            }
+        }
+    }
+}
+
+impl Dispatch<WpViewporter, ()> for Backend {
+    fn event(
+        _: &mut Self,
+        _: &WpViewporter,
+        _: wp_viewporter::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        unreachable!("wp_viewporter has no events")
+    }
+}
+
+impl Dispatch<WpFractionalScaleManagerV1, ()> for Backend {
+    fn event(
+        _: &mut Self,
+        _: &WpFractionalScaleManagerV1,
+        _: wp_fractional_scale_manager_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        unreachable!("wp_fractional_scale_manager_v1 has no events")
+    }
+}
+
+impl Dispatch<WpFractionalScaleV1, ()> for Backend {
+    fn event(
+        state: &mut Self,
+        scale_object: &WpFractionalScaleV1,
+        event: wp_fractional_scale_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if state.fractional_scale.as_ref() != Some(scale_object) {
+            return;
+        }
+        let wp_fractional_scale_v1::Event::PreferredScale { scale } = event else {
+            return;
+        };
+        let scale = f64::from(scale) / 120.0;
+        if (state.render_scale - scale).abs() <= f64::EPSILON {
+            return;
+        }
+        state.render_scale = scale;
+        state.configure_surface();
+        state.needs_redraw = true;
+        eprintln!("[LinuxOverlay] preferred fractional scale={scale:.3}");
+    }
+}
+
+impl Dispatch<WpViewport, ()> for Backend {
+    fn event(
+        _: &mut Self,
+        _: &WpViewport,
+        _: wp_viewport::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        unreachable!("wp_viewport has no events")
     }
 }
 
@@ -1263,8 +1596,8 @@ impl ProvidesRegistryState for Backend {
 #[cfg(test)]
 mod tests {
     use super::{
-        calculate_margin, panel_size, LinuxLayerOverlayHandle, LinuxOverlaySnapshot,
-        PublishedSnapshots,
+        calculate_margin, intersection_area, panel_size, physical_size, LinuxLayerOverlayHandle,
+        LinuxOverlaySnapshot, PublishedSnapshots,
     };
     use overmax_core::{GameSessionState, SceneType};
     use overmax_data::{RecommendResult, RecordDB, RecordManager};
@@ -1284,14 +1617,46 @@ mod tests {
             height: 1080,
         };
         assert_eq!(
-            calculate_margin("bottom_right", None, Some(rect), (360, 380)),
+            calculate_margin("bottom_right", None, Some(rect), (360, 380), (0, 0)),
             (1544, 684)
         );
         assert_eq!(
-            calculate_margin("manual", Some((-20, 30)), Some(rect), (360, 380)),
+            calculate_margin(
+                "bottom_right",
+                None,
+                Some(WindowRect { left: 1920, ..rect }),
+                (360, 380),
+                (1920, 0),
+            ),
+            (1544, 684)
+        );
+        assert_eq!(
+            calculate_margin("manual", Some((-20, 30)), Some(rect), (360, 380), (0, 0)),
             (0, 30)
         );
         assert_eq!(panel_size(None), (320, 116));
+    }
+
+    #[test]
+    fn scales_fractional_buffers_and_selects_by_overlap() {
+        assert_eq!(physical_size((360, 380), 1.25), (450, 475));
+        assert_eq!(
+            intersection_area(
+                WindowRect {
+                    left: 1800,
+                    top: 0,
+                    width: 400,
+                    height: 300,
+                },
+                WindowRect {
+                    left: 1920,
+                    top: 0,
+                    width: 2560,
+                    height: 1440,
+                },
+            ),
+            84_000
+        );
     }
 
     #[test]

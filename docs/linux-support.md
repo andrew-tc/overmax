@@ -5,13 +5,15 @@ Overmax의 Linux 지원은 초기 단계입니다. Windows와 같은 범용 지�
 ## 지원 범위
 
 - x86_64 Linux와 glibc 2.35 이상
-- Wayland 세션과 `wlr-layer-shell`을 지원하는 compositor
+- Wayland 세션에서 `wlr-layer-shell`, `wp_viewporter`, `wp_fractional_scale_v1`을 지원하는 compositor
 - 같은 세션에서 동작하는 XWayland
 - XComposite 0.2 이상과 MIT-SHM 1.2 이상
 - Vulkan 드라이버와 premultiplied transparency를 지원하는 Wayland surface 환경
 - fontconfig와 한글 글꼴
 - 같은 `DISPLAY`에서 Proton/XWayland로 실행한 DJMAX RESPECT V
-- 테두리 없는 전체화면과 단일 출력
+- 테두리 없는 전체화면
+
+오버레이는 게임 창과 가장 많이 겹치는 Wayland 출력을 선택하고, 해당 출력의 논리 좌표 원점을 뺀 로컬 margin으로 배치합니다. 출력의 정수 배율은 기존 buffer scale로 처리하고 fractional 배율은 `wp_fractional_scale_v1`의 preferred scale과 `wp_viewporter`로 실제 렌더 버퍼 크기에 반영합니다.
 
 공식 Linux 배포 번들은 Ubuntu 22.04의 glibc 2.35 ABI를 기준으로 고정된 CI 환경에서 빌드합니다. Ubuntu Base 22.04.5에서 release 빌드와 실제 tarball 설치·업데이트 smoke를 통과했으며, 배포 전 checksum, 번들 레이아웃, 실행 권한, `--version`, 동적 라이브러리와 GLIBC symbol 상한을 다시 확인합니다.
 
@@ -77,7 +79,7 @@ Overmax는 백그라운드에서 시작하고 DJMAX는 Steam이 추적하는 게
 | `Composite` 또는 `MIT-SHM` 오류                       | XWayland의 XComposite와 MIT-SHM 확장이 활성화된 세션을 사용합니다. Gamescope 내부 세션은 현재 지원하지 않습니다.                               |
 | 한글이 보이지 않거나 `fc-match` 실패                  | fontconfig와 한글 글꼴을 설치한 뒤 `fc-cache -f`를 실행합니다.                                                                                 |
 | `DJMAX RESPECT V window not found`                    | 게임을 먼저 실행하고 Proton이 native Wayland가 아닌 XWayland를 사용하며 게임과 Overmax의 `DISPLAY`가 같은지 확인합니다.                        |
-| 게임 창은 찾지만 오버레이가 정상 표시되지 않음        | 게임을 테두리 없는 전체화면으로 바꾸고 단일 출력에서 다시 확인합니다.                                                                          |
+| 게임 창은 찾지만 오버레이가 정상 표시되지 않음        | 게임을 테두리 없는 전체화면으로 바꾸고 로그의 `[LinuxOverlay] output=...` 선택 결과가 게임이 있는 출력과 같은지 확인합니다.                    |
 | 설정 또는 캐시 저장 시 권한 오류                      | bundle을 사용자 쓰기 권한이 있는 디렉터리에 다시 풉니다.                                                                                       |
 | 업데이트 후 실행되지 않음                             | 새 bundle 전체를 다시 풀고 기존 `settings.user.json`과 `cache/`만 복사합니다. 이전 실행 파일이나 공유 라이브러리와 섞지 마세요.                |
 
