@@ -23,37 +23,47 @@ path = "src/bin/verify_pipeline.rs"
 [dependencies]
 overmax-engine = { path = "../overmax_engine" }
 eframe = { version = "0.36.1", default-features = false, features = [
-    "default_fonts",
-    "glow",
-    "wayland",
-    "x11",
+  "default_fonts",
+  "glow",
+  "wayland",
+  "x11",
 ] }
 egui = "0.36.1"
 overmax-core = { path = "../overmax_core" }
 overmax-data = { path = "../overmax_data" }
 overmax_cv = { path = "../overmax_cv" }
 reqwest = { version = "0.13.4", default-features = false, features = [
-    "blocking",
-    "json",
-    "native-tls",
+  "blocking",
+  "json",
+  "native-tls",
 ] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10.8"
 zip = { version = "2.4", default-features = false, features = ["deflate"] }
 rfd = "0.15"
-image = { version = "0.25.10", default-features = false, features = ["png", "ico", "jpeg"] }
+image = { version = "0.25.10", default-features = false, features = [
+  "png",
+  "ico",
+  "jpeg",
+] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 smithay-client-toolkit = { version = "0.20", default-features = false }
 wayland-client = { version = "0.31", features = ["system"] }
 egui-wgpu = { version = "0.36.1", default-features = false }
-# ponytail: M0's Intel target has a Vulkan ICD; add GLES only after a supported target needs it.
-wgpu = { version = "30.0.0", default-features = false, features = ["std", "wgsl", "vulkan"] }
+wgpu = { version = "30.0.0", default-features = false, features = [
+  "std",
+  "wgsl",
+  "vulkan",
+] }
 raw-window-handle = "0.6"
 pollster = "0.4"
 rustix = { version = "1", features = ["event"] }
-self_update = { version = "0.44.0", features = ["archive-tar", "compression-flate2"] }
+self_update = { version = "0.44.0", features = [
+  "archive-tar",
+  "compression-flate2",
+] }
 
 [features]
 
@@ -61,28 +71,31 @@ self_update = { version = "0.44.0", features = ["archive-tar", "compression-flat
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
 windows = { version = "0.62.2", features = [
-    "Graphics_Capture",
-    "Win32_Graphics_Direct3D",
-    "Win32_Graphics_Direct3D11",
-    "Win32_Graphics_Dxgi",
-    "Win32_System_WinRT_Graphics_Capture",
-    "Win32_Graphics_Gdi",
-    "Win32_Graphics_Dxgi_Common",
+  "Graphics_Capture",
+  "Win32_Graphics_Direct3D",
+  "Win32_Graphics_Direct3D11",
+  "Win32_Graphics_Dxgi",
+  "Win32_System_WinRT_Graphics_Capture",
+  "Win32_Graphics_Gdi",
+  "Win32_Graphics_Dxgi_Common",
 ] }
 windows-future = "0.3.2"
 windows-sys = { version = "0.61.2", features = [
-    "Win32_Foundation",
-    "Win32_Graphics_Gdi",
-    "Win32_System_Threading",
-    "Win32_System_LibraryLoader",
-    "Win32_UI_Shell",
-    "Win32_UI_Input_KeyboardAndMouse",
-    "Win32_UI_WindowsAndMessaging",
-    "Win32_Graphics",
-    "Win32_System_Diagnostics_ToolHelp",
-    "Win32_System_Console",
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_System_Threading",
+  "Win32_System_LibraryLoader",
+  "Win32_UI_Shell",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_Graphics",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_System_Console",
 ] }
-self_update = { version = "0.44.0", features = ["archive-zip", "compression-zip-deflate"] }
+self_update = { version = "0.44.0", features = [
+  "archive-zip",
+  "compression-zip-deflate",
+] }
 
 [build-dependencies]
 winres = "0.1.12"

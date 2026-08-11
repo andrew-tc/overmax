@@ -425,8 +425,6 @@ impl DetectionWorker {
 
     #[cfg(target_os = "linux")]
     fn on_capture_interrupted(&mut self, pipeline: &mut DetectionPipeline, reason: &str) {
-        // ponytail: immediate reset can repeatedly repay stabilization after noisy transient
-        // failures; add a time debounce only if real sessions show that cost.
         pipeline.reset();
         if self.capture_failure_active {
             return;
