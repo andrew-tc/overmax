@@ -67,7 +67,9 @@ pub fn render_settings_form(ui: &mut egui::Ui, draft: &mut Value, ctx: &Settings
 }
 
 fn ui_tab(ui: &mut egui::Ui, draft: &mut Value) {
-    section_frame(ui, t("오버레이 설정"), |ui| overlay_section(ui, draft));
+    section_frame(ui, t("오버레이 설정"), |ui| {
+        overlay_section(ui, draft)
+    });
 }
 
 fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
@@ -140,7 +142,6 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
             .checkbox(&mut lite_mode, t("활성화"))
             .on_hover_text(t("추천 숨기기 및 레이아웃 축소"));
 
-
         if response.changed() {
             overlay.insert("lite_mode".into(), serde_json::json!(lite_mode));
             ui.ctx().request_repaint_of(ui.ctx().parent_viewport_id());
@@ -157,7 +158,9 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
 
         let response = ui
             .checkbox(&mut always_visible, t("항상 표시"))
-            .on_hover_text(t("게임 구동 중 씬 감지(Unknown) 결과와 상관없이 오버레이를 항상 표시합니다."));
+            .on_hover_text(t(
+                "게임 구동 중 씬 감지(Unknown) 결과와 상관없이 오버레이를 항상 표시합니다.",
+            ));
 
         if response.changed() {
             overlay.insert("always_visible".into(), serde_json::json!(always_visible));
@@ -282,26 +285,29 @@ fn varchive_tab(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiContext) {
 
 fn current_steam_label(ctx: &SettingsUiContext) -> String {
     if ctx.current_steam_id.is_empty() {
-        t("현재 Steam: -").into()
+        format!("{}: -", t("현재 Steam"))
     } else {
         if let Ok(users) = ctx.steam_users.lock() {
             if let Some(user) = users.get(&ctx.current_steam_id) {
                 if !user.persona_name.is_empty() && !user.account_name.is_empty() {
                     return format!(
-                        "{}{} ({}) [{}]",
-                        t("현재 Steam: "), user.persona_name, user.account_name, ctx.current_steam_id
+                        "{}: {} ({}) [{}]",
+                        t("현재 Steam"),
+                        user.persona_name,
+                        user.account_name,
+                        ctx.current_steam_id
                     );
                 } else if !user.persona_name.is_empty() {
                     return format!(
-                        "{}{} [{}]",
-                        t("현재 Steam: "),
+                        "{}: {} [{}]",
+                        t("현재 Steam"),
                         user.persona_name,
                         ctx.current_steam_id
                     );
                 }
             }
         }
-        format!("{}{}", t("현재 Steam: "), ctx.current_steam_id)
+        format!("{}: {}", t("현재 Steam"), ctx.current_steam_id)
     }
 }
 
@@ -416,14 +422,13 @@ fn steam_account_rows(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiCont
     ui.horizontal(|ui| {
         ui.add_space(Theme::LABEL_WIDTH + 8.0);
         let scan_btn = egui::Button::new(
-            RichText::new(t("🔍 동기화 후보 찾기"))
+            RichText::new(format!("🔍 {}", t("동기화 후보 찾기")))
                 .size(Theme::FONT_BODY)
                 .strong(),
         )
         .min_size(egui::vec2(180.0, 40.0))
         .fill(Theme::TEXT_ACCENT)
         .corner_radius(egui::CornerRadius::same(Theme::R_SM));
-
 
         if ui.add(scan_btn).clicked() {
             if let Ok(mut sid) = ctx.sync_steam_id.lock() {
@@ -439,7 +444,9 @@ fn system_tab(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiContext) {
     section_frame(ui, t("진단 및 디버그"), |ui| {
         debug_section(ui, draft, ctx)
     });
-    section_frame(ui, t("화면 캡처 설정"), |ui| capture_section(ui, draft));
+    section_frame(ui, t("화면 캡처 설정"), |ui| {
+        capture_section(ui, draft)
+    });
     section_frame(ui, t("일반"), |ui| general_section(ui, draft));
     section_frame(ui, t("추천 Provider"), |ui| {
         recommend_provider_section(ui, draft)
@@ -453,7 +460,11 @@ fn system_tab(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiContext) {
                 let (title, description, level) = match result {
                     Ok(path) => (
                         "Overmax",
-                        format!("{}\n\n{}", t("앱 메뉴 바로가기를 생성했습니다."), path.display()),
+                        format!(
+                            "{}\n\n{}",
+                            t("앱 메뉴 바로가기를 생성했습니다."),
+                            path.display()
+                        ),
                         rfd::MessageLevel::Info,
                     ),
                     Err(error) => (
@@ -479,7 +490,9 @@ fn debug_section(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiContext) 
     form_row(ui, t("디버그 창"), |ui| {
         if ui
             .checkbox(&mut is_open, t("디버그 모니터링 창 표시"))
-            .on_hover_text(t("실시간 탐지 수치 및 진단 로그를 표출하는 디버그 창을 엽니다."))
+            .on_hover_text(t(
+                "실시간 탐지 수치 및 진단 로그를 표출하는 디버그 창을 엽니다.",
+            ))
             .changed()
         {
             let debug_obj = object_section_mut(draft, "debug");
@@ -501,22 +514,30 @@ fn capture_section(ui: &mut egui::Ui, draft: &mut Value) {
             .unwrap_or("gdi")
             .to_string();
 
-        form_row(ui, t("캡처 방식 (Windows)"), |ui| {
+        form_row(ui, &format!("{} (Windows)", t("캡처 방식")), |ui| {
             let mut changed = false;
             egui::ComboBox::from_id_salt("capture_engine_combo")
                 .selected_text(match engine.as_str() {
-                    "dxgi" => t("DXGI (실험적 / 고성능)"),
-                    _ => t("GDI (기본값 / 안정적)"),
+                    "dxgi" => format!("DXGI ({})", t("실험적 / 고성능")),
+                    _ => format!("GDI ({})", t("기본값 / 안정적")),
                 })
                 .show_ui(ui, |ui| {
                     if ui
-                        .selectable_value(&mut engine, "gdi".to_string(), t("GDI (기본값 / 안정적)"))
+                        .selectable_value(
+                            &mut engine,
+                            "gdi".to_string(),
+                            format!("GDI ({})", t("기본값 / 안정적")),
+                        )
                         .clicked()
                     {
                         changed = true;
                     }
                     if ui
-                        .selectable_value(&mut engine, "dxgi".to_string(), t("DXGI (실험적 / 고성능)"))
+                        .selectable_value(
+                            &mut engine,
+                            "dxgi".to_string(),
+                            format!("DXGI ({})", t("실험적 / 고성능")),
+                        )
                         .clicked()
                     {
                         changed = true;
@@ -551,19 +572,30 @@ fn capture_section(ui: &mut egui::Ui, draft: &mut Value) {
 
 fn general_section(ui: &mut egui::Ui, draft: &mut Value) {
     form_row(ui, t("언어"), |ui| {
-        let current_lang = draft.get("language").and_then(Value::as_str).unwrap_or("ko").to_string();
+        let current_lang = draft
+            .get("language")
+            .and_then(Value::as_str)
+            .unwrap_or("ko")
+            .to_string();
         ui.horizontal(|ui| {
             ui.style_mut().spacing.item_spacing.x = 4.0;
             ui.spacing_mut().button_padding = egui::vec2(4.0, 4.0);
             for (label, val) in [("한국어", "ko"), ("English", "en")] {
                 let is_active = current_lang == val;
                 let btn = egui::Button::new(RichText::new(label).size(Theme::FONT_SMALL).strong())
-                    .fill(if is_active { Theme::TAB_ACTIVE_BG } else { Theme::TAB_DIM_BG })
+                    .fill(if is_active {
+                        Theme::TAB_ACTIVE_BG
+                    } else {
+                        Theme::TAB_DIM_BG
+                    })
                     .stroke(Stroke::new(1.0, Theme::STROKE))
                     .corner_radius(egui::CornerRadius::same(Theme::R_SM))
                     .wrap();
 
-                if ui.add_sized(egui::vec2(80.0, Theme::CONTROL_HEIGHT), btn).clicked() {
+                if ui
+                    .add_sized(egui::vec2(80.0, Theme::CONTROL_HEIGHT), btn)
+                    .clicked()
+                {
                     root_map_mut(draft).insert("language".into(), json!(val));
                 }
             }
@@ -579,7 +611,10 @@ fn update_section(ui: &mut egui::Ui, draft: &mut Value) {
             .and_then(Value::as_bool)
             .unwrap_or(true);
         if ui
-            .checkbox(&mut enabled, RichText::new(t("사용")).size(Theme::FONT_BODY))
+            .checkbox(
+                &mut enabled,
+                RichText::new(t("사용")).size(Theme::FONT_BODY),
+            )
             .changed()
         {
             app_update.insert("enabled".into(), json!(enabled));
@@ -604,7 +639,10 @@ fn recommend_provider_section(ui: &mut egui::Ui, draft: &mut Value) {
         .unwrap_or(false);
     form_row(ui, t("외부 Provider 사용"), |ui| {
         if ui
-            .checkbox(&mut enabled, RichText::new(t("사용")).size(Theme::FONT_BODY))
+            .checkbox(
+                &mut enabled,
+                RichText::new(t("사용")).size(Theme::FONT_BODY),
+            )
             .changed()
         {
             rec_provider.insert("enabled".into(), json!(enabled));
@@ -642,7 +680,7 @@ fn recommend_provider_section(ui: &mut egui::Ui, draft: &mut Value) {
         if ui
             .add(
                 egui::TextEdit::singleline(&mut name)
-                    .hint_text(t("예: djmax.gg"))
+                    .hint_text(format!("{}: djmax.gg", t("예")))
                     .desired_width(220.0),
             )
             .changed()
@@ -743,7 +781,9 @@ fn root_map_mut(draft: &mut Value) -> &mut Map<String, Value> {
     if !draft.is_object() {
         *draft = Value::Object(Map::new());
     }
-    draft.as_object_mut().expect("draft must be verified as a JSON Object")
+    draft
+        .as_object_mut()
+        .expect("draft must be verified as a JSON Object")
 }
 
 fn object_section_mut<'a>(draft: &'a mut Value, section: &str) -> &'a mut Map<String, Value> {

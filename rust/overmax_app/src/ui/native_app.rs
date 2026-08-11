@@ -603,7 +603,7 @@ impl NativeApp {
                 let toast_text = if success {
                     format!("V-Archive: {}", msg)
                 } else {
-                    format!("{}{}", t("V-Archive 실패: "), msg)
+                    format!("{}: {}", t("V-Archive 실패"), msg)
                 };
                 self.toast = Some(crate::ui::components::ToastMessage {
                     text: toast_text,
@@ -759,7 +759,7 @@ impl NativeApp {
                             if let Err(e) =
                                 record_db.merge_varchive_fetched_records(&steam, btn, &data, false)
                             {
-                                Err(format!("{}{e}", t("API 조회 OK, 캐시 병합 실패: ")))
+                                Err(format!("{}: {e}", t("API 조회 OK, 캐시 병합 실패")))
                             } else {
                                 Ok(())
                             }
@@ -783,9 +783,9 @@ impl NativeApp {
                                 false,
                             ) {
                                 Err(format!(
-                                    "{}{e}{}{ue}",
-                                    t("API 실패 ("),
-                                    t("), 폴백 캐시 갱신 실패: ")
+                                    "{} ({e}), {}: {ue}",
+                                    t("API 실패"),
+                                    t("폴백 캐시 갱신 실패")
                                 ))
                             } else {
                                 Ok(())
@@ -806,7 +806,7 @@ impl NativeApp {
                     });
                     record_db
                         .merge_varchive_fetched_records(&steam, btn, &fallback_payload, false)
-                        .map_err(|e| format!("{}{e}", t("폴백 캐시 갱신 실패: ")))
+                        .map_err(|e| format!("{}: {e}", t("폴백 캐시 갱신 실패")))
                 };
 
                 let success_message = match cache_updated {
@@ -819,11 +819,11 @@ impl NativeApp {
                             candidate.difficulty,
                         ) {
                             msg = format!(
-                                "{} ({} TOP {}{}",
+                                "{} ({} TOP {}{}!)",
                                 msg,
                                 candidate.button_mode,
                                 rank,
-                                t("위 달성!)")
+                                t("위 달성")
                             );
                         }
                         Ok(msg)
@@ -840,7 +840,7 @@ impl NativeApp {
                             key,
                             is_quick_upload,
                             "success".into(),
-                            format!("{}{err_msg}", t("업로드 OK, 캐시 갱신 오류: ")),
+                            format!("{}: {err_msg}", t("업로드 OK, 캐시 갱신 오류")),
                         ));
                     }
                 }

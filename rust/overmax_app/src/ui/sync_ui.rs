@@ -156,7 +156,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                     if filter.open {
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             let reset_btn = egui::Button::new(
-                                RichText::new(t("초기화 ↺")).size(Theme::FONT_SMALL),
+                                RichText::new(format!("{} ↺", t("초기화"))).size(Theme::FONT_SMALL),
                             )
                             .fill(Theme::SECONDARY)
                             .corner_radius(CornerRadius::same(Theme::R_SM));
@@ -266,10 +266,15 @@ pub fn render_sync<F1, F2, F3, F4>(
                             ui.add_sized(
                                 [170.0, 20.0],
                                 egui::Label::new(
-                                    RichText::new(format!("{} ({} ~ {})", t("레벨"), min_lbl, max_lbl))
-                                        .color(Theme::TEXT_SECONDARY)
-                                        .size(Theme::FONT_SMALL)
-                                        .strong(),
+                                    RichText::new(format!(
+                                        "{} ({} ~ {})",
+                                        t("레벨"),
+                                        min_lbl,
+                                        max_lbl
+                                    ))
+                                    .color(Theme::TEXT_SECONDARY)
+                                    .size(Theme::FONT_SMALL)
+                                    .strong(),
                                 ),
                             );
                             let mut min_f = filter.min_level_idx as f64;
@@ -388,9 +393,10 @@ pub fn render_sync<F1, F2, F3, F4>(
                 } else {
                     Theme::SECONDARY
                 };
-                let diff_btn = egui::Button::new(RichText::new(t("변경순")).size(Theme::FONT_SMALL))
-                    .fill(diff_btn_fill)
-                    .corner_radius(CornerRadius::same(Theme::R_SM));
+                let diff_btn =
+                    egui::Button::new(RichText::new(t("변경순")).size(Theme::FONT_SMALL))
+                        .fill(diff_btn_fill)
+                        .corner_radius(CornerRadius::same(Theme::R_SM));
                 if ui.add(diff_btn).clicked() {
                     sort_mode = SyncSortMode::RateDiff;
                     ui.data_mut(|d| d.insert_temp(sort_mode_id, sort_mode));
@@ -403,9 +409,10 @@ pub fn render_sync<F1, F2, F3, F4>(
                 } else {
                     Theme::SECONDARY
                 };
-                let title_btn = egui::Button::new(RichText::new(t("제목순")).size(Theme::FONT_SMALL))
-                    .fill(title_btn_fill)
-                    .corner_radius(CornerRadius::same(Theme::R_SM));
+                let title_btn =
+                    egui::Button::new(RichText::new(t("제목순")).size(Theme::FONT_SMALL))
+                        .fill(title_btn_fill)
+                        .corner_radius(CornerRadius::same(Theme::R_SM));
                 if ui.add(title_btn).clicked() {
                     sort_mode = SyncSortMode::Title;
                     ui.data_mut(|d| d.insert_temp(sort_mode_id, sort_mode));
@@ -698,12 +705,13 @@ fn candidate_row<F: Fn(RecordKey), D: Fn(RecordKey)>(
                     });
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let upload_btn =
-                        egui::Button::new(RichText::new(t("등록")).size(Theme::FONT_SMALL).strong())
-                            .min_size(egui::vec2(60.0, Theme::CONTROL_HEIGHT))
-                            .fill(Theme::PRIMARY)
-                            .stroke(Stroke::new(1.0_f32, Theme::STROKE))
-                            .corner_radius(CornerRadius::same(Theme::R_SM));
+                    let upload_btn = egui::Button::new(
+                        RichText::new(t("등록")).size(Theme::FONT_SMALL).strong(),
+                    )
+                    .min_size(egui::vec2(60.0, Theme::CONTROL_HEIGHT))
+                    .fill(Theme::PRIMARY)
+                    .stroke(Stroke::new(1.0_f32, Theme::STROKE))
+                    .corner_radius(CornerRadius::same(Theme::R_SM));
                     if ui.add(upload_btn).clicked() {
                         if let Some(key) = c.key() {
                             on_upload(key);
@@ -712,11 +720,12 @@ fn candidate_row<F: Fn(RecordKey), D: Fn(RecordKey)>(
 
                     ui.add_space(4.0);
 
-                    let del_btn = egui::Button::new(RichText::new(t("삭제")).size(Theme::FONT_SMALL))
-                        .min_size(egui::vec2(60.0, Theme::CONTROL_HEIGHT))
-                        .fill(egui::Color32::TRANSPARENT)
-                        .stroke(Stroke::new(1.0_f32, Theme::STROKE))
-                        .corner_radius(CornerRadius::same(Theme::R_SM));
+                    let del_btn =
+                        egui::Button::new(RichText::new(t("삭제")).size(Theme::FONT_SMALL))
+                            .min_size(egui::vec2(60.0, Theme::CONTROL_HEIGHT))
+                            .fill(egui::Color32::TRANSPARENT)
+                            .stroke(Stroke::new(1.0_f32, Theme::STROKE))
+                            .corner_radius(CornerRadius::same(Theme::R_SM));
                     if ui.add(del_btn).clicked() {
                         if let Some(key) = c.key() {
                             on_delete(key);

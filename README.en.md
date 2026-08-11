@@ -6,7 +6,7 @@ An overlay tool that shows unofficial V-Archive-based difficulty ratings in real
 
 > **🚀 Native Rust app**: Overmax is built as a native Rust application for a lightweight, fast experience.
 > - **Lightweight and fast**: minimal memory footprint and executable size, with strong overall runtime performance.
-> - **Minimal external dependencies**: no heavy OpenCV dependency — uses pure-Rust HOG jacket image matching and Windows' built-in OCR instead.
+> - **Minimal external dependencies**: no heavy OpenCV or OS OCR dependency — uses a pure-Rust Perceptual Hash/histogram jacket-matching engine and a pure-Rust CV template-matching engine instead.
 > - **Fully backward compatible**: works with existing users' settings (`settings.json`) and local records (`record.db`), and preserves the existing portable environment as-is.
 
 ---
@@ -15,7 +15,7 @@ An overlay tool that shows unofficial V-Archive-based difficulty ratings in real
 
 ### What does it do?
 
-It displays the **unofficial V-Archive difficulty** and a **list of similarly-difficulty recommendations** for the currently selected song, right next to the game screen.
+It displays the **unofficial V-Archive difficulty** and a **list of similar-difficulty recommendations** for the currently selected song, right next to the game screen.
 
 - Shows the unofficial difficulty of the currently selected song for each button mode (NM/HD/MX/SC)
 - **V-Archive record sync**: imports your V-Archive play records, and can register locally collected records to V-Archive
@@ -28,23 +28,33 @@ The app never reads process memory or modifies game files — it works purely by
 
 ### Installation
 
+#### Windows
+
 1. Download the latest `overmax.zip` from [Releases](https://github.com/orphera/overmax/releases).
 2. Unzip and run `overmax.exe`.
 3. Launch DJMAX RESPECT V while it's running and detection starts automatically.
 
 > **Auto-update**: on startup, the app automatically checks for a newer version and for song DB (`image_index.db`) updates, and applies them.
 
+#### Linux (early support)
+
+1. Download `overmax-linux-x86_64.tar.gz` from Releases and extract it into a directory you can write to.
+2. Run `./overmax` from that directory. Settings and cache are stored in the run directory.
+3. Launch DJMAX RESPECT V in the same session via Proton/XWayland.
+
+For supported environments, how to check compatibility, current implementation status, and unsupported features, see the [Linux support guide](docs/linux-support.md).
+
 ### Requirements
 
-- Windows 10 1809 or later (64-bit) — Windows OCR is required
+- Windows 10 or later (64-bit), or x86_64 Linux meeting the early-support scope above
 - DJMAX RESPECT V (Steam)
-- An active internet connection while running (for downloading V-Archive data and checking for app/DB updates)
+- An active internet connection while running (for V-Archive data, DB, and app update checks)
 
 > ⚠️ **Important: game display settings**
 > * **Borderless fullscreen (windowed fullscreen) is recommended**: to have the overlay window display correctly on top of the game while playing, set the game's display option to **"Borderless Fullscreen"**.
 > * **If using exclusive fullscreen**: running the game in regular **"Fullscreen"** mode causes the overlay to render behind the game instead of on top of it, due to Windows OS and the game's anti-cheat (XIGNCODE3) restrictions. If you must use exclusive fullscreen, drag the overlay window onto a **secondary monitor** in a dual-monitor setup and use it there instead.
 
-> **Note**: the overlay UI language can be switched to English from Settings (Korean is the default).
+> **Note**: the overlay UI is written with Korean as the base language.
 
 ### Settings
 
@@ -62,7 +72,7 @@ The app never reads process memory or modifies game files — it works purely by
 ```bash
 # Requires Rust (rustup)
 cargo build --release -p overmax-app
-./target/release/overmax.exe
+./target/release/overmax-rs
 ```
 
 ### Project structure (Rust)
@@ -70,17 +80,29 @@ cargo build --release -p overmax-app
 - `rust/overmax_app`: main application (egui/winit-based UI and event loop)
 - `rust/overmax_core`: core state model and shared logic
 - `rust/overmax_data`: settings, DB (SQLite), V-Archive API integration
-- `rust/overmax_cv`: core image-processing algorithms (HOG, OCR preprocessing, etc.)
+- `rust/overmax_cv`: core image-processing algorithms (Perceptual Hash, histogram, edge detection, template-matching preprocessing, etc.)
 
 ### Build & release scripts
 
 - `scripts/package-rust.ps1`: automates the full build and produces the release `overmax.zip` and `release_manifest.json` (kept in the same format as the existing release layout)
+- `scripts/package-linux.sh`: builds an x86_64 Linux `tar.gz` targeting the Ubuntu 22.04/glibc 2.35 ABI, with a smoke check
 
 ---
 
 ## Data source
 
 - [V-Archive](https://v-archive.net)
+
+---
+
+## Roadmap
+
+Overmax is currently focused on the following goals per the backlog for the next version (v0.4.0). See [TASKS.md](TASKS.md) for detailed status and issue tracking.
+
+1. **Improve recommendations**: refine and optimize the personalized pattern-recommendation algorithm
+2. **Optimize memory usage**: protect runtime performance and reduce background resource consumption
+3. **Broaden detected scenes**: support detecting more in-game situations, such as ladder matches
+4. **Fully replace the V-Archive client (long-term goal)**: an all-in-one backup pipeline from local play-record collection through sync and instant upload
 
 ---
 

@@ -69,7 +69,12 @@ pub fn avg_rate_text(result: &RecommendResult) -> String {
 }
 
 pub fn pattern_count_text(result: &RecommendResult) -> String {
-    format!("{}/{}{}", result.has_record_count, result.total_count, t("개 패턴"))
+    format!(
+        "{}/{}{}",
+        result.has_record_count,
+        result.total_count,
+        t("개 패턴")
+    )
 }
 
 fn draw_diff_tab(

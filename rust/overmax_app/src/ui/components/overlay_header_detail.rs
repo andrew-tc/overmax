@@ -172,10 +172,10 @@ impl<'a> OverlayHeaderDetail<'a> {
         };
 
         if !pattern.gold.is_none() {
-            meta_list.push(format!("{}{}", t("황배:"), t_gold(pattern.gold)));
+            meta_list.push(format!("{}:{}", t("황배"), t_gold(pattern.gold)));
         }
         if !pattern.assist_key.is_none() {
-            meta_list.push(format!("{}{}", t("보조:"), t_assist(pattern.assist_key)));
+            meta_list.push(format!("{}:{}", t("보조"), t_assist(pattern.assist_key)));
         }
         if pattern.keypart {
             meta_list.push(t("키파트 위주 패턴").to_string());

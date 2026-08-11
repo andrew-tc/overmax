@@ -96,7 +96,7 @@ fn translate_en(ko: &'static str) -> &'static str {
         "시작 시 자동 갱신" => "Auto-refresh on start",
         "데이터 동기화" => "Data Sync",
         "찾기" => "Browse",
-        "🔍 동기화 후보 찾기" => "🔍 Find Sync Candidates",
+        "동기화 후보 찾기" => "Find Sync Candidates",
         "업데이트 설정" => "Update Settings",
         "자동 업데이트" => "Auto Update",
         "사용" => "Enable",
@@ -104,12 +104,11 @@ fn translate_en(ko: &'static str) -> &'static str {
         "발견된 Steam 계정이 없습니다." => "No Steam account found.",
         "일반" => "General",
         "언어" => "Language",
-        "현재 Steam: " => "Current Steam: ",
-        "현재 Steam: -" => "Current Steam: -",
+        "현재 Steam" => "Current Steam",
         "추천 Provider" => "Recommend Provider",
         "외부 Provider 사용" => "Use External Provider",
         "표시 이름" => "Display Name",
-        "예: djmax.gg" => "e.g. djmax.gg",
+        "예" => "e.g.",
         "오버레이 표시" => "Overlay Display",
         "항상 표시" => "Always Show",
         "게임 구동 중 씬 감지(Unknown) 결과와 상관없이 오버레이를 항상 표시합니다." => {
@@ -122,9 +121,9 @@ fn translate_en(ko: &'static str) -> &'static str {
             "Opens a debug window showing real-time detection metrics and diagnostic logs."
         }
         "화면 캡처 설정" => "Screen Capture Settings",
-        "캡처 방식 (Windows)" => "Capture Method (Windows)",
-        "GDI (기본값 / 안정적)" => "GDI (Default / Stable)",
-        "DXGI (실험적 / 고성능)" => "DXGI (Experimental / High Performance)",
+        "캡처 방식" => "Capture Method",
+        "기본값 / 안정적" => "Default / Stable",
+        "실험적 / 고성능" => "Experimental / High Performance",
         "캡처 시 오버레이 보호" => "Protect Overlay from Capture",
         "화면 캡처 방지" => "Prevent Screen Capture",
         "해제 시 화면 캡쳐에 잡히는 대신, 특정 영역에 오버레이가 위치하면 곡 인식이 제대로 동작하지 않게 됩니다." => {
@@ -158,20 +157,14 @@ fn translate_en(ko: &'static str) -> &'static str {
         }
         "유사 구간 평균" => "Similar Section Average",
         "키파트 위주 패턴" => "Key-part Focused Pattern",
-        "황배:" => "Recommendation:",
-        "보조:" => "Assist Key:",
+        "황배" => "Recommendation",
+        "보조" => "Assist Key",
         "기록 없음" => "No Record",
 
         // overlay_recommend_ui.rs
         "패턴을 감지하는 중..." => "Detecting pattern...",
         "추천 결과 없음" => "No recommendations",
         "개 패턴" => " patterns",
-
-        // debug_ui.rs
-        "▶ 재개" => "▶ Resume",
-        "⏸ 일시정지" => "⏸ Pause",
-        "🗑 지우기" => "🗑 Clear",
-        "필터:" => "Filter:",
 
         // native_app_recommend.rs
         "곡을 선택하세요" => "Please select a song",
@@ -182,19 +175,19 @@ fn translate_en(ko: &'static str) -> &'static str {
         "account.txt 파싱 실패" => "Failed to parse account.txt",
         "갱신 완료" => "Updated",
         "등록 완료" => "Registered",
-        "V-Archive 실패: " => "V-Archive Failed: ",
-        "API 조회 OK, 캐시 병합 실패: " => "API fetch OK, cache merge failed: ",
-        "API 실패 (" => "API failed (",
-        "), 폴백 캐시 갱신 실패: " => "), fallback cache update failed: ",
-        "위 달성!)" => " achieved!)",
-        "업로드 OK, 캐시 갱신 오류: " => "Upload OK, cache update error: ",
+        "V-Archive 실패" => "V-Archive Failed",
+        "API 조회 OK, 캐시 병합 실패" => "API fetch OK, cache merge failed",
+        "API 실패" => "API failed",
+        "폴백 캐시 갱신 실패" => "fallback cache update failed",
+        "위 달성" => " achieved",
+        "업로드 OK, 캐시 갱신 오류" => "Upload OK, cache update error",
 
         // community/sync.rs (SyncCandidate::reason_label, translated via injected fn)
         "미등록" => "Not Registered",
 
         // sync_ui.rs (filter panel)
         "필터" => "Filter",
-        "초기화 ↺" => "Reset ↺",
+        "초기화" => "Reset",
         "모드" => "Mode",
         "난이도" => "Difficulty",
         "레벨" => "Level",
@@ -210,12 +203,12 @@ fn translate_en(ko: &'static str) -> &'static str {
         }
 
         // system/updater/windows.rs (MessageBoxW)
-        "자동 패치가 완료되지 않았습니다.\n\n사유: " => {
-            "The automatic update did not complete.\n\nReason: "
-        }
-        "새 앱 업데이트가 있습니다.\n\n현재 버전: " => "A new app update is available.\n\nCurrent version: ",
-        "\n최신 버전: " => "\nLatest version: ",
-        "\n\n지금 업데이트를 진행할까요?" => "\n\nUpdate now?",
+        "자동 패치가 완료되지 않았습니다." => "The automatic update did not complete.",
+        "사유" => "Reason",
+        "새 앱 업데이트가 있습니다." => "A new app update is available.",
+        "현재 버전" => "Current version",
+        "최신 버전" => "Latest version",
+        "지금 업데이트를 진행할까요?" => "Update now?",
 
         _ => ko,
     }
