@@ -104,10 +104,10 @@ impl SyncCandidate {
         self.song_id == key.0 && self.button_mode == key.1 && self.difficulty == key.2
     }
 
-    pub fn reason_label(&self) -> String {
+    pub fn reason_label(&self, translate: impl Fn(&'static str) -> &'static str) -> String {
         let mut parts = Vec::new();
         if self.varchive_rate.is_none() {
-            parts.push("미등록".to_string());
+            parts.push(translate("미등록").to_string());
         } else if self.overmax_rate > self.varchive_rate.unwrap_or(0.0) {
             parts.push(format!(
                 "+{:.2}%",

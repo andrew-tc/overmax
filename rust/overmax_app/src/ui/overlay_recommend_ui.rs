@@ -1,9 +1,11 @@
+use crate::ui::i18n::t;
 use crate::ui::overlay_theme::Theme;
 use crate::ui::overlay_ui::diff_color;
 use eframe::egui::{
     self, Align, Color32, CornerRadius, FontId, Frame, Label, Layout, Margin, Rect, RichText, Vec2,
 };
 use overmax_core::GameSessionState;
+use overmax_data::community::sheet_meta::{AssistMeta, GoldMeta};
 use overmax_data::{RecommendEntry, RecommendResult};
 
 const TAB_WIDTH: f32 = 52.0;
@@ -25,9 +27,9 @@ pub struct PatternTabInfo {
     pub diff: overmax_core::Difficulty,
     pub level: Option<u32>,
     pub floor_name: Option<String>,
-    pub gold: String,
+    pub gold: GoldMeta,
     pub note: String,
-    pub assist_key: String,
+    pub assist_key: AssistMeta,
     pub keypart: bool,
 }
 
@@ -67,7 +69,12 @@ pub fn avg_rate_text(result: &RecommendResult) -> String {
 }
 
 pub fn pattern_count_text(result: &RecommendResult) -> String {
-    format!("{}/{}개 패턴", result.has_record_count, result.total_count)
+    format!(
+        "{}/{}{}",
+        result.has_record_count,
+        result.total_count,
+        t("개 패턴")
+    )
 }
 
 fn draw_diff_tab(
@@ -107,9 +114,9 @@ fn draw_recommend_content(
     scale: f32,
 ) {
     if state.context.is_none() {
-        draw_empty_recommend(ui, "패턴을 감지하는 중...", scale);
+        draw_empty_recommend(ui, t("패턴을 감지하는 중..."), scale);
     } else if recommendations.entries.is_empty() {
-        draw_empty_recommend(ui, "추천 결과 없음", scale);
+        draw_empty_recommend(ui, t("추천 결과 없음"), scale);
     } else {
         ui.spacing_mut().item_spacing.y = RECOMMEND_ROW_GAP * scale;
         for entry in recommendations.entries.iter().take(6) {
@@ -326,8 +333,8 @@ fn centered_badge_rect(cell: Rect, width: f32, scale: f32) -> Rect {
 #[cfg(test)]
 mod tests {
     use super::{
-        centered_badge_rect, pattern_label, recommend_row_inner_width, PatternTabInfo,
-        BADGE_HEIGHT, RECOMMEND_ROW_HEIGHT,
+        centered_badge_rect, pattern_label, recommend_row_inner_width, AssistMeta, GoldMeta,
+        PatternTabInfo, BADGE_HEIGHT, RECOMMEND_ROW_HEIGHT,
     };
     use eframe::egui::{Pos2, Rect, Vec2};
 
@@ -337,9 +344,9 @@ mod tests {
             diff: overmax_core::Difficulty::SC,
             level: Some(12),
             floor_name: Some("12.3".into()),
-            gold: String::new(),
+            gold: GoldMeta::default(),
             note: String::new(),
-            assist_key: String::new(),
+            assist_key: AssistMeta::default(),
             keypart: false,
         };
 

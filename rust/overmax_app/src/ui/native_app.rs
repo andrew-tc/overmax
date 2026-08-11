@@ -22,6 +22,7 @@ use crate::system::steam_session;
 use crate::system::updater::{self, AppUpdateConfig};
 use crate::system::varchive_upload;
 use crate::ui::debug_ui;
+use crate::ui::i18n::t;
 use crate::ui::overlay_ui;
 use crate::ui::platform;
 use crate::ui::ui_command::UiCommand;
@@ -37,10 +38,6 @@ pub fn run_native_app() -> eframe::Result<()> {
         ))));
     }
 
-    let Some(_single) = SingleInstanceGuard::try_acquire() else {
-        std::process::exit(0);
-    };
-
     let root = std::env::current_dir().unwrap_or_else(|e| {
         eprintln!("cwd: {e}");
         std::process::exit(1);
@@ -52,6 +49,12 @@ pub fn run_native_app() -> eframe::Result<()> {
     .unwrap_or_else(|_| Value::Object(serde_json::Map::new()));
     let mut merged = load_merged_settings(root.as_path(), defaults);
     normalize_settings(&mut merged);
+    crate::ui::i18n::set_locale_from_settings(&merged);
+
+    let Some(_single) = SingleInstanceGuard::try_acquire() else {
+        std::process::exit(0);
+    };
+
     let app_settings: overmax_data::Settings =
         serde_json::from_value(merged.clone()).unwrap_or_default();
     let upd_cfg = AppUpdateConfig::from_settings(&app_settings);
@@ -284,6 +287,7 @@ impl NativeApp {
         )));
         let mut merged = load_merged_settings(root.as_ref(), (*defaults).clone());
         normalize_settings(&mut merged);
+        crate::ui::i18n::set_locale_from_settings(&merged);
 
         let (log_tx, log_rx) = mpsc::channel();
         crate::ui::native_app_viewports::set_global_log_tx(log_tx.clone());
@@ -540,7 +544,7 @@ impl NativeApp {
     pub(crate) fn poll_scan_requests(&mut self, ctx: &egui::Context) {
         if self.ui_state.scan_pending.swap(false, Ordering::Relaxed) {
             if let Ok(mut s) = self.sync_state.status.lock() {
-                *s = "스캔 중…".into();
+                *s = t("스캔 중…").into();
             }
             self.spawn_scan(ctx.clone());
         }
@@ -569,7 +573,7 @@ impl NativeApp {
                         *g = list;
                     }
                     if let Ok(mut s) = self.sync_state.status.lock() {
-                        *s = format!("후보 {n}건");
+                        *s = t("후보 {n}건").replacen("{n}", &n.to_string(), 1);
                     }
                 }
                 Err(msg) => {
@@ -599,7 +603,7 @@ impl NativeApp {
                 let toast_text = if success {
                     format!("V-Archive: {}", msg)
                 } else {
-                    format!("V-Archive 실패: {}", msg)
+                    format!("{}: {}", t("V-Archive 실패"), msg)
                 };
                 self.toast = Some(crate::ui::components::ToastMessage {
                     text: toast_text,
@@ -705,7 +709,7 @@ impl NativeApp {
                     key,
                     is_quick_upload,
                     "error".into(),
-                    "account.txt 경로 없음".into(),
+                    t("account.txt 경로 없음").into(),
                 ));
                 ctx.request_repaint();
                 return;
@@ -715,7 +719,7 @@ impl NativeApp {
                     key,
                     is_quick_upload,
                     "error".into(),
-                    "account.txt 파싱 실패".into(),
+                    t("account.txt 파싱 실패").into(),
                 ));
                 ctx.request_repaint();
                 return;
@@ -731,9 +735,9 @@ impl NativeApp {
             );
             if res.success {
                 let success_message = if res.updated {
-                    "갱신 완료"
+                    t("갱신 완료")
                 } else {
-                    "등록 완료"
+                    t("등록 완료")
                 };
                 let btn = button_num(candidate.button_mode.as_str());
 
@@ -755,7 +759,7 @@ impl NativeApp {
                             if let Err(e) =
                                 record_db.merge_varchive_fetched_records(&steam, btn, &data, false)
                             {
-                                Err(format!("API 조회 OK, 캐시 병합 실패: {e}"))
+                                Err(format!("{}: {e}", t("API 조회 OK, 캐시 병합 실패")))
                             } else {
                                 Ok(())
                             }
@@ -778,7 +782,11 @@ impl NativeApp {
                                 &fallback_payload,
                                 false,
                             ) {
-                                Err(format!("API 실패 ({e}), 폴백 캐시 갱신 실패: {ue}"))
+                                Err(format!(
+                                    "{} ({e}), {}: {ue}",
+                                    t("API 실패"),
+                                    t("폴백 캐시 갱신 실패")
+                                ))
                             } else {
                                 Ok(())
                             }
@@ -798,7 +806,7 @@ impl NativeApp {
                     });
                     record_db
                         .merge_varchive_fetched_records(&steam, btn, &fallback_payload, false)
-                        .map_err(|e| format!("폴백 캐시 갱신 실패: {e}"))
+                        .map_err(|e| format!("{}: {e}", t("폴백 캐시 갱신 실패")))
                 };
 
                 let success_message = match cache_updated {
@@ -810,8 +818,13 @@ impl NativeApp {
                             &candidate.song_id.to_string(),
                             candidate.difficulty,
                         ) {
-                            msg =
-                                format!("{} ({} TOP {}위 달성!)", msg, candidate.button_mode, rank);
+                            msg = format!(
+                                "{} ({} TOP {}{}!)",
+                                msg,
+                                candidate.button_mode,
+                                rank,
+                                t("위 달성")
+                            );
                         }
                         Ok(msg)
                     }
@@ -827,7 +840,7 @@ impl NativeApp {
                             key,
                             is_quick_upload,
                             "success".into(),
-                            format!("업로드 OK, 캐시 갱신 오류: {err_msg}"),
+                            format!("{}: {err_msg}", t("업로드 OK, 캐시 갱신 오류")),
                         ));
                     }
                 }
