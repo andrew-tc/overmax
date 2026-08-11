@@ -108,8 +108,8 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
 
 ## 9. 씬 감지 파이프라인 경량화 (게임 플레이 중 프레임 드랍 완화)
 
-- [ ] **Step 0: 사전 확인 (죽은 코드 확인)**
-  - [ ] `logo_roi` / `get_roi("logo")` 경로가 실제 판별 흐름에서 쓰이는지 확인 (`rg -n 'get_roi\("logo"|get_roi_for_scene\("logo"|logo_roi\(\)' rust/`) (정보 수집 목적, 삭제 금지)
+- [x] **Step 0: 사전 확인 (죽은 코드 확인)**
+  - [x] `logo_roi` / `get_roi("logo")` 경로가 실제 판별 흐름에서 쓰이는지 확인 (`rg -n 'get_roi\("logo"|get_roi_for_scene\("logo"|logo_roi\(\)' rust/`) (확인 완료: 런타임 디텍션 경로에서 미사용 확인; 이번 범위 외)
 - [ ] **Step 1: 게이트 short-circuit 적용 (엣지/밴드 중복 계산 제거)**
   - [ ] `detect_result_scene_via_edge`, `detect_freestyle_scene_via_edge`, `detect_openmatch_scene_via_edge` 3개 함수에 `check_category_band_solid` || `detect_jacket_edges` short-circuit 평가 순서 적용
   - [ ] `cargo check`, `cargo test`, `cargo clippy` 검증 및 씬 전이 유닛 테스트 통과 확인
