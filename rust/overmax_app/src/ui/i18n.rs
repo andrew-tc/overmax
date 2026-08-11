@@ -115,10 +115,16 @@ fn translate_en(ko: &'static str) -> &'static str {
         "게임 구동 중 씬 감지(Unknown) 결과와 상관없이 오버레이를 항상 표시합니다." => {
             "Keeps the overlay visible at all times, regardless of scene detection (Unknown) results."
         }
+        "진단 및 디버그" => "Diagnostics & Debug",
+        "디버그 창" => "Debug Window",
+        "디버그 모니터링 창 표시" => "Show Debug Monitoring Window",
+        "실시간 탐지 수치 및 진단 로그를 표출하는 디버그 창을 엽니다." => {
+            "Opens a debug window showing real-time detection metrics and diagnostic logs."
+        }
         "화면 캡처 설정" => "Screen Capture Settings",
         "캡처 방식 (Windows)" => "Capture Method (Windows)",
-        "GDI (호환성 모드)" => "GDI (Compatibility Mode)",
-        "DXGI (기본값 / 고성능)" => "DXGI (Default / High Performance)",
+        "GDI (기본값 / 안정적)" => "GDI (Default / Stable)",
+        "DXGI (실험적 / 고성능)" => "DXGI (Experimental / High Performance)",
         "캡처 시 오버레이 보호" => "Protect Overlay from Capture",
         "화면 캡처 방지" => "Prevent Screen Capture",
         "해제 시 화면 캡쳐에 잡히는 대신, 특정 영역에 오버레이가 위치하면 곡 인식이 제대로 동작하지 않게 됩니다." => {
