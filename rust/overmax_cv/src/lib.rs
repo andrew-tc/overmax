@@ -117,7 +117,7 @@ pub fn preprocess_ocr_bgra(
     binarize: bool,
 ) -> Result<Vec<u8>, error::CvError> {
     image::validate_image(data, width, height, 4, "preprocess_ocr_bgra")?;
-    Ok(ocr::preprocess_logo_bgra(
+    Ok(ocr::preprocess_ocr_bgra_internal(
         data,
         width,
         height,

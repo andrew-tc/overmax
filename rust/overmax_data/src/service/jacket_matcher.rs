@@ -1,6 +1,13 @@
 use crate::store::image_index::{ImageEntry, ImageMatch};
 use std::sync::Arc;
 
+macro_rules! debug_println {
+    ($($arg:tt)*) => {
+        #[cfg(debug_assertions)]
+        println!($($arg)*);
+    };
+}
+
 #[derive(Clone, Debug)]
 pub struct JacketMatcherConfig {
     pub similarity_threshold: f32,
@@ -27,6 +34,9 @@ pub struct JacketMatcher {
     /// 만약 모든 곡에 히스토그램이 존재하는 DB라면 `Some(Vec<[u8; 384]>)`로 촘촘하게 평탄화하여
     /// 루프 내부의 Option 분기 체크(Discriminant Branching)를 100% 제거
     hist_list: Option<Vec<[u8; 384]>>,
+    /// Global Centroid Kernel (전체 자켓 DB 대표 중심점 히스토그램 및 허용 반경)
+    centroid_hist: Option<[u8; 384]>,
+    centroid_max_diff: u32,
 }
 
 impl JacketMatcher {
@@ -56,6 +66,41 @@ impl JacketMatcher {
             None
         };
 
+        let (centroid_hist, centroid_max_diff) = if let Some(hists) = &hist_list {
+            if !hists.is_empty() {
+                let n = hists.len() as f64;
+                let mut sum = [0.0f64; 384];
+                for h in hists {
+                    for d in 0..384 {
+                        sum[d] += h[d] as f64;
+                    }
+                }
+                let mut centroid = [0u8; 384];
+                for d in 0..384 {
+                    centroid[d] = (sum[d] / n).round() as u8;
+                }
+
+                let mut max_diff = 0u32;
+                for h in hists {
+                    let diff: u32 = h
+                        .iter()
+                        .zip(centroid.iter())
+                        .map(|(&a, &b)| a.abs_diff(b) as u32)
+                        .sum();
+                    if diff > max_diff {
+                        max_diff = diff;
+                    }
+                }
+                // 안전 마진 25% 부여 (정상 자켓의 False Negative를 100% 방지)
+                let allowed_radius = (max_diff as f32 * 1.25).round() as u32;
+                (Some(centroid), allowed_radius)
+            } else {
+                (None, u32::MAX)
+            }
+        } else {
+            (None, u32::MAX)
+        };
+
         Self {
             entries,
             config,
@@ -66,6 +111,8 @@ impl JacketMatcher {
             dhash_list,
             ahash_list,
             hist_list,
+            centroid_hist,
+            centroid_max_diff,
         }
     }
 
@@ -104,6 +151,22 @@ impl JacketMatcher {
 
         // 2. 4x4 분할 RGB 그리드 히스토그램 추출 (BGRA 직접 입력, grayscale 변환 불필요)
         let q_grid_hist = overmax_cv::compute_grid_histogram(data, width, height, channels);
+
+        // [Global Centroid Kernel Early Exit Gate]
+        if let Some(c_hist) = &self.centroid_hist {
+            let c_diff: u32 = q_grid_hist
+                .iter()
+                .zip(c_hist.iter())
+                .map(|(&q, &c)| q.abs_diff(c) as u32)
+                .sum();
+            if c_diff > self.centroid_max_diff {
+                debug_println!(
+                    "    [GlobalCentroidKernel] Early Exit! c_diff={} > max_diff={}",
+                    c_diff, self.centroid_max_diff
+                );
+                return None;
+            }
+        }
 
         // 오염 영역 비트 마스킹 (상단 y=0, 우측 x=7, 즐겨찾기 y=1, x=0)
         let mut mask_bits: u64 = 0;

@@ -23,6 +23,55 @@ fn game_window_title(settings: &overmax_data::Settings) -> &str {
         .unwrap_or("DJMAX RESPECT V")
 }
 
+static CLOSE_REQUEST_TIMESTAMP: std::sync::Mutex<Option<std::time::Instant>> =
+    std::sync::Mutex::new(None);
+static GLOBAL_LOG_TX: std::sync::Mutex<Option<std::sync::mpsc::Sender<String>>> =
+    std::sync::Mutex::new(None);
+
+pub fn set_global_log_tx(tx: std::sync::mpsc::Sender<String>) {
+    if let Ok(mut lock) = GLOBAL_LOG_TX.lock() {
+        *lock = Some(tx);
+    }
+}
+
+pub fn send_debug_log(msg: impl Into<String>) {
+    let s = msg.into();
+    if let Ok(lock) = GLOBAL_LOG_TX.lock() {
+        if let Some(tx) = lock.as_ref() {
+            let _ = tx.send(s);
+            return;
+        }
+    }
+    eprintln!("{s}");
+}
+
+pub fn log_close_request(source: &str) {
+    if let Ok(mut lock) = CLOSE_REQUEST_TIMESTAMP.lock() {
+        let now = std::time::Instant::now();
+        *lock = Some(now);
+        send_debug_log(format!("[CLOSE_DIAG] Close requested from '{}'", source));
+    }
+}
+
+pub fn check_close_diag(stage: &str, settings_open: bool, overlay_on: bool) {
+    if let Ok(mut lock) = CLOSE_REQUEST_TIMESTAMP.lock() {
+        if let Some(req_time) = *lock {
+            let elapsed = req_time.elapsed();
+            send_debug_log(format!(
+                "[CLOSE_DIAG] Stage '{}': elapsed={:?}, settings_open={}, overlay_on={}",
+                stage, elapsed, settings_open, overlay_on
+            ));
+            if !settings_open {
+                send_debug_log(format!(
+                    "[CLOSE_DIAG] Viewport unrendered in ROOT ui() after {:?}",
+                    elapsed
+                ));
+                *lock = None;
+            }
+        }
+    }
+}
+
 impl NativeApp {
     fn auxiliary_viewport(title: &str, size: [f32; 2]) -> ViewportBuilder {
         ViewportBuilder::default()
@@ -221,6 +270,7 @@ impl NativeApp {
                                     .fill(Theme::SECONDARY)
                                     .corner_radius(egui::CornerRadius::same(Theme::R_SM));
                                     if ui.add(close_btn).clicked() {
+                                        log_close_request("settings_close_button");
                                         open.store(false, Ordering::Relaxed);
                                         ui.ctx().request_repaint_of(ui.ctx().parent_viewport_id());
                                     }
@@ -386,6 +436,10 @@ fn read_overlay_settings(
 impl eframe::App for NativeApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        let settings_open = self.ui_state.settings_open.load(Ordering::Relaxed);
+        let overlay_on = self.session.scene != overmax_core::SceneType::Unknown;
+        check_close_diag("ROOT_ui_start", settings_open, overlay_on);
+
         if let Ok(mut holder) = self.ctx_holder.lock() {
             if holder.is_none() {
                 *holder = Some(ctx.clone());

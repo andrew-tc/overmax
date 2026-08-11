@@ -24,7 +24,7 @@ fn autocontrast_gray(data: &mut [u8]) {
     }
 }
 
-pub fn preprocess_logo_bgra(
+pub fn preprocess_ocr_bgra_internal(
     data: &[u8],
     width: usize,
     height: usize,

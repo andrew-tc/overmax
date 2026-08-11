@@ -286,6 +286,7 @@ impl NativeApp {
         normalize_settings(&mut merged);
 
         let (log_tx, log_rx) = mpsc::channel();
+        crate::ui::native_app_viewports::set_global_log_tx(log_tx.clone());
         let (game_found_tx, game_found_rx) = mpsc::channel();
         let (detection_tx, detection_rx) = mpsc::channel();
 
