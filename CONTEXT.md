@@ -250,6 +250,8 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 | 2026-08-10 | 오버레이 Scale 피드백 루프 해소 및 동적 Height Auto-Fit 적용 | `scale` 조절 시 이전 뷰포트 크기가 매 프레임 InnerSize를 덮어씌워 창 크기가 스케일에 반응하지 않던 피드백 루프를 제거하고, Width 고정 + 폰트 렌더링 결과 높이(`rect.height()`) 동적 핏을 적용하여 스케일 조절 시 유격 0px의 완벽한 오버레이 Fit 구현 | [native_app_viewports.rs](rust/overmax_app/src/ui/native_app_viewports.rs) |
 | 2026-08-10 | 오버레이 패널 RGBA Alpha 렌더링 전환 및 Windows 11 DWM 1px Border 제거 | `SetLayeredWindowAttributes` 사각형 전체 알파 덮어쓰기로 인한 둥근 모서리 바깥쪽 반투명 틴트 사각형 비침 현상을 패널 RGBA Alpha `Theme::with_opacity` 렌더링으로 전환해 완전 소거하고, `DwmSetWindowAttribute(DWMWA_BORDER_COLOR)` 속성 주입으로 Win11 1px 테두리 보더 100% 제거 | [overlay_theme.rs](rust/overmax_app/src/ui/overlay_theme.rs) / [overlay_ui.rs](rust/overmax_app/src/ui/overlay_ui.rs) / [native_app_viewports.rs](rust/overmax_app/src/ui/native_app_viewports.rs) |
 | 2026-08-12 | VArchiveDB title_map을 인덱스 기반으로 전환 | 실측 결과 build_index()가 RSS를 1,940KB (88.5%) 증가시킴을 확인하고 `HashMap<String, Vec<usize>>`로 전환하여 100% 절감 | [client.rs](rust/overmax_data/src/community/client.rs) |
+| 2026-08-12 | RecordDB get_rate_map 스레드 로컬 커넥션 캐싱 도입 | 매 호출 Connection::open으로 인한 읽기 지연시간(1.09ms)을 thread_local 커넥션 재사용으로 0.20ms(81.7% 감소)로 축소 | [record_db.rs](rust/overmax_data/src/store/record_db.rs) |
+
 
 
 ## Linux 지원 결정 기록

@@ -284,6 +284,26 @@ impl RecordDB {
         None
     }
 
+    fn with_rate_map_connection<T>(&self, f: impl FnOnce(&Connection) -> T) -> Option<T> {
+        thread_local! {
+            static RATE_MAP_CONN: std::cell::RefCell<Option<(PathBuf, Connection)>> =
+                const { std::cell::RefCell::new(None) };
+        }
+
+        RATE_MAP_CONN.with(|cell| {
+            let mut slot = cell.borrow_mut();
+            let need_new = match slot.as_ref() {
+                Some((path, _)) => path != &self.db_path,
+                None => true,
+            };
+            if need_new {
+                let conn = Connection::open(&self.db_path).ok()?;
+                *slot = Some((self.db_path.clone(), conn));
+            }
+            slot.as_ref().map(|(_, conn)| f(conn))
+        })
+    }
+
     pub fn get_rate_map(
         &self,
         song_ids: &[i32],
@@ -302,7 +322,7 @@ impl RecordDB {
         );
 
         let mut map = std::collections::HashMap::new();
-        if let Ok(conn) = Connection::open(&self.db_path) {
+        let _ = self.with_rate_map_connection(|conn| {
             if let Ok(mut stmt) = conn.prepare(&query) {
                 let mut p = Vec::new();
                 p.push(&steam_id as &dyn rusqlite::ToSql);
@@ -338,7 +358,7 @@ impl RecordDB {
                     }
                 }
             }
-        }
+        });
         map
     }
 

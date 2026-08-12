@@ -23,6 +23,8 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
 
 - [x] 백그라운드 실행 및 인게임 영향 최소화를 위한 메모리 사용량 최적화
   - [x] [완료] `VArchiveDB.title_map` 메모리 낭비 실측 (songs 로드 대비 +1,940 KB / 88.5% 상주 오버헤드 확인) 및 `HashMap<String, Vec<usize>>` 인덱스 기반 전환으로 추가 메모리 오버헤드 100% (1,940 KB → 0 KB) 절감
+  - [x] [완료] `RecordDB.get_rate_map()` 매 호출 SQLite `Connection::open()` 지연시간 실측 (6곡 1.09ms / 800곡 4.67ms) 및 `thread_local!` 커넥션 재사용 캐싱으로 6곡 지연시간 0.20ms (81.7% 감소) 단축
+
 
 
 ## 3. 감지 씬 다양화
