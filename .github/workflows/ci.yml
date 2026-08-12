@@ -40,6 +40,7 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUST_VERSION: 1.97.0
+  CARGO_INCREMENTAL: 0
 
 jobs:
   build-and-test:
@@ -51,20 +52,30 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - name: Install Rust
-        run: |
-          rustup toolchain install ${{ env.RUST_VERSION }} --profile minimal --component clippy
-          rustup override set ${{ env.RUST_VERSION }}
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: clippy
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
       - name: Build
         run: cargo build --workspace --locked
-      - name: Test
-        run: cargo test --workspace --locked
+
       - name: Clippy
         if: runner.os == 'Linux'
         run: cargo clippy --workspace --all-targets --locked
+
+      - name: Test
+        run: cargo test --workspace --locked
+
       - name: Package and smoke Linux bundle
         if: github.event_name == 'workflow_dispatch' && runner.os == 'Linux' && (inputs.package_target == 'all' || inputs.package_target == 'linux')
         run: bash scripts/package-linux.sh
+
       - name: Upload Linux artifact
         if: github.event_name == 'workflow_dispatch' && runner.os == 'Linux' && (inputs.package_target == 'all' || inputs.package_target == 'linux')
         uses: actions/upload-artifact@v4
@@ -73,10 +84,12 @@ jobs:
           path: |
             dist/overmax-linux-x86_64.tar.gz
             dist/overmax-linux-x86_64.tar.gz.sha256
+
       - name: Package Windows bundle
         if: github.event_name == 'workflow_dispatch' && runner.os == 'Windows' && (inputs.package_target == 'all' || inputs.package_target == 'windows')
         shell: powershell
         run: powershell -ExecutionPolicy Bypass -File scripts/package-rust.ps1
+
       - name: Upload Windows artifact
         if: github.event_name == 'workflow_dispatch' && runner.os == 'Windows' && (inputs.package_target == 'all' || inputs.package_target == 'windows')
         uses: actions/upload-artifact@v4
@@ -91,14 +104,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - name: Install Rust
-        run: |
-          rustup toolchain install ${{ env.RUST_VERSION }} --profile minimal
-          rustup override set ${{ env.RUST_VERSION }}
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
       - name: Install X11 test stack
         run: |
           sudo apt-get update
           sudo apt-get install --yes openbox xauth xvfb
           dpkg-query --show openbox xvfb
+
       - name: Test X11 tracker and capture lifecycle
         run: bash .github/scripts/linux-vertical-slice-lifecycle.sh
