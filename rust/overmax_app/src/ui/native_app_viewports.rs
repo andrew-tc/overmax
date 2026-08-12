@@ -554,7 +554,7 @@ impl NativeApp {
             debug_ui::push_log(
                 &self.debug_state.log_lines,
                 self.max_log_lines(),
-                "[Overlay] 오버레이 스타일 적용용 창 핸들을 찾지 못함".to_string(),
+                "[Overlay] 오버레이 스타일 적용용 창 핸들을 찾지 못함",
             );
             self.platform.win_cache.logged_opacity_fail = true;
         }

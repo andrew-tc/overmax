@@ -49,7 +49,7 @@ impl Song {
 pub struct VArchiveDB {
     pub songs: Vec<Song>,
     pub dlcs: Vec<Dlc>,
-    title_map: HashMap<String, Vec<Song>>,
+    title_map: HashMap<String, Vec<usize>>,
 }
 
 impl Default for VArchiveDB {
@@ -99,9 +99,9 @@ impl VArchiveDB {
 
     fn build_index(&mut self) {
         self.title_map.clear();
-        for song in &self.songs {
+        for (idx, song) in self.songs.iter().enumerate() {
             let key = song.name.to_lowercase().trim().to_string();
-            self.title_map.entry(key).or_default().push(song.clone());
+            self.title_map.entry(key).or_default().push(idx);
         }
     }
 
@@ -113,23 +113,24 @@ impl VArchiveDB {
             .replace(char::is_whitespace, "")
     }
 
-    fn pick_by_composer(&self, songs: &[Song], composer: &str) -> Option<Song> {
-        if songs.is_empty() {
+    fn pick_by_composer(&self, indices: &[usize], composer: &str) -> Option<Song> {
+        if indices.is_empty() {
             return None;
         }
         if composer.is_empty() {
-            return Some(songs[0].clone());
+            return Some(self.songs[indices[0]].clone());
         }
 
         let query = Self::normalize_text(composer);
         if query.is_empty() {
-            return Some(songs[0].clone());
+            return Some(self.songs[indices[0]].clone());
         }
 
         let mut best_song = None;
         let mut best_score = -1.0;
 
-        for song in songs {
+        for &idx in indices {
+            let song = &self.songs[idx];
             let comp_norm = Self::normalize_text(&song.composer);
             let score: f64;
 
@@ -150,14 +151,14 @@ impl VArchiveDB {
             }
         }
 
-        best_song.or_else(|| Some(songs[0].clone()))
+        best_song.or_else(|| Some(self.songs[indices[0]].clone()))
     }
 
     pub fn find_exact(&self, title: &str, composer: &str) -> Option<Song> {
         let key = title.to_lowercase().trim().to_string();
         self.title_map
             .get(&key)
-            .and_then(|songs| self.pick_by_composer(songs, composer))
+            .and_then(|indices| self.pick_by_composer(indices, composer))
     }
 
     pub fn find_fuzzy(&self, title: &str, composer: &str, threshold: u32) -> Option<Song> {
@@ -181,7 +182,7 @@ impl VArchiveDB {
 
         best_match
             .and_then(|matched_key| self.title_map.get(&matched_key))
-            .and_then(|songs| self.pick_by_composer(songs, composer))
+            .and_then(|indices| self.pick_by_composer(indices, composer))
     }
 
     pub fn search_by_id(&self, song_id: i32) -> Option<Song> {
