@@ -1788,8 +1788,21 @@ mod tests {
         );
         drop(handle);
         assert!(
-            !super::drain_wake_socket(&reader),
+            wait_for_eof(&reader, Duration::from_millis(200)),
             "dropping every handle signals shutdown via EOF"
         );
+    }
+
+    fn wait_for_eof(reader: &UnixStream, timeout: Duration) -> bool {
+        let deadline = Instant::now() + timeout;
+        loop {
+            if !super::drain_wake_socket(reader) {
+                return true; // EOF 관측됨
+            }
+            if Instant::now() >= deadline {
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
     }
 }
