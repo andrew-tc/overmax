@@ -520,12 +520,20 @@ impl DetectionWorker {
         self.is_foreground = false;
     }
 
+    fn roll_telemetry_log(&self) {
+        let prev_log_path = self.root.join("cache").join("telemetry.prev.log");
+        if self.telemetry_log_path.exists() {
+            let _ = std::fs::rename(&self.telemetry_log_path, &prev_log_path);
+        }
+    }
+
     fn on_window_found(
         &mut self,
         rect: crate::capture::window_tracker::WindowRect,
         foreground: bool,
     ) -> bool {
         if !self.was_found {
+            self.roll_telemetry_log();
             let _ = self.game_found_tx.send(());
             self.request_repaint();
             self.log("[Detection] game window found".into());
