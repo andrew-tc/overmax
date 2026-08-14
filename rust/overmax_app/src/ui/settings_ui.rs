@@ -223,26 +223,22 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
         );
 
         for (label, val, target_rect) in [
-            ("settings-top-left", "top_left", rect_tl),
-            ("settings-top-right", "top_right", rect_tr),
-            ("settings-bottom-left", "bottom_left", rect_bl),
-            ("settings-bottom-right", "bottom_right", rect_br),
-            ("settings-manual", "manual", rect_manual),
+            (crate::t!("settings-top-left"), "top_left", rect_tl),
+            (crate::t!("settings-top-right"), "top_right", rect_tr),
+            (crate::t!("settings-bottom-left"), "bottom_left", rect_bl),
+            (crate::t!("settings-bottom-right"), "bottom_right", rect_br),
+            (crate::t!("settings-manual"), "manual", rect_manual),
         ] {
             let is_active = snap == val;
-            let btn = egui::Button::new(
-                RichText::new(crate::t!(label))
-                    .size(Theme::FONT_SMALL)
-                    .strong(),
-            )
-            .fill(if is_active {
-                Theme::TAB_ACTIVE_BG
-            } else {
-                Theme::TAB_DIM_BG
-            })
-            .stroke(egui::Stroke::new(1.0_f32, Theme::STROKE))
-            .corner_radius(egui::CornerRadius::same(Theme::R_SM))
-            .wrap();
+            let btn = egui::Button::new(RichText::new(label).size(Theme::FONT_SMALL).strong())
+                .fill(if is_active {
+                    Theme::TAB_ACTIVE_BG
+                } else {
+                    Theme::TAB_DIM_BG
+                })
+                .stroke(egui::Stroke::new(1.0_f32, Theme::STROKE))
+                .corner_radius(egui::CornerRadius::same(Theme::R_SM))
+                .wrap();
             if ui.put(target_rect, btn).clicked() {
                 snap = val.to_string();
                 changed = true;
@@ -507,7 +503,7 @@ fn capture_section(ui: &mut egui::Ui, draft: &mut Value) {
             .unwrap_or("gdi")
             .to_string();
 
-        form_row(ui, &crate::t!("settings-capture-method-win"), |ui| {
+        form_row(ui, crate::t!("settings-capture-method-win"), |ui| {
             let mut changed = false;
             egui::ComboBox::from_id_salt("capture_engine_combo")
                 .selected_text(match engine.as_str() {
