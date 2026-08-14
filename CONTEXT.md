@@ -253,6 +253,7 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 | 2026-08-12 | RecordDB get_rate_map 스레드 로컬 커넥션 캐싱 도입 | 매 호출 Connection::open으로 인한 읽기 지연시간(1.09ms)을 thread_local 커넥션 재사용으로 0.20ms(81.7% 감소)로 축소 | [record_db.rs](rust/overmax_data/src/store/record_db.rs) |
 | 2026-08-14 | Steam 계정 라벨 표시 단순화 (`"Steam: ..."`) | 4개 매크로 분기로 나뉘어 있던 `settings-current-steam-xxx` 동적 i18n 매크로 대신 직관적이고 표준적인 `"Steam: ..."` 직접 포맷팅으로 전면 단순화 | [settings_ui.rs](rust/overmax_app/src/ui/settings_ui.rs) |
 | 2026-08-14 | 0-Cost / 0-Allocation 단일 `t!` i18n 디스패처 구축 | `t()`, `t_fmt!()`, `t_gold()`, `t_assist()`, `Localizable` Trait 및 런타임 `replace` 탐색을 전면 소거하고, `@select` 매크로 헬퍼와 `lookup_ko`/`lookup_en` 1:1 대칭 통합 룩업(SSOT)으로 컴파일 타임 최고 성능과 다국어 확장 유연성을 완벽히 통합 구현 | [i18n.rs](rust/overmax_app/src/ui/i18n.rs) |
+| 2026-08-14 | 단일 최상위 `t!` 매크로 룩업 테이블 완전 통합 | 매크로 중첩 래퍼 레이어를 제거하고 정적 룩업, 동적 포맷터, 도메인 메타 매칭을 단일 `t!` 매크로 본문 한곳으로 100% 통합하여 컴파일 타임 0ns 상수로 치환되는 완벽한 SSOT 아키텍처 완성 | [i18n.rs](rust/overmax_app/src/ui/i18n.rs) |
 
 
 
