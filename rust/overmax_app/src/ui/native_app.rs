@@ -254,6 +254,7 @@ pub struct NativeApp {
     pub(crate) ui_cmd_rx: Receiver<UiCommand>,
     pub(crate) varchive_db: Arc<VArchiveDB>,
     pub(crate) sheet_meta: Arc<PatternSheetMeta>,
+    pub(crate) startup_cache_manager: cache_update::StartupCacheManager,
     pub(crate) recommendations: RecommendResult,
     pub(crate) pattern_tabs: Vec<crate::ui::overlay_recommend_ui::PatternTabInfo>,
     pub(crate) state_tracker: AppStateTracker,
@@ -295,9 +296,9 @@ impl NativeApp {
 
         let app_settings: overmax_data::Settings =
             serde_json::from_value(merged.clone()).unwrap_or_default();
-        cache_update::refresh_startup_caches(root.as_ref(), &app_settings, &mut |msg| {
-            let _ = log_tx.send(msg);
-        });
+
+        let startup_cache_manager =
+            cache_update::StartupCacheManager::init(root.as_ref(), &app_settings, log_tx.clone());
 
         let merged_settings = Arc::new(Mutex::new(merged.clone()));
         let settings_draft = Arc::new(Mutex::new(merged.clone()));
@@ -454,6 +455,7 @@ impl NativeApp {
             ui_cmd_rx,
             varchive_db,
             sheet_meta,
+            startup_cache_manager,
             recommendations: RecommendResult::empty(),
             pattern_tabs: Vec::new(),
             state_tracker: AppStateTracker::new(),
@@ -983,6 +985,12 @@ impl NativeApp {
 
     pub(crate) fn drain_fetch_results(&mut self) {
         let mut refreshed = false;
+        if self
+            .startup_cache_manager
+            .poll_updates(&mut self.varchive_db, &mut self.sheet_meta)
+        {
+            refreshed = true;
+        }
         while let Ok((v_id, btn, res)) = self.sync_channels.fetch_res_rx.try_recv() {
             match res {
                 Ok(_) => {

@@ -5,6 +5,8 @@ use reqwest::header::{CACHE_CONTROL, PRAGMA, USER_AGENT};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use overmax_core::Mode;
@@ -26,6 +28,114 @@ const SHEET_GIDS: &[(Mode, &str)] = &[
 ];
 
 type LogFn<'a> = &'a mut dyn FnMut(String);
+
+pub struct CacheUpdateResult {
+    pub updated_varchive_db: Option<overmax_data::VArchiveDB>,
+    pub updated_sheet_meta: Option<overmax_data::PatternSheetMeta>,
+}
+
+pub struct StartupCacheManager {
+    rx: Receiver<CacheUpdateResult>,
+}
+
+impl StartupCacheManager {
+    pub fn init(root: &Path, settings: &overmax_data::Settings, log_tx: Sender<String>) -> Self {
+        let root_buf = root.to_path_buf();
+        let settings_clone = settings.clone();
+        let (tx, rx) = mpsc::channel();
+
+        if !has_all_required_caches(root, settings) {
+            let log_tx_clone = log_tx.clone();
+            refresh_startup_caches(root, settings, &mut |msg| {
+                let _ = log_tx_clone.send(msg);
+            });
+        } else {
+            std::thread::spawn(move || {
+                let mut logs = Vec::new();
+                let mut updated_any = false;
+
+                refresh_startup_caches(&root_buf, &settings_clone, &mut |msg| {
+                    if msg.contains("갱신 완료") || msg.contains("업데이트 완료") {
+                        updated_any = true;
+                    }
+                    logs.push(msg);
+                });
+
+                for msg in logs {
+                    let _ = log_tx.send(msg);
+                }
+
+                if updated_any {
+                    let compat = overmax_data::config::compatibility::DataCompatibility::current();
+                    let songs_path = root_buf.join(compat.songs_json);
+                    let dlcs_path = root_buf.join(compat.dlcs_json);
+                    let meta_path = root_buf.join(PATTERN_META_CACHE);
+
+                    let mut new_vdb = overmax_data::VArchiveDB::new();
+                    let _ = new_vdb.load_dlcs_from_file(&dlcs_path);
+                    let vdb_ok = new_vdb.load_from_file(&songs_path).is_ok();
+
+                    let new_vdb_opt = if vdb_ok { Some(new_vdb) } else { None };
+
+                    let new_meta_opt = if meta_path.exists() {
+                        new_vdb_opt
+                            .as_ref()
+                            .map(|vdb| overmax_data::PatternSheetMeta::load_cache(meta_path, vdb))
+                    } else {
+                        None
+                    };
+
+                    let _ = tx.send(CacheUpdateResult {
+                        updated_varchive_db: new_vdb_opt,
+                        updated_sheet_meta: new_meta_opt,
+                    });
+                }
+            });
+        }
+
+        Self { rx }
+    }
+
+    pub fn poll_updates(
+        &self,
+        varchive_db: &mut Arc<overmax_data::VArchiveDB>,
+        sheet_meta: &mut Arc<overmax_data::PatternSheetMeta>,
+    ) -> bool {
+        let mut updated = false;
+        while let Ok(res) = self.rx.try_recv() {
+            if let Some(new_vdb) = res.updated_varchive_db {
+                *varchive_db = Arc::new(new_vdb);
+                updated = true;
+            }
+            if let Some(new_meta) = res.updated_sheet_meta {
+                *sheet_meta = Arc::new(new_meta);
+                updated = true;
+            }
+        }
+        updated
+    }
+}
+
+pub fn has_all_required_caches(root: &Path, settings: &overmax_data::Settings) -> bool {
+    let varchive = settings.varchive();
+
+    let songs_path = root.join(&varchive.cache_path);
+    let dlcs_path = root.join(&varchive.dlcs_cache_path);
+    let pattern_meta_path = root.join(PATTERN_META_CACHE);
+    let image_db_path = root.join(&settings.jacket_matcher().db_path);
+
+    is_valid_file(&songs_path)
+        && is_valid_file(&dlcs_path)
+        && is_valid_file(&pattern_meta_path)
+        && is_valid_file(&image_db_path)
+}
+
+fn is_valid_file(path: &Path) -> bool {
+    path.exists()
+        && std::fs::metadata(path)
+            .map(|m| m.len() > 0)
+            .unwrap_or(false)
+}
 
 pub fn refresh_startup_caches(root: &Path, settings: &overmax_data::Settings, log: LogFn<'_>) {
     refresh_songs_json(root, settings, &mut *log);
