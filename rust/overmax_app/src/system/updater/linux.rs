@@ -89,8 +89,10 @@ pub fn check_and_apply_update_blocking(
 fn ask_update_confirm(current: &str, latest: &str) -> bool {
     rfd::MessageDialog::new()
         .set_title("Overmax Update")
-        .set_description(format!(
-            "새 앱 업데이트가 있습니다.\n\n현재 버전: {current}\n최신 버전: {latest}\n\n지금 업데이트를 진행할까요?"
+        .set_description(crate::t!(
+            "sys-update-prompt-dialog",
+            current = current,
+            latest = latest
         ))
         .set_level(rfd::MessageLevel::Info)
         .set_buttons(rfd::MessageButtons::YesNo)
@@ -101,7 +103,7 @@ fn ask_update_confirm(current: &str, latest: &str) -> bool {
 fn show_update_error(error: &str) {
     let _ = rfd::MessageDialog::new()
         .set_title("Overmax Update Error")
-        .set_description(format!("자동 패치가 완료되지 않았습니다.\n\n사유: {error}"))
+        .set_description(crate::t!("sys-update-error-dialog", error = error))
         .set_level(rfd::MessageLevel::Error)
         .set_buttons(rfd::MessageButtons::Ok)
         .show();

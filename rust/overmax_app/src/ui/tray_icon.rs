@@ -1,6 +1,5 @@
 //! Windows system tray icon for the native Rust app.
 
-use crate::ui::i18n::t;
 use crate::ui::ui_command::UiCommand;
 use std::ptr::{null, null_mut};
 use std::sync::atomic::{AtomicIsize, Ordering};
@@ -283,10 +282,10 @@ unsafe fn show_context_menu(hwnd: HWND) {
     if menu.is_null() {
         return;
     }
-    append_item(menu, CMD_SETTINGS, t("설정"));
-    append_item(menu, CMD_SYNC, t("V-Archive 동기화"));
+    append_item(menu, CMD_SETTINGS, crate::t!("settings-title"));
+    append_item(menu, CMD_SYNC, crate::t!("sync-varchive-sync"));
     AppendMenuW(menu, MF_SEPARATOR, 0, null());
-    append_item(menu, CMD_EXIT, t("종료"));
+    append_item(menu, CMD_EXIT, crate::t!("tray-exit"));
 
     let mut point = POINT::default();
     GetCursorPos(&mut point);

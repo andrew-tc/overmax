@@ -22,7 +22,6 @@ use crate::system::steam_session;
 use crate::system::updater::{self, AppUpdateConfig};
 use crate::system::varchive_upload;
 use crate::ui::debug_ui;
-use crate::ui::i18n::t;
 use crate::ui::overlay_ui;
 use crate::ui::platform;
 use crate::ui::ui_command::UiCommand;
@@ -544,7 +543,7 @@ impl NativeApp {
     pub(crate) fn poll_scan_requests(&mut self, ctx: &egui::Context) {
         if self.ui_state.scan_pending.swap(false, Ordering::Relaxed) {
             if let Ok(mut s) = self.sync_state.status.lock() {
-                *s = t("스캔 중…").into();
+                *s = crate::t!("status-scanning").to_string();
             }
             self.spawn_scan(ctx.clone());
         }
@@ -573,7 +572,7 @@ impl NativeApp {
                         *g = list;
                     }
                     if let Ok(mut s) = self.sync_state.status.lock() {
-                        *s = t("후보 {n}건").replacen("{n}", &n.to_string(), 1);
+                        *s = crate::t!("candidate-count", n = n as i64);
                     }
                 }
                 Err(msg) => {
@@ -603,7 +602,7 @@ impl NativeApp {
                 let toast_text = if success {
                     format!("V-Archive: {}", msg)
                 } else {
-                    format!("{}: {}", t("V-Archive 실패"), msg)
+                    crate::t!("status-varchive-failed-toast", error = &msg)
                 };
                 self.toast = Some(crate::ui::components::ToastMessage {
                     text: toast_text,
@@ -709,7 +708,7 @@ impl NativeApp {
                     key,
                     is_quick_upload,
                     "error".into(),
-                    t("account.txt 경로 없음").into(),
+                    crate::t!("status-account-path-missing").to_string(),
                 ));
                 ctx.request_repaint();
                 return;
@@ -719,7 +718,7 @@ impl NativeApp {
                     key,
                     is_quick_upload,
                     "error".into(),
-                    t("account.txt 파싱 실패").into(),
+                    crate::t!("status-account-parse-failed").to_string(),
                 ));
                 ctx.request_repaint();
                 return;
@@ -735,9 +734,9 @@ impl NativeApp {
             );
             if res.success {
                 let success_message = if res.updated {
-                    t("갱신 완료")
+                    crate::t!("status-updated")
                 } else {
-                    t("등록 완료")
+                    crate::t!("status-registered")
                 };
                 let btn = button_num(candidate.button_mode.as_str());
 
@@ -759,7 +758,7 @@ impl NativeApp {
                             if let Err(e) =
                                 record_db.merge_varchive_fetched_records(&steam, btn, &data, false)
                             {
-                                Err(format!("{}: {e}", t("API 조회 OK, 캐시 병합 실패")))
+                                Err(crate::t!("sys-api-ok-cache-failed", error = e))
                             } else {
                                 Ok(())
                             }
@@ -782,10 +781,10 @@ impl NativeApp {
                                 &fallback_payload,
                                 false,
                             ) {
-                                Err(format!(
-                                    "{} ({e}), {}: {ue}",
-                                    t("API 실패"),
-                                    t("폴백 캐시 갱신 실패")
+                                Err(crate::t!(
+                                    "sys-api-and-fallback-failed",
+                                    api_error = e,
+                                    fallback_error = ue
                                 ))
                             } else {
                                 Ok(())
@@ -806,7 +805,7 @@ impl NativeApp {
                     });
                     record_db
                         .merge_varchive_fetched_records(&steam, btn, &fallback_payload, false)
-                        .map_err(|e| format!("{}: {e}", t("폴백 캐시 갱신 실패")))
+                        .map_err(|e| crate::t!("sys-fallback-cache-failed", error = e))
                 };
 
                 let success_message = match cache_updated {
@@ -818,12 +817,15 @@ impl NativeApp {
                             &candidate.song_id.to_string(),
                             candidate.difficulty,
                         ) {
-                            msg = format!(
-                                "{} ({} TOP {}{}!)",
-                                msg,
-                                candidate.button_mode,
-                                rank,
-                                t("위 달성")
+                            let place_msg = crate::t!(
+                                "sys-place-achieved",
+                                mode = candidate.button_mode,
+                                rank = rank
+                            );
+                            msg = crate::t!(
+                                "sys-upload-msg-with-rank",
+                                message = &msg,
+                                rank_msg = &place_msg
                             );
                         }
                         Ok(msg)
@@ -840,7 +842,7 @@ impl NativeApp {
                             key,
                             is_quick_upload,
                             "success".into(),
-                            format!("{}: {err_msg}", t("업로드 OK, 캐시 갱신 오류")),
+                            crate::t!("sys-upload-cache-error", error = err_msg),
                         ));
                     }
                 }

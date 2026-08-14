@@ -1,6 +1,5 @@
 //! V-Archive sync window: list candidates and trigger scan / upload.
 
-use crate::ui::i18n::t;
 use crate::ui::overlay_theme::{apply_secondary_window_style, Theme};
 use eframe::egui::{self, Color32, CornerRadius, Frame, Margin, RichText, Stroke, ViewportClass};
 use overmax_data::{matches_filter, RecordKey, SyncCandidate, SyncFilterSettings, LEVEL_LABELS};
@@ -47,7 +46,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                     .strong(),
             );
             ui.label(
-                RichText::new(t("동기화"))
+                RichText::new(crate::t!("sync-title"))
                     .color(Theme::TEXT_PRIMARY)
                     .size(Theme::FONT_HEADING)
                     .strong(),
@@ -56,7 +55,7 @@ pub fn render_sync<F1, F2, F3, F4>(
 
         ui.add_space(4.0);
         ui.label(
-            RichText::new(t("Steam 계정 기준으로 업로드 후보를 확인합니다."))
+            RichText::new(crate::t!("sync-desc"))
                 .color(Theme::TEXT_SECONDARY)
                 .size(Theme::FONT_BODY),
         );
@@ -91,7 +90,9 @@ pub fn render_sync<F1, F2, F3, F4>(
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let scan_btn = egui::Button::new(
-                            RichText::new(t("스캔")).size(Theme::FONT_BODY).strong(),
+                            RichText::new(crate::t!("sync-scan"))
+                                .size(Theme::FONT_BODY)
+                                .strong(),
                         )
                         .min_size(egui::vec2(80.0, Theme::CONTROL_HEIGHT))
                         .fill(Theme::PRIMARY)
@@ -141,7 +142,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                 ui.horizontal(|ui| {
                     let icon = if filter.open { "▼" } else { "▶" };
                     let toggle_btn = egui::Button::new(
-                        RichText::new(format!("{} 🔍 {}", icon, t("필터")))
+                        RichText::new(crate::t!("sync-filter-btn", icon = icon))
                             .color(Theme::TEXT_ACCENT)
                             .size(Theme::FONT_BODY)
                             .strong(),
@@ -156,7 +157,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                     if filter.open {
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             let reset_btn = egui::Button::new(
-                                RichText::new(format!("{} ↺", t("초기화"))).size(Theme::FONT_SMALL),
+                                RichText::new(crate::t!("sync-reset-btn")).size(Theme::FONT_SMALL),
                             )
                             .fill(Theme::SECONDARY)
                             .corner_radius(CornerRadius::same(Theme::R_SM));
@@ -180,7 +181,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                             ui.add_sized(
                                 [170.0, 20.0],
                                 egui::Label::new(
-                                    RichText::new(t("모드"))
+                                    RichText::new(crate::t!("sync-mode"))
                                         .color(Theme::TEXT_SECONDARY)
                                         .size(Theme::FONT_SMALL)
                                         .strong(),
@@ -226,7 +227,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                             ui.add_sized(
                                 [170.0, 20.0],
                                 egui::Label::new(
-                                    RichText::new(t("난이도"))
+                                    RichText::new(crate::t!("sync-difficulty"))
                                         .color(Theme::TEXT_SECONDARY)
                                         .size(Theme::FONT_SMALL)
                                         .strong(),
@@ -266,11 +267,10 @@ pub fn render_sync<F1, F2, F3, F4>(
                             ui.add_sized(
                                 [170.0, 20.0],
                                 egui::Label::new(
-                                    RichText::new(format!(
-                                        "{} ({} ~ {})",
-                                        t("레벨"),
-                                        min_lbl,
-                                        max_lbl
+                                    RichText::new(crate::t!(
+                                        "sync-level-range",
+                                        min = min_lbl,
+                                        max = max_lbl
                                     ))
                                     .color(Theme::TEXT_SECONDARY)
                                     .size(Theme::FONT_SMALL)
@@ -324,7 +324,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                                 if ui
                                     .checkbox(
                                         &mut filter.require_mc_not_on_varchive,
-                                        RichText::new(t("맥스콤보 달성만"))
+                                        RichText::new(crate::t!("sync-max-combo-only"))
                                             .size(Theme::FONT_SMALL)
                                             .color(Theme::TEXT_PRIMARY),
                                     )
@@ -338,7 +338,7 @@ pub fn render_sync<F1, F2, F3, F4>(
                                 if ui
                                     .checkbox(
                                         &mut filter.exclude_unuploaded,
-                                        RichText::new(t("미업로드 제외"))
+                                        RichText::new(crate::t!("sync-exclude-unuploaded"))
                                             .size(Theme::FONT_SMALL)
                                             .color(Theme::TEXT_PRIMARY),
                                     )
@@ -374,7 +374,7 @@ pub fn render_sync<F1, F2, F3, F4>(
 
         ui.horizontal(|ui| {
             ui.label(
-                RichText::new(t("업로드 후보"))
+                RichText::new(crate::t!("sync-upload-candidates"))
                     .color(Theme::TEXT_PRIMARY)
                     .size(Theme::FONT_BODY)
                     .strong(),
@@ -393,10 +393,11 @@ pub fn render_sync<F1, F2, F3, F4>(
                 } else {
                     Theme::SECONDARY
                 };
-                let diff_btn =
-                    egui::Button::new(RichText::new(t("변경순")).size(Theme::FONT_SMALL))
-                        .fill(diff_btn_fill)
-                        .corner_radius(CornerRadius::same(Theme::R_SM));
+                let diff_btn = egui::Button::new(
+                    RichText::new(crate::t!("sync-sort-by-change")).size(Theme::FONT_SMALL),
+                )
+                .fill(diff_btn_fill)
+                .corner_radius(CornerRadius::same(Theme::R_SM));
                 if ui.add(diff_btn).clicked() {
                     sort_mode = SyncSortMode::RateDiff;
                     ui.data_mut(|d| d.insert_temp(sort_mode_id, sort_mode));
@@ -409,10 +410,11 @@ pub fn render_sync<F1, F2, F3, F4>(
                 } else {
                     Theme::SECONDARY
                 };
-                let title_btn =
-                    egui::Button::new(RichText::new(t("제목순")).size(Theme::FONT_SMALL))
-                        .fill(title_btn_fill)
-                        .corner_radius(CornerRadius::same(Theme::R_SM));
+                let title_btn = egui::Button::new(
+                    RichText::new(crate::t!("sync-sort-by-title")).size(Theme::FONT_SMALL),
+                )
+                .fill(title_btn_fill)
+                .corner_radius(CornerRadius::same(Theme::R_SM));
                 if ui.add(title_btn).clicked() {
                     sort_mode = SyncSortMode::Title;
                     ui.data_mut(|d| d.insert_temp(sort_mode_id, sort_mode));
@@ -461,7 +463,7 @@ pub fn render_sync<F1, F2, F3, F4>(
     };
 
     if class == ViewportClass::EmbeddedWindow {
-        egui::Window::new(t("V-Archive 동기화")).show(ui.ctx(), |ui| body(ui));
+        egui::Window::new(crate::t!("sync-varchive-sync")).show(ui.ctx(), |ui| body(ui));
     } else {
         egui::CentralPanel::default()
             .frame(
@@ -698,7 +700,7 @@ fn candidate_row<F: Fn(RecordKey), D: Fn(RecordKey)>(
                         );
                         ui.add_space(4.0);
                         ui.label(
-                            RichText::new(c.reason_label(t))
+                            RichText::new(format_candidate_reason(c))
                                 .size(Theme::FONT_SMALL)
                                 .color(Theme::TEXT_MUTED),
                         );
@@ -706,7 +708,9 @@ fn candidate_row<F: Fn(RecordKey), D: Fn(RecordKey)>(
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let upload_btn = egui::Button::new(
-                        RichText::new(t("등록")).size(Theme::FONT_SMALL).strong(),
+                        RichText::new(crate::t!("sync-register"))
+                            .size(Theme::FONT_SMALL)
+                            .strong(),
                     )
                     .min_size(egui::vec2(60.0, Theme::CONTROL_HEIGHT))
                     .fill(Theme::PRIMARY)
@@ -720,12 +724,13 @@ fn candidate_row<F: Fn(RecordKey), D: Fn(RecordKey)>(
 
                     ui.add_space(4.0);
 
-                    let del_btn =
-                        egui::Button::new(RichText::new(t("삭제")).size(Theme::FONT_SMALL))
-                            .min_size(egui::vec2(60.0, Theme::CONTROL_HEIGHT))
-                            .fill(egui::Color32::TRANSPARENT)
-                            .stroke(Stroke::new(1.0_f32, Theme::STROKE))
-                            .corner_radius(CornerRadius::same(Theme::R_SM));
+                    let del_btn = egui::Button::new(
+                        RichText::new(crate::t!("sync-delete")).size(Theme::FONT_SMALL),
+                    )
+                    .min_size(egui::vec2(60.0, Theme::CONTROL_HEIGHT))
+                    .fill(egui::Color32::TRANSPARENT)
+                    .stroke(Stroke::new(1.0_f32, Theme::STROKE))
+                    .corner_radius(CornerRadius::same(Theme::R_SM));
                     if ui.add(del_btn).clicked() {
                         if let Some(key) = c.key() {
                             on_delete(key);
@@ -772,4 +777,22 @@ enum SyncSortMode {
     #[default]
     Title,
     RateDiff,
+}
+
+fn format_candidate_reason(c: &SyncCandidate) -> String {
+    let mut parts = Vec::new();
+    if c.varchive_rate.is_none() {
+        parts.push(crate::t!("sync-reason-not-registered").to_string());
+    } else if c.overmax_rate > c.varchive_rate.unwrap_or(0.0) {
+        parts.push(format!(
+            "+{:.2}%",
+            c.overmax_rate - c.varchive_rate.unwrap_or(0.0)
+        ));
+    }
+    if c.overmax_rate >= 100.0 {
+        parts.push("P".to_string());
+    } else if c.overmax_mc && !c.varchive_mc.unwrap_or(false) {
+        parts.push("M".to_string());
+    }
+    parts.join(" · ")
 }
