@@ -360,16 +360,6 @@ impl NativeApp {
         let (fetch_req_tx, fetch_req_rx) = mpsc::channel();
         let (fetch_res_tx, fetch_res_rx) = mpsc::channel();
 
-        // 시작 시 자동 갱신
-        let varchive_settings = app_settings.varchive();
-        if let Some(user_info) = varchive_settings.user_map.get(&steam0) {
-            if let Some(v_id) = &user_info.v_id {
-                if !v_id.is_empty() {
-                    let _ = fetch_req_tx.send((steam0.clone(), v_id.to_string(), 0));
-                }
-            }
-        }
-
         let ctx_holder: Arc<Mutex<Option<egui::Context>>> = Arc::new(Mutex::new(Some(initial_ctx)));
 
         let platform = platform::PlatformState::new(&ctx_holder, &merged_settings, &ui_cmd_tx)?;
