@@ -179,119 +179,544 @@ macro_rules! t {
         )
     };
 
-    // 3) Static Keys Direct Matchers (Zero-cost compile-time string mapping)
-    ("status-account-path-missing") => { $crate::t_select!(Ko => "account.txt 경로 설정 필요", En => "account.txt path required") };
-    ("status-account-parse-failed") => { $crate::t_select!(Ko => "account.txt 읽기 실패", En => "Failed to read account.txt") };
+    // 3) Static Keys Direct Matchers (Multi-line formatted per key for legibility & DX)
+    ("status-account-path-missing") => {
+        $crate::t_select!(
+            Ko => "account.txt 경로 설정 필요",
+            En => "account.txt path required"
+        )
+    };
+    ("status-account-parse-failed") => {
+        $crate::t_select!(
+            Ko => "account.txt 읽기 실패",
+            En => "Failed to read account.txt"
+        )
+    };
 
-    ("gold-half-random") => { $crate::t_select!(Ko => "핲랜", En => "Half Random") };
-    ("gold-max-random") => { $crate::t_select!(Ko => "맥랜", En => "Max Random") };
-    ("gold-random") => { $crate::t_select!(Ko => "랜덤", En => "Random") };
-    ("assist-used") => { $crate::t_select!(Ko => "사용", En => "Used") };
-    ("assist-caution") => { $crate::t_select!(Ko => "주의", En => "Caution") };
-    ("assist-not-used") => { $crate::t_select!(Ko => "미사용", En => "Not Used") };
+    ("gold-half-random") => {
+        $crate::t_select!(
+            Ko => "핲랜",
+            En => "Half Random"
+        )
+    };
+    ("gold-max-random") => {
+        $crate::t_select!(
+            Ko => "맥랜",
+            En => "Max Random"
+        )
+    };
+    ("gold-random") => {
+        $crate::t_select!(
+            Ko => "랜덤",
+            En => "Random"
+        )
+    };
+    ("assist-used") => {
+        $crate::t_select!(
+            Ko => "사용",
+            En => "Used"
+        )
+    };
+    ("assist-caution") => {
+        $crate::t_select!(
+            Ko => "주의",
+            En => "Caution"
+        )
+    };
+    ("assist-not-used") => {
+        $crate::t_select!(
+            Ko => "미사용",
+            En => "Not Used"
+        )
+    };
 
-    ("settings-title") => { $crate::t_select!(Ko => "설정", En => "Settings") };
-    ("settings-overlay-section") => { $crate::t_select!(Ko => "오버레이 설정", En => "Overlay Settings") };
-    ("settings-size") => { $crate::t_select!(Ko => "크기", En => "Size") };
-    ("settings-opacity") => { $crate::t_select!(Ko => "투명도", En => "Opacity") };
-    ("settings-lite-mode") => { $crate::t_select!(Ko => "라이트모드", En => "Lite Mode") };
-    ("settings-enable") => { $crate::t_select!(Ko => "활성화", En => "Enable") };
-    ("settings-lite-mode-desc") => { $crate::t_select!(Ko => "추천 숨기기 및 레이아웃 축소", En => "Hide recommendations and shrink layout") };
-    ("settings-snap-position") => { $crate::t_select!(Ko => "오버레이 고정 위치", En => "Overlay Snap Position") };
-    ("settings-top-left") => { $crate::t_select!(Ko => "좌상단", En => "Top-Left") };
-    ("settings-top-right") => { $crate::t_select!(Ko => "우상단", En => "Top-Right") };
-    ("settings-bottom-left") => { $crate::t_select!(Ko => "좌하단", En => "Bottom-Left") };
-    ("settings-bottom-right") => { $crate::t_select!(Ko => "우하단", En => "Bottom-Right") };
-    ("settings-manual") => { $crate::t_select!(Ko => "수동", En => "Manual") };
-    ("settings-varchive-account") => { $crate::t_select!(Ko => "V-Archive 계정", En => "V-Archive Account") };
-    ("settings-link-status") => { $crate::t_select!(Ko => "연동 상태", En => "Link Status") };
-    ("settings-data-sync") => { $crate::t_select!(Ko => "데이터 동기화", En => "Data Sync") };
-    ("settings-browse") => { $crate::t_select!(Ko => "찾기", En => "Browse") };
-    ("settings-update-section") => { $crate::t_select!(Ko => "업데이트 설정", En => "Update Settings") };
-    ("settings-auto-update") => { $crate::t_select!(Ko => "자동 업데이트", En => "Auto Update") };
-    ("settings-use") => { $crate::t_select!(Ko => "사용", En => "Enable") };
-    ("settings-version-info") => { $crate::t_select!(Ko => "버전 정보", En => "Version") };
-    ("settings-no-steam-account") => { $crate::t_select!(Ko => "발견된 Steam 계정이 없습니다.", En => "No Steam account found.") };
-    ("settings-general") => { $crate::t_select!(Ko => "일반", En => "General") };
-    ("settings-language") => { $crate::t_select!(Ko => "언어", En => "Language") };
-    ("settings-recommend-provider") => { $crate::t_select!(Ko => "추천 Provider", En => "Recommend Provider") };
-    ("settings-use-external-provider") => { $crate::t_select!(Ko => "외부 Provider 사용", En => "Use External Provider") };
-    ("settings-display-name") => { $crate::t_select!(Ko => "표시 이름", En => "Display Name") };
-    ("settings-overlay-display") => { $crate::t_select!(Ko => "오버레이 표시", En => "Overlay Display") };
-    ("settings-always-show") => { $crate::t_select!(Ko => "항상 표시", En => "Always Show") };
+    ("settings-title") => {
+        $crate::t_select!(
+            Ko => "설정",
+            En => "Settings"
+        )
+    };
+    ("settings-overlay-section") => {
+        $crate::t_select!(
+            Ko => "오버레이 설정",
+            En => "Overlay Settings"
+        )
+    };
+    ("settings-size") => {
+        $crate::t_select!(
+            Ko => "크기",
+            En => "Size"
+        )
+    };
+    ("settings-opacity") => {
+        $crate::t_select!(
+            Ko => "투명도",
+            En => "Opacity"
+        )
+    };
+    ("settings-lite-mode") => {
+        $crate::t_select!(
+            Ko => "라이트모드",
+            En => "Lite Mode"
+        )
+    };
+    ("settings-enable") => {
+        $crate::t_select!(
+            Ko => "활성화",
+            En => "Enable"
+        )
+    };
+    ("settings-lite-mode-desc") => {
+        $crate::t_select!(
+            Ko => "추천 숨기기 및 레이아웃 축소",
+            En => "Hide recommendations and shrink layout"
+        )
+    };
+    ("settings-snap-position") => {
+        $crate::t_select!(
+            Ko => "오버레이 고정 위치",
+            En => "Overlay Snap Position"
+        )
+    };
+    ("settings-top-left") => {
+        $crate::t_select!(
+            Ko => "좌상단",
+            En => "Top-Left"
+        )
+    };
+    ("settings-top-right") => {
+        $crate::t_select!(
+            Ko => "우상단",
+            En => "Top-Right"
+        )
+    };
+    ("settings-bottom-left") => {
+        $crate::t_select!(
+            Ko => "좌하단",
+            En => "Bottom-Left"
+        )
+    };
+    ("settings-bottom-right") => {
+        $crate::t_select!(
+            Ko => "우하단",
+            En => "Bottom-Right"
+        )
+    };
+    ("settings-manual") => {
+        $crate::t_select!(
+            Ko => "수동",
+            En => "Manual"
+        )
+    };
+    ("settings-varchive-account") => {
+        $crate::t_select!(
+            Ko => "V-Archive 계정",
+            En => "V-Archive Account"
+        )
+    };
+    ("settings-link-status") => {
+        $crate::t_select!(
+            Ko => "연동 상태",
+            En => "Link Status"
+        )
+    };
+    ("settings-data-sync") => {
+        $crate::t_select!(
+            Ko => "데이터 동기화",
+            En => "Data Sync"
+        )
+    };
+    ("settings-browse") => {
+        $crate::t_select!(
+            Ko => "찾기",
+            En => "Browse"
+        )
+    };
+    ("settings-update-section") => {
+        $crate::t_select!(
+            Ko => "업데이트 설정",
+            En => "Update Settings"
+        )
+    };
+    ("settings-auto-update") => {
+        $crate::t_select!(
+            Ko => "자동 업데이트",
+            En => "Auto Update"
+        )
+    };
+    ("settings-use") => {
+        $crate::t_select!(
+            Ko => "사용",
+            En => "Enable"
+        )
+    };
+    ("settings-version-info") => {
+        $crate::t_select!(
+            Ko => "버전 정보",
+            En => "Version"
+        )
+    };
+    ("settings-no-steam-account") => {
+        $crate::t_select!(
+            Ko => "발견된 Steam 계정이 없습니다.",
+            En => "No Steam account found."
+        )
+    };
+    ("settings-general") => {
+        $crate::t_select!(
+            Ko => "일반",
+            En => "General"
+        )
+    };
+    ("settings-language") => {
+        $crate::t_select!(
+            Ko => "언어",
+            En => "Language"
+        )
+    };
+    ("settings-recommend-provider") => {
+        $crate::t_select!(
+            Ko => "추천 Provider",
+            En => "Recommend Provider"
+        )
+    };
+    ("settings-use-external-provider") => {
+        $crate::t_select!(
+            Ko => "외부 Provider 사용",
+            En => "Use External Provider"
+        )
+    };
+    ("settings-display-name") => {
+        $crate::t_select!(
+            Ko => "표시 이름",
+            En => "Display Name"
+        )
+    };
+    ("settings-overlay-display") => {
+        $crate::t_select!(
+            Ko => "오버레이 표시",
+            En => "Overlay Display"
+        )
+    };
+    ("settings-always-show") => {
+        $crate::t_select!(
+            Ko => "항상 표시",
+            En => "Always Show"
+        )
+    };
     ("settings-always-show-desc") => {
         $crate::t_select!(
             Ko => "게임 구동 중 씬 감지(Unknown) 결과와 상관없이 오버레이를 항상 표시합니다.",
             En => "Keeps the overlay visible at all times, regardless of scene detection (Unknown) results."
         )
     };
-    ("settings-diagnostics") => { $crate::t_select!(Ko => "진단 및 디버그", En => "Diagnostics & Debug") };
-    ("settings-debug-window") => { $crate::t_select!(Ko => "디버그 창", En => "Debug Window") };
-    ("settings-show-debug-window") => { $crate::t_select!(Ko => "디버그 모니터링 창 표시", En => "Show Debug Monitoring Window") };
+    ("settings-diagnostics") => {
+        $crate::t_select!(
+            Ko => "진단 및 디버그",
+            En => "Diagnostics & Debug"
+        )
+    };
+    ("settings-debug-window") => {
+        $crate::t_select!(
+            Ko => "디버그 창",
+            En => "Debug Window"
+        )
+    };
+    ("settings-show-debug-window") => {
+        $crate::t_select!(
+            Ko => "디버그 모니터링 창 표시",
+            En => "Show Debug Monitoring Window"
+        )
+    };
     ("settings-debug-window-desc") => {
         $crate::t_select!(
             Ko => "실시간 탐지 수치 및 진단 로그를 표출하는 디버그 창을 엽니다.",
             En => "Opens a debug window showing real-time detection metrics and diagnostic logs."
         )
     };
-    ("settings-screen-capture") => { $crate::t_select!(Ko => "화면 캡처 설정", En => "Screen Capture Settings") };
-    ("settings-protect-overlay") => { $crate::t_select!(Ko => "캡처 시 오버레이 보호", En => "Protect Overlay from Capture") };
-    ("settings-prevent-screen-capture") => { $crate::t_select!(Ko => "화면 캡처 방지", En => "Prevent Screen Capture") };
+    ("settings-screen-capture") => {
+        $crate::t_select!(
+            Ko => "화면 캡처 설정",
+            En => "Screen Capture Settings"
+        )
+    };
+    ("settings-protect-overlay") => {
+        $crate::t_select!(
+            Ko => "캡처 시 오버레이 보호",
+            En => "Protect Overlay from Capture"
+        )
+    };
+    ("settings-prevent-screen-capture") => {
+        $crate::t_select!(
+            Ko => "화면 캡처 방지",
+            En => "Prevent Screen Capture"
+        )
+    };
     ("settings-protect-overlay-desc") => {
         $crate::t_select!(
             Ko => "해제 시 화면 캡쳐에 잡히는 대신, 특정 영역에 오버레이가 위치하면 곡 인식이 제대로 동작하지 않게 됩니다.",
             En => "Disabling this exposes the overlay to screen capture, but recognition may fail if the overlay covers key areas."
         )
     };
-    ("settings-find-sync-candidates-btn") => { $crate::t_select!(Ko => "🔍 동기화 후보 찾기", En => "🔍 Find Sync Candidates") };
-    ("settings-capture-method-win") => { $crate::t_select!(Ko => "화면 캡처 설정 (Windows)", En => "Screen Capture Method (Windows)") };
-    ("settings-capture-mode-dxgi") => { $crate::t_select!(Ko => "DXGI (실험적 / 고성능)", En => "DXGI (Experimental / High Perf)") };
-    ("settings-capture-mode-gdi") => { $crate::t_select!(Ko => "GDI (기본값 / 안정적)", En => "GDI (Default / Stable)") };
+    ("settings-find-sync-candidates-btn") => {
+        $crate::t_select!(
+            Ko => "🔍 동기화 후보 찾기",
+            En => "🔍 Find Sync Candidates"
+        )
+    };
+    ("settings-capture-method-win") => {
+        $crate::t_select!(
+            Ko => "화면 캡처 설정 (Windows)",
+            En => "Screen Capture Method (Windows)"
+        )
+    };
+    ("settings-capture-mode-dxgi") => {
+        $crate::t_select!(
+            Ko => "DXGI (실험적 / 고성능)",
+            En => "DXGI (Experimental / High Perf)"
+        )
+    };
+    ("settings-capture-mode-gdi") => {
+        $crate::t_select!(
+            Ko => "GDI (기본값 / 안정적)",
+            En => "GDI (Default / Stable)"
+        )
+    };
 
-    ("sync-title") => { $crate::t_select!(Ko => "동기화", En => "Sync") };
-    ("sync-desc") => { $crate::t_select!(Ko => "Steam 계정 기준으로 업로드 후보를 확인합니다.", En => "Checks upload candidates for the current Steam account.") };
-    ("sync-scan") => { $crate::t_select!(Ko => "스캔", En => "Scan") };
-    ("sync-upload-candidates") => { $crate::t_select!(Ko => "업로드 후보", En => "Upload Candidates") };
-    ("sync-sort-by-change") => { $crate::t_select!(Ko => "변경순", En => "By Change") };
-    ("sync-sort-by-title") => { $crate::t_select!(Ko => "제목순", En => "By Title") };
-    ("sync-varchive-sync") => { $crate::t_select!(Ko => "V-Archive 동기화", En => "V-Archive Sync") };
-    ("sync-register") => { $crate::t_select!(Ko => "등록", En => "Register") };
-    ("sync-delete") => { $crate::t_select!(Ko => "삭제", En => "Delete") };
-    ("sync-mode") => { $crate::t_select!(Ko => "모드", En => "Mode") };
-    ("sync-difficulty") => { $crate::t_select!(Ko => "난이도", En => "Difficulty") };
-    ("sync-max-combo-only") => { $crate::t_select!(Ko => "맥스콤보 달성만", En => "Max Combo achieved only") };
-    ("sync-exclude-unuploaded") => { $crate::t_select!(Ko => "미업로드 제외", En => "Exclude not uploaded") };
-    ("sync-reason-not-registered") => { $crate::t_select!(Ko => "미등록", En => "Not Registered") };
-    ("sync-reset-btn") => { $crate::t_select!(Ko => "초기화 ↺", En => "Reset ↺") };
+    ("sync-title") => {
+        $crate::t_select!(
+            Ko => "동기화",
+            En => "Sync"
+        )
+    };
+    ("sync-desc") => {
+        $crate::t_select!(
+            Ko => "Steam 계정 기준으로 업로드 후보를 확인합니다.",
+            En => "Checks upload candidates for the current Steam account."
+        )
+    };
+    ("sync-scan") => {
+        $crate::t_select!(
+            Ko => "스캔",
+            En => "Scan"
+        )
+    };
+    ("sync-upload-candidates") => {
+        $crate::t_select!(
+            Ko => "업로드 후보",
+            En => "Upload Candidates"
+        )
+    };
+    ("sync-sort-by-change") => {
+        $crate::t_select!(
+            Ko => "변경순",
+            En => "By Change"
+        )
+    };
+    ("sync-sort-by-title") => {
+        $crate::t_select!(
+            Ko => "제목순",
+            En => "By Title"
+        )
+    };
+    ("sync-varchive-sync") => {
+        $crate::t_select!(
+            Ko => "V-Archive 동기화",
+            En => "V-Archive Sync"
+        )
+    };
+    ("sync-register") => {
+        $crate::t_select!(
+            Ko => "등록",
+            En => "Register"
+        )
+    };
+    ("sync-delete") => {
+        $crate::t_select!(
+            Ko => "삭제",
+            En => "Delete"
+        )
+    };
+    ("sync-mode") => {
+        $crate::t_select!(
+            Ko => "모드",
+            En => "Mode"
+        )
+    };
+    ("sync-difficulty") => {
+        $crate::t_select!(
+            Ko => "난이도",
+            En => "Difficulty"
+        )
+    };
+    ("sync-max-combo-only") => {
+        $crate::t_select!(
+            Ko => "맥스콤보 달성만",
+            En => "Max Combo achieved only"
+        )
+    };
+    ("sync-exclude-unuploaded") => {
+        $crate::t_select!(
+            Ko => "미업로드 제외",
+            En => "Exclude not uploaded"
+        )
+    };
+    ("sync-reason-not-registered") => {
+        $crate::t_select!(
+            Ko => "미등록",
+            En => "Not Registered"
+        )
+    };
+    ("sync-reset-btn") => {
+        $crate::t_select!(
+            Ko => "초기화 ↺",
+            En => "Reset ↺"
+        )
+    };
 
-    ("app-settings-window") => { $crate::t_select!(Ko => "Overmax 설정", En => "Overmax Settings") };
-    ("app-close") => { $crate::t_select!(Ko => "닫기", En => "Close") };
-    ("app-save") => { $crate::t_select!(Ko => "저장", En => "Save") };
-    ("Linux 앱 실행") => { $crate::t_select!(Ko => "Linux 앱 실행", En => "Linux 앱 실행") };
-    ("앱 메뉴") => { $crate::t_select!(Ko => "앱 메뉴", En => "앱 메뉴") };
-    ("바로가기 생성") => { $crate::t_select!(Ko => "바로가기 생성", En => "바로가기 생성") };
+    ("app-settings-window") => {
+        $crate::t_select!(
+            Ko => "Overmax 설정",
+            En => "Overmax Settings"
+        )
+    };
+    ("app-close") => {
+        $crate::t_select!(
+            Ko => "닫기",
+            En => "Close"
+        )
+    };
+    ("app-save") => {
+        $crate::t_select!(
+            Ko => "저장",
+            En => "Save"
+        )
+    };
+    ("Linux 앱 실행") => {
+        $crate::t_select!(
+            Ko => "Linux 앱 실행",
+            En => "Linux 앱 실행"
+        )
+    };
+    ("앱 메뉴") => {
+        $crate::t_select!(
+            Ko => "앱 메뉴",
+            En => "앱 메뉴"
+        )
+    };
+    ("바로가기 생성") => {
+        $crate::t_select!(
+            Ko => "바로가기 생성",
+            En => "바로가기 생성"
+        )
+    };
 
-    ("tray-exit") => { $crate::t_select!(Ko => "종료", En => "Exit") };
+    ("tray-exit") => {
+        $crate::t_select!(
+            Ko => "종료",
+            En => "Exit"
+        )
+    };
 
-    ("overlay-varchive-upload-needed") => { $crate::t_select!(Ko => "V-Archive 업로드 필요 (클릭하여 즉시 업로드)", En => "V-Archive upload needed (click to upload now)") };
-    ("overlay-varchive-link-needed") => { $crate::t_select!(Ko => "V-Archive 계정 연동 필요 (설정에서 account.txt 경로를 지정해주세요)", En => "V-Archive account link needed (set account.txt path in Settings)") };
-    ("overlay-similar-avg") => { $crate::t_select!(Ko => "유사 구간 평균", En => "Similar Section Average") };
-    ("overlay-keypart-focused") => { $crate::t_select!(Ko => "키파트 위주 패턴", En => "Key-part Focused Pattern") };
-    ("overlay-gold-rec") => { $crate::t_select!(Ko => "황배", En => "Recommendation") };
-    ("overlay-assist-key") => { $crate::t_select!(Ko => "보조", En => "Assist Key") };
-    ("overlay-no-record") => { $crate::t_select!(Ko => "기록 없음", En => "No Record") };
+    ("overlay-varchive-upload-needed") => {
+        $crate::t_select!(
+            Ko => "V-Archive 업로드 필요 (클릭하여 즉시 업로드)",
+            En => "V-Archive upload needed (click to upload now)"
+        )
+    };
+    ("overlay-varchive-link-needed") => {
+        $crate::t_select!(
+            Ko => "V-Archive 계정 연동 필요 (설정에서 account.txt 경로를 지정해주세요)",
+            En => "V-Archive account link needed (set account.txt path in Settings)"
+        )
+    };
+    ("overlay-similar-avg") => {
+        $crate::t_select!(
+            Ko => "유사 구간 평균",
+            En => "Similar Section Average"
+        )
+    };
+    ("overlay-keypart-focused") => {
+        $crate::t_select!(
+            Ko => "키파트 위주 패턴",
+            En => "Key-part Focused Pattern"
+        )
+    };
+    ("overlay-gold-rec") => {
+        $crate::t_select!(
+            Ko => "황배",
+            En => "Recommendation"
+        )
+    };
+    ("overlay-assist-key") => {
+        $crate::t_select!(
+            Ko => "보조",
+            En => "Assist Key"
+        )
+    };
+    ("overlay-no-record") => {
+        $crate::t_select!(
+            Ko => "기록 없음",
+            En => "No Record"
+        )
+    };
 
-    ("rec-detecting-pattern") => { $crate::t_select!(Ko => "패턴을 감지하는 중...", En => "Detecting pattern...") };
-    ("rec-no-recommendations") => { $crate::t_select!(Ko => "추천 결과 없음", En => "No recommendations") };
-    ("rec-patterns-suffix") => { $crate::t_select!(Ko => "개 패턴", En => " patterns") };
-    ("rec-select-song") => { $crate::t_select!(Ko => "곡을 선택하세요", En => "Please select a song") };
+    ("rec-detecting-pattern") => {
+        $crate::t_select!(
+            Ko => "패턴을 감지하는 중...",
+            En => "Detecting pattern..."
+        )
+    };
+    ("rec-no-recommendations") => {
+        $crate::t_select!(
+            Ko => "추천 결과 없음",
+            En => "No recommendations"
+        )
+    };
+    ("rec-patterns-suffix") => {
+        $crate::t_select!(
+            Ko => "개 패턴",
+            En => " patterns"
+        )
+    };
+    ("rec-select-song") => {
+        $crate::t_select!(
+            Ko => "곡을 선택하세요",
+            En => "Please select a song"
+        )
+    };
 
-    ("status-scanning") => { $crate::t_select!(Ko => "스캔 중…", En => "Scanning…") };
-    ("status-updated") => { $crate::t_select!(Ko => "갱신 완료", En => "Updated") };
-    ("status-registered") => { $crate::t_select!(Ko => "등록 완료", En => "Registered") };
+    ("status-scanning") => {
+        $crate::t_select!(
+            Ko => "스캔 중…",
+            En => "Scanning…"
+        )
+    };
+    ("status-updated") => {
+        $crate::t_select!(
+            Ko => "갱신 완료",
+            En => "Updated"
+        )
+    };
+    ("status-registered") => {
+        $crate::t_select!(
+            Ko => "등록 완료",
+            En => "Registered"
+        )
+    };
 
-    ("sys-already-running") => { $crate::t_select!(Ko => "이미 Overmax가 실행 중입니다. 기존 인스턴스를 종료한 뒤 다시 실행하세요.", En => "Overmax is already running. Please close the existing instance and try again.") };
-    ("sys-reason") => { $crate::t_select!(Ko => "사유", En => "Reason") };
+    ("sys-already-running") => {
+        $crate::t_select!(
+            Ko => "이미 Overmax가 실행 중입니다. 기존 인스턴스를 종료한 뒤 다시 실행하세요.",
+            En => "Overmax is already running. Please close the existing instance and try again."
+        )
+    };
+    ("sys-reason") => {
+        $crate::t_select!(
+            Ko => "사유",
+            En => "Reason"
+        )
+    };
 }
 
 #[cfg(test)]
