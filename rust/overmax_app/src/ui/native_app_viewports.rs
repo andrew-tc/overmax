@@ -210,6 +210,7 @@ impl NativeApp {
             roi_scale,
             roi_offset_y,
             stable_hits,
+            telemetry_snapshot: self.last_telemetry_snapshot,
         }
     }
 

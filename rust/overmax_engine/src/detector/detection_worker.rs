@@ -72,8 +72,27 @@ fn initialize_winrt(log_tx: &Sender<String>) {
 #[cfg(not(target_os = "windows"))]
 fn initialize_winrt(_log_tx: &Sender<String>) {}
 
+fn current_timestamp_str() -> String {
+    let now = std::time::SystemTime::now();
+    let duration = now
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    let secs = duration.as_secs();
+    let millis = duration.subsec_millis();
+
+    // UTC+9 (KST) 시각 산출
+    let total_secs = secs + 9 * 3600;
+    let time_in_day = total_secs % 86400;
+    let hours = time_in_day / 3600;
+    let minutes = (time_in_day % 3600) / 60;
+    let seconds = time_in_day % 60;
+
+    format!("{hours:02}:{minutes:02}:{seconds:02}.{millis:03}")
+}
+
 struct DetectionWorker {
     root: PathBuf,
+    telemetry_log_path: PathBuf,
     settings: Settings,
     merged_settings: Arc<Mutex<serde_json::Value>>,
     log_tx: Sender<String>,
@@ -90,6 +109,7 @@ struct DetectionWorker {
     last_scene_detected: Changed<bool>,
     last_jacket_status: Changed<JacketMatchStatus>,
     last_is_fullscreen: Changed<bool>,
+    last_scene_type: overmax_core::SceneType,
     frame_buffer: CapturedFrame,
     window_scheduler: WindowQueryScheduler,
     #[cfg(target_os = "linux")]
@@ -108,8 +128,14 @@ impl DetectionWorker {
         detection_tx: Sender<DetectionOutput>,
         repaint_callback: Box<dyn Fn() + Send + Sync + 'static>,
     ) -> Self {
+        let telemetry_log_path = root.join("cache").join("telemetry.log");
+        let prev_log_path = root.join("cache").join("telemetry.prev.log");
+        if telemetry_log_path.exists() {
+            let _ = std::fs::rename(&telemetry_log_path, &prev_log_path);
+        }
         Self {
             root,
+            telemetry_log_path,
             settings,
             merged_settings,
             log_tx,
@@ -126,6 +152,7 @@ impl DetectionWorker {
             last_scene_detected: Changed::new(false),
             last_jacket_status: Changed::new(JacketMatchStatus::NotSongSelect),
             last_is_fullscreen: Changed::new(false),
+            last_scene_type: overmax_core::SceneType::Unknown,
             frame_buffer: CapturedFrame {
                 width: 0,
                 height: 0,
@@ -263,13 +290,27 @@ impl DetectionWorker {
         if !self.on_window_found(rect, foreground) {
             return;
         }
-        match capturer.capture_bgra_inplace(rect, &mut self.frame_buffer) {
+        let cap_start = Instant::now();
+        let cap_res = capturer.capture_bgra_inplace(rect, &mut self.frame_buffer);
+        let cap_elapsed = cap_start.elapsed().as_micros() as u64;
+        pipeline.stats.capture.update(cap_elapsed);
+
+        match cap_res {
             Ok(_) => {
+                let detect_start = Instant::now();
                 let mut out =
                     pipeline.detect(&self.frame_buffer, self.start.elapsed().as_secs_f64());
+                let detect_elapsed = detect_start.elapsed().as_micros() as u64;
+                pipeline.stats.detect.update(detect_elapsed);
+
+                out.telemetry_snapshot = pipeline.stats.maybe_take_snapshot(5.0);
+                if let Some(ref snap) = out.telemetry_snapshot {
+                    self.log_telemetry_snapshot(snap);
+                }
                 out.game_rect = Some(rect);
                 out.state.is_fullscreen = tracker.is_fullscreen();
                 self.log_detection_summary(&out);
+                self.check_and_log_scene_transition(&out);
 
                 // IMPORTANT: `.update()` has side effects (mutates cached state).
                 // All five calls must execute before combining — do NOT inline into `||` or allow short-circuit.
@@ -350,11 +391,24 @@ impl DetectionWorker {
         if !self.on_window_found(snapshot.rect, snapshot.foreground) {
             return LinuxTickResult::Continue;
         }
-        match capturer.capture_bgra_inplace(snapshot.rect, &mut self.frame_buffer) {
+        let cap_start = Instant::now();
+        let cap_res = capturer.capture_bgra_inplace(snapshot.rect, &mut self.frame_buffer);
+        let cap_elapsed = cap_start.elapsed().as_micros() as u64;
+        pipeline.stats.capture.update(cap_elapsed);
+
+        match cap_res {
             Ok(()) => {
                 self.capture_failure_active = false;
+                let detect_start = Instant::now();
                 let mut out =
                     pipeline.detect(&self.frame_buffer, self.start.elapsed().as_secs_f64());
+                let detect_elapsed = detect_start.elapsed().as_micros() as u64;
+                pipeline.stats.detect.update(detect_elapsed);
+
+                out.telemetry_snapshot = pipeline.stats.maybe_take_snapshot(5.0);
+                if let Some(ref snap) = out.telemetry_snapshot {
+                    self.log_telemetry_snapshot(snap);
+                }
                 out.game_rect = Some(snapshot.rect);
                 out.window_snapshot = Some(snapshot);
                 out.state.is_fullscreen = snapshot.fullscreen;
@@ -430,6 +484,7 @@ impl DetectionWorker {
             roi_scale: 1.0,
             roi_offset_y: 0,
             stable_hits: 0,
+            telemetry_snapshot: None,
         }
     }
 
@@ -512,6 +567,7 @@ impl DetectionWorker {
                 roi_scale: 1.0,
                 roi_offset_y: 0,
                 stable_hits: 0,
+                telemetry_snapshot: None,
             });
             self.request_repaint();
             self.log("[WindowTracker] game window lost".into());
@@ -560,6 +616,71 @@ impl DetectionWorker {
             }
         } else {
             Duration::from_secs_f64(idle_sleep(&self.settings))
+        }
+    }
+
+    fn log_telemetry_snapshot(&self, snap: &crate::detector::telemetry::PipelineTelemetrySnapshot) {
+        use crate::detector::telemetry::format_duration_us;
+        let msg = format!(
+            "[Telemetry] 5s snap ({:.1}s): capture={}(max {}) detect={}(max {}) [scene={}(max {}), jacket={}(max {}), play={}(max {})] | active={} unknown={} match_hits={}",
+            snap.period_sec,
+            format_duration_us(snap.capture_avg_us),
+            format_duration_us(snap.capture_max_us),
+            format_duration_us(snap.detect_avg_us),
+            format_duration_us(snap.detect_max_us),
+            format_duration_us(snap.scene_avg_us),
+            format_duration_us(snap.scene_max_us),
+            format_duration_us(snap.jacket_avg_us),
+            format_duration_us(snap.jacket_max_us),
+            format_duration_us(snap.play_state_avg_us),
+            format_duration_us(snap.play_state_max_us),
+            snap.active_frames,
+            snap.unknown_frames,
+            snap.match_jacket_count
+        );
+        println!("{msg}");
+        self.log(msg.clone());
+        self.append_to_telemetry_log(&msg);
+    }
+
+    fn check_and_log_scene_transition(&mut self, out: &DetectionOutput) {
+        let current_scene = out.state.scene;
+        if self.last_scene_type != current_scene {
+            let prev_scene = self.last_scene_type;
+            self.last_scene_type = current_scene;
+            let details = match &out.state.context {
+                Some(ctx) => format!(
+                    "SongID: {}, Mode: {:?}, Diff: {:?}, Rate: {:.2}%",
+                    ctx.song_id, ctx.mode, ctx.diff, ctx.rate
+                ),
+                None => match out.current_song_id {
+                    Some(id) => format!("SongID: {id}"),
+                    None => "No Context".to_string(),
+                },
+            };
+            let msg = format!(
+                "[SceneTransition] {:?} -> {:?} ({details})",
+                prev_scene, current_scene
+            );
+            println!("{msg}");
+            self.log(msg.clone());
+            self.append_to_telemetry_log(&msg);
+        }
+    }
+
+    fn append_to_telemetry_log(&self, line: &str) {
+        use std::fs::OpenOptions;
+        use std::io::Write;
+        if let Some(parent) = self.telemetry_log_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Ok(mut f) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.telemetry_log_path)
+        {
+            let ts = current_timestamp_str();
+            let _ = writeln!(f, "[{ts}] {line}");
         }
     }
 
