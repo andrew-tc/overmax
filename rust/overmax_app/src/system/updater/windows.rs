@@ -70,12 +70,7 @@ pub fn check_and_apply_update_blocking(
             eprintln!("[AppUpdater] 업데이트 실패: {}", e);
             show_message_mb_ok(
                 "Overmax Update Error",
-                &format!(
-                    "{}\n\n{}: {}",
-                    crate::ui::i18n::t("자동 패치가 완료되지 않았습니다."),
-                    crate::ui::i18n::t("사유"),
-                    e
-                ),
+                &crate::t!("sys-update-error-dialog", error = e),
             );
             return Ok(true);
         }
@@ -127,12 +122,10 @@ fn ask_update_confirm(current: &str, latest_tag: &str) -> bool {
     };
 
     let title = "Overmax Update";
-    let msg = format!(
-        "{}\n\n{}: {current}\n{}: {latest_tag}\n\n{}",
-        crate::ui::i18n::t("새 앱 업데이트가 있습니다."),
-        crate::ui::i18n::t("현재 버전"),
-        crate::ui::i18n::t("최신 버전"),
-        crate::ui::i18n::t("지금 업데이트를 진행할까요?"),
+    let msg = crate::t!(
+        "sys-update-prompt-dialog",
+        current = current,
+        latest = latest_tag
     );
     let title_w: Vec<u16> = OsStr::new(title).encode_wide().chain(Some(0)).collect();
     let msg_w: Vec<u16> = OsStr::new(&msg).encode_wide().chain(Some(0)).collect();

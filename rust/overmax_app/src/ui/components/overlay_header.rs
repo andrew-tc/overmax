@@ -1,7 +1,6 @@
 use crate::ui::components::{
     FadeClippedLabel, ModeBadge, OverlayHeaderDetail, StatusLamp, ToastMessage,
 };
-use crate::ui::i18n::t;
 use crate::ui::overlay_recommend_ui::PatternTabInfo;
 use crate::ui::overlay_theme::Theme;
 use crate::ui::overlay_ui::{OverlayActions, Px};
@@ -98,7 +97,8 @@ impl<'a> OverlayHeader<'a> {
                         24.0 * self.px.scale
                     };
                     let spacing = ui.spacing().item_spacing.x;
-                    let max_w = ui.available_width() - right_w - spacing * 2.0 - 4.0 * self.px.scale;
+                    let max_w =
+                        ui.available_width() - right_w - spacing * 2.0 - 4.0 * self.px.scale;
 
                     ui.add(
                         FadeClippedLabel::new(self.song_label)
@@ -122,7 +122,7 @@ impl<'a> OverlayHeader<'a> {
                                 Vec2::splat(self.px.settings_btn()),
                                 btn.sense(Sense::click()),
                             )
-                            .on_hover_text(t("설정"));
+                            .on_hover_text(crate::t!("settings-title"));
                         buttons_left_x = Some(response.rect.min.x);
                         if response.clicked() {
                             self.settings_open.store(true, Ordering::Relaxed);
@@ -131,13 +131,13 @@ impl<'a> OverlayHeader<'a> {
 
                         if self.varchive_upload_needed {
                             ui.add_space(4.0 * self.px.scale);
-                            let upload_text = RichText::new("⬆").color(
-                                if self.varchive_account_configured {
+                            let upload_text = RichText::new("⬆")
+                                .color(if self.varchive_account_configured {
                                     Theme::TEXT_PRIMARY
                                 } else {
                                     Theme::TEXT_MUTED
-                                },
-                            ).font(FontId::proportional(11.0 * self.px.scale));
+                                })
+                                .font(FontId::proportional(11.0 * self.px.scale));
 
                             let upload_btn = Button::new(upload_text)
                                 .fill(if self.varchive_account_configured {
@@ -151,10 +151,9 @@ impl<'a> OverlayHeader<'a> {
                             let btn_size = Vec2::splat(18.0 * self.px.scale);
                             let response = ui.add_sized(btn_size, upload_btn.sense(Sense::click()));
                             let response = if self.varchive_account_configured {
-                                response.on_hover_text(t("V-Archive 업로드 필요 (클릭하여 즉시 업로드)"))
+                                response.on_hover_text(crate::t!("overlay-varchive-upload-needed"))
                             } else {
-                                response
-                                    .on_hover_text(t("V-Archive 계정 연동 필요 (설정에서 account.txt 경로를 지정해주세요)"))
+                                response.on_hover_text(crate::t!("overlay-varchive-link-needed"))
                             };
                             buttons_left_x = Some(
                                 buttons_left_x

@@ -1,4 +1,4 @@
-use crate::ui::i18n::{t, t_assist, t_gold};
+use crate::t;
 use crate::ui::overlay_recommend_ui::PatternTabInfo;
 use crate::ui::overlay_theme::Theme;
 use eframe::egui::{self, Color32, FontId, Rect, Vec2};
@@ -172,13 +172,16 @@ impl<'a> OverlayHeaderDetail<'a> {
         };
 
         if !pattern.gold.is_none() {
-            meta_list.push(format!("{}:{}", t("황배"), t_gold(pattern.gold)));
+            meta_list.push(t!("overlay-gold-rec-meta", val = t!(gold = pattern.gold)));
         }
         if !pattern.assist_key.is_none() {
-            meta_list.push(format!("{}:{}", t("보조"), t_assist(pattern.assist_key)));
+            meta_list.push(t!(
+                "overlay-assist-key-meta",
+                val = t!(assist = pattern.assist_key)
+            ));
         }
         if pattern.keypart {
-            meta_list.push(t("키파트 위주 패턴").to_string());
+            meta_list.push(t!("overlay-keypart-focused").to_string());
         }
         if !pattern.note.is_empty() {
             meta_list.push(pattern.note.clone());
@@ -301,7 +304,7 @@ impl<'a> egui::Widget for OverlayHeaderDetail<'a> {
                 // [가드레일] 결과가 존재하지 않으면 "기록 없음" 이라고 Theme::OK로 표시
                 if record_segments.is_empty() {
                     record_segments.push(TextSegment {
-                        text: t("기록 없음").to_string(),
+                        text: crate::t!("overlay-no-record").to_string(),
                         color: Theme::OK,
                     });
                 }

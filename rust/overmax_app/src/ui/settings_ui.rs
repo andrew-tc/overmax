@@ -1,6 +1,5 @@
 //! Settings editor: overlay scale/opacity and capture/matcher intervals.
 
-use crate::ui::i18n::t;
 use crate::ui::overlay_theme::{apply_secondary_window_style, render_pill_tabs, Theme};
 use eframe::egui::{
     self, CornerRadius, Frame, Margin, RichText, Slider, Stroke, TextEdit, ViewportClass,
@@ -36,7 +35,7 @@ pub fn render_settings_form(ui: &mut egui::Ui, draft: &mut Value, ctx: &Settings
                 .strong(),
         );
         ui.label(
-            RichText::new(t("설정"))
+            RichText::new(crate::t!("settings-title"))
                 .color(Theme::TEXT_PRIMARY)
                 .size(Theme::FONT_HEADING)
                 .strong(),
@@ -67,7 +66,7 @@ pub fn render_settings_form(ui: &mut egui::Ui, draft: &mut Value, ctx: &Settings
 }
 
 fn ui_tab(ui: &mut egui::Ui, draft: &mut Value) {
-    section_frame(ui, t("오버레이 설정"), |ui| {
+    section_frame(ui, crate::t!("settings-overlay-section"), |ui| {
         overlay_section(ui, draft)
     });
 }
@@ -77,7 +76,7 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
         return;
     };
 
-    form_row(ui, t("크기"), |ui| {
+    form_row(ui, crate::t!("settings-size"), |ui| {
         let current_scale = overlay.get("scale").and_then(|v| v.as_f64()).unwrap_or(1.0);
         ui.horizontal(|ui| {
             ui.style_mut().spacing.item_spacing.x = 4.0;
@@ -107,7 +106,7 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
 
     ui.add_space(Theme::ROW_SPACING);
 
-    form_row(ui, t("투명도"), |ui| {
+    form_row(ui, crate::t!("settings-opacity"), |ui| {
         let mut opacity = overlay
             .get("base_opacity")
             .and_then(|v| v.as_f64())
@@ -132,15 +131,15 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
 
     ui.add_space(Theme::ROW_SPACING);
 
-    form_row(ui, t("라이트모드"), |ui| {
+    form_row(ui, crate::t!("settings-lite-mode"), |ui| {
         let mut lite_mode = overlay
             .get("lite_mode")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
         let response = ui
-            .checkbox(&mut lite_mode, t("활성화"))
-            .on_hover_text(t("추천 숨기기 및 레이아웃 축소"));
+            .checkbox(&mut lite_mode, crate::t!("settings-enable"))
+            .on_hover_text(crate::t!("settings-lite-mode-desc"));
 
         if response.changed() {
             overlay.insert("lite_mode".into(), serde_json::json!(lite_mode));
@@ -150,17 +149,15 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
 
     ui.add_space(Theme::ROW_SPACING);
 
-    form_row(ui, t("오버레이 표시"), |ui| {
+    form_row(ui, crate::t!("settings-overlay-display"), |ui| {
         let mut always_visible = overlay
             .get("always_visible")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
         let response = ui
-            .checkbox(&mut always_visible, t("항상 표시"))
-            .on_hover_text(t(
-                "게임 구동 중 씬 감지(Unknown) 결과와 상관없이 오버레이를 항상 표시합니다.",
-            ));
+            .checkbox(&mut always_visible, crate::t!("settings-always-show"))
+            .on_hover_text(crate::t!("settings-always-show-desc"));
 
         if response.changed() {
             overlay.insert("always_visible".into(), serde_json::json!(always_visible));
@@ -169,7 +166,7 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
     });
 
     ui.add_space(Theme::ROW_SPACING);
-    form_row(ui, t("오버레이 고정 위치"), |ui| {
+    form_row(ui, crate::t!("settings-snap-position"), |ui| {
         let mut position = overlay
             .get("position")
             .and_then(|v| v.as_object())
@@ -226,22 +223,26 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
         );
 
         for (label, val, target_rect) in [
-            ("좌상단", "top_left", rect_tl),
-            ("우상단", "top_right", rect_tr),
-            ("좌하단", "bottom_left", rect_bl),
-            ("우하단", "bottom_right", rect_br),
-            ("수동", "manual", rect_manual),
+            ("settings-top-left", "top_left", rect_tl),
+            ("settings-top-right", "top_right", rect_tr),
+            ("settings-bottom-left", "bottom_left", rect_bl),
+            ("settings-bottom-right", "bottom_right", rect_br),
+            ("settings-manual", "manual", rect_manual),
         ] {
             let is_active = snap == val;
-            let btn = egui::Button::new(RichText::new(t(label)).size(Theme::FONT_SMALL).strong())
-                .fill(if is_active {
-                    Theme::TAB_ACTIVE_BG
-                } else {
-                    Theme::TAB_DIM_BG
-                })
-                .stroke(egui::Stroke::new(1.0_f32, Theme::STROKE))
-                .corner_radius(egui::CornerRadius::same(Theme::R_SM))
-                .wrap();
+            let btn = egui::Button::new(
+                RichText::new(crate::t!(label))
+                    .size(Theme::FONT_SMALL)
+                    .strong(),
+            )
+            .fill(if is_active {
+                Theme::TAB_ACTIVE_BG
+            } else {
+                Theme::TAB_DIM_BG
+            })
+            .stroke(egui::Stroke::new(1.0_f32, Theme::STROKE))
+            .corner_radius(egui::CornerRadius::same(Theme::R_SM))
+            .wrap();
             if ui.put(target_rect, btn).clicked() {
                 snap = val.to_string();
                 changed = true;
@@ -257,8 +258,8 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
 }
 
 fn varchive_tab(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiContext) {
-    section_frame(ui, t("V-Archive 계정"), |ui| {
-        form_row(ui, t("연동 상태"), |ui| {
+    section_frame(ui, crate::t!("settings-varchive-account"), |ui| {
+        form_row(ui, crate::t!("settings-link-status"), |ui| {
             ui.label(
                 RichText::new(current_steam_label(ctx))
                     .color(Theme::TEXT_MUTED)
@@ -271,7 +272,7 @@ fn varchive_tab(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiContext) {
         if ctx.current_steam_id.is_empty() {
             ui.add_space(8.0);
             ui.label(
-                RichText::new(t("발견된 Steam 계정이 없습니다."))
+                RichText::new(crate::t!("settings-no-steam-account"))
                     .color(Theme::WARN)
                     .size(Theme::FONT_SMALL),
             );
@@ -285,29 +286,21 @@ fn varchive_tab(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiContext) {
 
 fn current_steam_label(ctx: &SettingsUiContext) -> String {
     if ctx.current_steam_id.is_empty() {
-        format!("{}: -", t("현재 Steam"))
+        "Steam: -".to_string()
     } else {
         if let Ok(users) = ctx.steam_users.lock() {
             if let Some(user) = users.get(&ctx.current_steam_id) {
                 if !user.persona_name.is_empty() && !user.account_name.is_empty() {
                     return format!(
-                        "{}: {} ({}) [{}]",
-                        t("현재 Steam"),
-                        user.persona_name,
-                        user.account_name,
-                        ctx.current_steam_id
+                        "Steam: {} ({}) [{}]",
+                        user.persona_name, user.account_name, ctx.current_steam_id
                     );
                 } else if !user.persona_name.is_empty() {
-                    return format!(
-                        "{}: {} [{}]",
-                        t("현재 Steam"),
-                        user.persona_name,
-                        ctx.current_steam_id
-                    );
+                    return format!("Steam: {} [{}]", user.persona_name, ctx.current_steam_id);
                 }
             }
         }
-        format!("{}: {}", t("현재 Steam"), ctx.current_steam_id)
+        format!("Steam: {}", ctx.current_steam_id)
     }
 }
 
@@ -337,7 +330,7 @@ fn steam_account_rows(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiCont
 
     ui.add_space(Theme::ROW_SPACING);
 
-    form_row(ui, t("데이터 동기화"), |ui| {
+    form_row(ui, crate::t!("settings-data-sync"), |ui| {
         ui.horizontal_wrapped(|ui| {
             ui.style_mut().spacing.item_spacing.x = 4.0;
             ui.spacing_mut().button_padding = egui::vec2(4.0, 4.0);
@@ -388,10 +381,12 @@ fn steam_account_rows(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiCont
 
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.spacing_mut().button_padding = egui::vec2(4.0, 4.0);
-            let find_btn = egui::Button::new(RichText::new(t("찾기")).size(Theme::FONT_SMALL))
-                .fill(Theme::TAB_ACTIVE_BG)
-                .corner_radius(egui::CornerRadius::same(Theme::R_SM))
-                .wrap();
+            let find_btn = egui::Button::new(
+                RichText::new(crate::t!("settings-browse")).size(Theme::FONT_SMALL),
+            )
+            .fill(Theme::TAB_ACTIVE_BG)
+            .corner_radius(egui::CornerRadius::same(Theme::R_SM))
+            .wrap();
             if ui
                 .add_sized(egui::vec2(60.0, Theme::CONTROL_HEIGHT), find_btn)
                 .clicked()
@@ -422,7 +417,7 @@ fn steam_account_rows(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiCont
     ui.horizontal(|ui| {
         ui.add_space(Theme::LABEL_WIDTH + 8.0);
         let scan_btn = egui::Button::new(
-            RichText::new(format!("🔍 {}", t("동기화 후보 찾기")))
+            RichText::new(crate::t!("settings-find-sync-candidates-btn"))
                 .size(Theme::FONT_BODY)
                 .strong(),
         )
@@ -441,35 +436,35 @@ fn steam_account_rows(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiCont
 }
 
 fn system_tab(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiContext) {
-    section_frame(ui, t("진단 및 디버그"), |ui| {
+    section_frame(ui, crate::t!("settings-diagnostics"), |ui| {
         debug_section(ui, draft, ctx)
     });
-    section_frame(ui, t("화면 캡처 설정"), |ui| {
+    section_frame(ui, crate::t!("settings-screen-capture"), |ui| {
         capture_section(ui, draft)
     });
-    section_frame(ui, t("일반"), |ui| general_section(ui, draft));
-    section_frame(ui, t("추천 Provider"), |ui| {
+    section_frame(ui, crate::t!("settings-general"), |ui| {
+        general_section(ui, draft)
+    });
+    section_frame(ui, crate::t!("settings-recommend-provider"), |ui| {
         recommend_provider_section(ui, draft)
     });
-    section_frame(ui, t("업데이트 설정"), |ui| update_section(ui, draft));
+    section_frame(ui, crate::t!("settings-update-section"), |ui| {
+        update_section(ui, draft)
+    });
     #[cfg(target_os = "linux")]
-    section_frame(ui, t("Linux 앱 실행"), |ui| {
-        form_row(ui, t("앱 메뉴"), |ui| {
-            if ui.button(t("바로가기 생성")).clicked() {
+    section_frame(ui, crate::t!("Linux 앱 실행"), |ui| {
+        form_row(ui, crate::t!("앱 메뉴"), |ui| {
+            if ui.button(crate::t!("바로가기 생성")).clicked() {
                 let result = crate::system::desktop_entry_linux::install(ctx.root.as_path());
                 let (title, description, level) = match result {
                     Ok(path) => (
                         "Overmax",
-                        format!(
-                            "{}\n\n{}",
-                            t("앱 메뉴 바로가기를 생성했습니다."),
-                            path.display()
-                        ),
+                        crate::t!("sys-shortcut-create-success", path = path.display()),
                         rfd::MessageLevel::Info,
                     ),
                     Err(error) => (
                         "Overmax",
-                        format!("{}\n\n{error}", t("바로가기를 생성하지 못했습니다.")),
+                        crate::t!("sys-shortcut-create-failed", error = error),
                         rfd::MessageLevel::Error,
                     ),
                 };
@@ -487,12 +482,10 @@ fn system_tab(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiContext) {
 fn debug_section(ui: &mut egui::Ui, draft: &mut Value, ctx: &SettingsUiContext) {
     let mut is_open = ctx.debug_open.load(Ordering::Relaxed);
 
-    form_row(ui, t("디버그 창"), |ui| {
+    form_row(ui, crate::t!("settings-debug-window"), |ui| {
         if ui
-            .checkbox(&mut is_open, t("디버그 모니터링 창 표시"))
-            .on_hover_text(t(
-                "실시간 탐지 수치 및 진단 로그를 표출하는 디버그 창을 엽니다.",
-            ))
+            .checkbox(&mut is_open, crate::t!("settings-show-debug-window"))
+            .on_hover_text(crate::t!("settings-debug-window-desc"))
             .changed()
         {
             let debug_obj = object_section_mut(draft, "debug");
@@ -514,19 +507,19 @@ fn capture_section(ui: &mut egui::Ui, draft: &mut Value) {
             .unwrap_or("gdi")
             .to_string();
 
-        form_row(ui, &format!("{} (Windows)", t("캡처 방식")), |ui| {
+        form_row(ui, &crate::t!("settings-capture-method-win"), |ui| {
             let mut changed = false;
             egui::ComboBox::from_id_salt("capture_engine_combo")
                 .selected_text(match engine.as_str() {
-                    "dxgi" => format!("DXGI ({})", t("실험적 / 고성능")),
-                    _ => format!("GDI ({})", t("기본값 / 안정적")),
+                    "dxgi" => crate::t!("settings-capture-mode-dxgi"),
+                    _ => crate::t!("settings-capture-mode-gdi"),
                 })
                 .show_ui(ui, |ui| {
                     if ui
                         .selectable_value(
                             &mut engine,
                             "gdi".to_string(),
-                            format!("GDI ({})", t("기본값 / 안정적")),
+                            crate::t!("settings-capture-mode-gdi"),
                         )
                         .clicked()
                     {
@@ -536,7 +529,7 @@ fn capture_section(ui: &mut egui::Ui, draft: &mut Value) {
                         .selectable_value(
                             &mut engine,
                             "dxgi".to_string(),
-                            format!("DXGI ({})", t("실험적 / 고성능")),
+                            crate::t!("settings-capture-mode-dxgi"),
                         )
                         .clicked()
                     {
@@ -557,12 +550,13 @@ fn capture_section(ui: &mut egui::Ui, draft: &mut Value) {
         .and_then(Value::as_bool)
         .unwrap_or(true);
 
-    form_row(ui, t("캡처 시 오버레이 보호"), |ui| {
+    form_row(ui, crate::t!("settings-protect-overlay"), |ui| {
         let response = ui
-            .checkbox(&mut content_protected, t("화면 캡처 방지"))
-            .on_hover_text(t(
-                "해제 시 화면 캡쳐에 잡히는 대신, 특정 영역에 오버레이가 위치하면 곡 인식이 제대로 동작하지 않게 됩니다.",
-            ));
+            .checkbox(
+                &mut content_protected,
+                crate::t!("settings-prevent-screen-capture"),
+            )
+            .on_hover_text(crate::t!("settings-protect-overlay-desc"));
 
         if response.changed() {
             screen_capture.insert("content_protected".into(), json!(content_protected));
@@ -571,7 +565,7 @@ fn capture_section(ui: &mut egui::Ui, draft: &mut Value) {
 }
 
 fn general_section(ui: &mut egui::Ui, draft: &mut Value) {
-    form_row(ui, t("언어"), |ui| {
+    form_row(ui, crate::t!("settings-language"), |ui| {
         let current_lang = draft
             .get("language")
             .and_then(Value::as_str)
@@ -605,7 +599,7 @@ fn general_section(ui: &mut egui::Ui, draft: &mut Value) {
 
 fn update_section(ui: &mut egui::Ui, draft: &mut Value) {
     let app_update = object_section_mut(draft, "app_update");
-    form_row(ui, t("자동 업데이트"), |ui| {
+    form_row(ui, crate::t!("settings-auto-update"), |ui| {
         let mut enabled = app_update
             .get("enabled")
             .and_then(Value::as_bool)
@@ -613,7 +607,7 @@ fn update_section(ui: &mut egui::Ui, draft: &mut Value) {
         if ui
             .checkbox(
                 &mut enabled,
-                RichText::new(t("사용")).size(Theme::FONT_BODY),
+                RichText::new(crate::t!("settings-use")).size(Theme::FONT_BODY),
             )
             .changed()
         {
@@ -621,7 +615,7 @@ fn update_section(ui: &mut egui::Ui, draft: &mut Value) {
         }
     });
     ui.add_space(Theme::ROW_SPACING);
-    form_row(ui, t("버전 정보"), |ui| {
+    form_row(ui, crate::t!("settings-version-info"), |ui| {
         ui.label(
             RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
                 .color(Theme::TEXT_PRIMARY)
@@ -637,11 +631,11 @@ fn recommend_provider_section(ui: &mut egui::Ui, draft: &mut Value) {
         .get("enabled")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    form_row(ui, t("외부 Provider 사용"), |ui| {
+    form_row(ui, crate::t!("settings-use-external-provider"), |ui| {
         if ui
             .checkbox(
                 &mut enabled,
-                RichText::new(t("사용")).size(Theme::FONT_BODY),
+                RichText::new(crate::t!("settings-use")).size(Theme::FONT_BODY),
             )
             .changed()
         {
@@ -676,11 +670,11 @@ fn recommend_provider_section(ui: &mut egui::Ui, draft: &mut Value) {
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_string();
-    form_row(ui, t("표시 이름"), |ui| {
+    form_row(ui, crate::t!("settings-display-name"), |ui| {
         if ui
             .add(
                 egui::TextEdit::singleline(&mut name)
-                    .hint_text(format!("{}: djmax.gg", t("예")))
+                    .hint_text(crate::t!("settings-eg-hint", domain = "djmax.gg"))
                     .desired_width(220.0),
             )
             .changed()

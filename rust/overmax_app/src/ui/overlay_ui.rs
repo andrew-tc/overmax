@@ -1,5 +1,4 @@
 use crate::ui::components::{LitePanel, OverlayHeader};
-use crate::ui::i18n::t;
 use crate::ui::overlay_recommend_ui::{
     avg_rate_text, draw_diff_tabs, draw_recommendations, pattern_count_text, PatternTabInfo,
 };
@@ -204,7 +203,7 @@ fn draw_footer(
                     actions.command = Some(UiCommand::OpenSync);
                 }
                 ui.label(
-                    RichText::new(t("유사 구간 평균"))
+                    RichText::new(crate::t!("overlay-similar-avg"))
                         .color(Theme::TEXT_SECONDARY)
                         .font(FontId::proportional(11.0 * px.scale)),
                 );
