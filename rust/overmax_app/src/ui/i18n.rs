@@ -470,16 +470,22 @@ macro_rules! t {
             En => "Screen Capture Method (Windows)"
         )
     };
+    ("settings-capture-mode-auto") => {
+        $crate::t_select!(
+            Ko => "자동 (추천)",
+            En => "Auto (Recommended)"
+        )
+    };
     ("settings-capture-mode-dxgi") => {
         $crate::t_select!(
-            Ko => "DXGI (실험적 / 고성능)",
-            En => "DXGI (Experimental / High Perf)"
+            Ko => "DXGI (고성능)",
+            En => "DXGI (High Perf)"
         )
     };
     ("settings-capture-mode-gdi") => {
         $crate::t_select!(
-            Ko => "GDI (기본값 / 안정적)",
-            En => "GDI (Default / Stable)"
+            Ko => "GDI (호환성)",
+            En => "GDI (Compatibility)"
         )
     };
 
