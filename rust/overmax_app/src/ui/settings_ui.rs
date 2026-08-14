@@ -192,8 +192,8 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
             egui::StrokeKind::Inside,
         );
 
-        let btn_size = egui::vec2(80.0, 34.0);
-        let margin = 8.0;
+        let btn_size = egui::vec2(52.0, 32.0);
+        let margin = 10.0;
 
         let rect_tl = egui::Rect::from_min_size(
             egui::pos2(rect.min.x + margin, rect.min.y + margin),
@@ -222,23 +222,22 @@ fn overlay_section(ui: &mut egui::Ui, draft: &mut Value) {
             btn_size,
         );
 
-        for (label, val, target_rect) in [
-            (crate::t!("settings-top-left"), "top_left", rect_tl),
-            (crate::t!("settings-top-right"), "top_right", rect_tr),
-            (crate::t!("settings-bottom-left"), "bottom_left", rect_bl),
-            (crate::t!("settings-bottom-right"), "bottom_right", rect_br),
-            (crate::t!("settings-manual"), "manual", rect_manual),
+        for (icon, val, target_rect) in [
+            ("↖", "top_left", rect_tl),
+            ("↗", "top_right", rect_tr),
+            ("↙", "bottom_left", rect_bl),
+            ("↘", "bottom_right", rect_br),
+            ("✥", "manual", rect_manual),
         ] {
             let is_active = snap == val;
-            let btn = egui::Button::new(RichText::new(label).size(Theme::FONT_SMALL).strong())
+            let btn = egui::Button::new(RichText::new(icon).size(Theme::FONT_BODY).strong())
                 .fill(if is_active {
                     Theme::TAB_ACTIVE_BG
                 } else {
                     Theme::TAB_DIM_BG
                 })
                 .stroke(egui::Stroke::new(1.0_f32, Theme::STROKE))
-                .corner_radius(egui::CornerRadius::same(Theme::R_SM))
-                .wrap();
+                .corner_radius(egui::CornerRadius::same(Theme::R_SM));
             if ui.put(target_rect, btn).clicked() {
                 snap = val.to_string();
                 changed = true;
