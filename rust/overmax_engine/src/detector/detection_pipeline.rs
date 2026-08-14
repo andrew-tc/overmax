@@ -4,9 +4,11 @@ use crate::capture::window_tracker::WindowSnapshot;
 use crate::detector::hysteresis::HysteresisBuffer;
 use crate::detector::play_state::PlayStateDetector;
 use crate::detector::roi::RoiManager;
+use crate::detector::telemetry::{PipelineStatsCollector, PipelineTelemetrySnapshot};
 use crate::detector::RateTelemetry;
 use overmax_core::{GameSessionState, SceneType};
 use overmax_data::ImageIndexDb;
+use std::time::Instant;
 
 const JACKET_MATCH_INTERVAL: f64 = 0.25;
 const JACKET_CHANGE_THRESHOLD: f32 = 2.5;
@@ -35,6 +37,7 @@ pub struct DetectionOutput {
     pub roi_scale: f32,
     pub roi_offset_y: i32,
     pub stable_hits: u32,
+    pub telemetry_snapshot: Option<PipelineTelemetrySnapshot>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -52,6 +55,7 @@ pub enum JacketMatchStatus {
 }
 
 pub struct DetectionPipeline {
+    pub stats: PipelineStatsCollector,
     image_db: ImageIndexDb,
     jacket_matcher: overmax_data::JacketMatcher,
     rois: RoiManager,
@@ -73,6 +77,7 @@ impl DetectionPipeline {
     pub fn new(image_db: ImageIndexDb) -> Self {
         let jacket_matcher = image_db.matcher();
         Self {
+            stats: PipelineStatsCollector::new(),
             image_db,
             jacket_matcher,
             rois: RoiManager::new(1920, 1080),
@@ -92,6 +97,7 @@ impl DetectionPipeline {
     }
 
     pub fn reset(&mut self) {
+        self.stats.reset();
         self.current_song_id = None;
         self.last_scene_check_ts = 0.0;
         self.last_static_scene = SceneType::Unknown;
@@ -108,7 +114,12 @@ impl DetectionPipeline {
     }
 
     pub fn detect(&mut self, frame: &CapturedFrame, now: f64) -> DetectionOutput {
-        if let Some(scene) = self.detect_scene_if_due(frame, now) {
+        let scene_start = Instant::now();
+        let maybe_scene = self.detect_scene_if_due(frame, now);
+        let scene_elapsed = scene_start.elapsed().as_micros() as u64;
+        self.stats.scene.update(scene_elapsed);
+
+        if let Some(scene) = maybe_scene {
             self.process_frame_with_scene(frame, scene, now)
         } else {
             self.process_frame_cached(frame, now)
@@ -146,6 +157,8 @@ impl DetectionPipeline {
         scene_detected: bool,
         now: f64,
     ) -> DetectionOutput {
+        self.stats.record_frame_status(scene_detected);
+
         let is_result = self.last_static_scene.is_result();
         let is_song_select = self.hysteresis.is_active || is_result;
         let is_leaving = if is_result {
@@ -187,10 +200,17 @@ impl DetectionPipeline {
             self.play_state.clear_detected_cache();
         }
 
+        let jacket_start = Instant::now();
         let jacket_status = self.update_song_id_from_jacket(frame, now);
+        let jacket_elapsed = jacket_start.elapsed().as_micros() as u64;
+        self.stats.jacket.update(jacket_elapsed);
+
+        let play_state_start = Instant::now();
         let (state, telemetry) =
             self.play_state
                 .detect(frame, &self.rois, self.current_song_id, now);
+        let play_state_elapsed = play_state_start.elapsed().as_micros() as u64;
+        self.stats.play_state.update(play_state_elapsed);
 
         self.output(
             scene_detected,
@@ -323,6 +343,7 @@ impl DetectionPipeline {
         &mut self,
         jacket: &crate::capture::frame_utils::ImageRegion,
     ) -> JacketMatchStatus {
+        self.stats.record_match_jacket();
         let Some(result) = self.jacket_matcher.match_jacket(
             &jacket.bgra,
             jacket.width as usize,
@@ -400,6 +421,7 @@ impl DetectionPipeline {
             roi_scale: self.rois.scale(),
             roi_offset_y: self.rois.offset_y(),
             stable_hits: self.play_state.stable_hits(),
+            telemetry_snapshot: None,
         }
     }
 }
@@ -478,6 +500,25 @@ fn detect_result_scene_via_edge(
     let gate_ok = is_freestyle_result || open_match_scene.is_some();
 
     if gate_ok {
+        let jacket = jacket_roi.and_then(frame, |jacket_img| Some(jacket_img.to_image_region()))?;
+
+        // 1차 초고속 게이트: Centroid Kernel 사전 검사 (결과창 노이즈로 인한 98ms 스파이크 차단)
+        let kernel_ok = matcher.check_centroid_kernel(
+            &jacket.bgra,
+            jacket.width as usize,
+            jacket.height as usize,
+            4,
+        );
+
+        if !kernel_ok {
+            if is_unknown {
+                debug_println!(
+                    "    [scene_gate] Rejected by 1st Centroid Kernel Gate for result scene"
+                );
+            }
+            return None;
+        }
+
         if is_unknown {
             debug_println!(
                 "    [telemetry] match_jacket triggered while scene=Unknown, candidate=result"
@@ -485,15 +526,12 @@ fn detect_result_scene_via_edge(
         }
         // 결과창 재킷 매칭 시도
         let mut song_id = None;
-        if let Some(match_res) = jacket_roi.and_then(frame, |jacket_img| {
-            let region = jacket_img.to_image_region();
-            matcher.match_jacket(
-                &region.bgra,
-                region.width as usize,
-                region.height as usize,
-                4,
-            )
-        }) {
+        if let Some(match_res) = matcher.match_jacket(
+            &jacket.bgra,
+            jacket.width as usize,
+            jacket.height as usize,
+            4,
+        ) {
             let threshold = matcher.similarity_threshold();
             if match_res.similarity >= threshold {
                 if let Ok(id) = match_res.image_id.parse::<i32>() {
@@ -533,19 +571,15 @@ fn detect_freestyle_scene_via_edge(
     is_unknown: bool,
 ) -> Option<(SceneType, i32, f32)> {
     let jacket_roi = rois.get_roi_for_scene("jacket", SceneType::Freestyle)?;
+    let jacket = jacket_roi.and_then(frame, |jacket_img| Some(jacket_img.to_image_region()))?;
 
     // 1차 게이트: Centroid Kernel 사전 검사
-    let kernel_ok = jacket_roi
-        .and_then(frame, |jacket_img| {
-            let region = jacket_img.to_image_region();
-            Some(matcher.check_centroid_kernel(
-                &region.bgra,
-                region.width as usize,
-                region.height as usize,
-                4,
-            ))
-        })
-        .unwrap_or(false);
+    let kernel_ok = matcher.check_centroid_kernel(
+        &jacket.bgra,
+        jacket.width as usize,
+        jacket.height as usize,
+        4,
+    );
 
     if !kernel_ok {
         if is_unknown {
@@ -563,15 +597,12 @@ fn detect_freestyle_scene_via_edge(
                 "    [telemetry] match_jacket triggered while scene=Unknown, candidate=freestyle"
             );
         }
-        if let Some(match_res) = jacket_roi.and_then(frame, |jacket_img| {
-            let region = jacket_img.to_image_region();
-            matcher.match_jacket(
-                &region.bgra,
-                region.width as usize,
-                region.height as usize,
-                4,
-            )
-        }) {
+        if let Some(match_res) = matcher.match_jacket(
+            &jacket.bgra,
+            jacket.width as usize,
+            jacket.height as usize,
+            4,
+        ) {
             let threshold = matcher.similarity_threshold();
             if match_res.similarity >= threshold {
                 if let Ok(song_id) = match_res.image_id.parse::<i32>() {
@@ -591,19 +622,15 @@ fn detect_openmatch_scene_via_edge(
     is_unknown: bool,
 ) -> Option<(SceneType, i32, f32)> {
     let jacket_roi = rois.get_roi_for_scene("jacket", SceneType::OpenMatch)?;
+    let jacket = jacket_roi.and_then(frame, |jacket_img| Some(jacket_img.to_image_region()))?;
 
     // 1차 초고속 게이트: Centroid Kernel 사전 검사
-    let kernel_ok = jacket_roi
-        .and_then(frame, |jacket_img| {
-            let region = jacket_img.to_image_region();
-            Some(matcher.check_centroid_kernel(
-                &region.bgra,
-                region.width as usize,
-                region.height as usize,
-                4,
-            ))
-        })
-        .unwrap_or(false);
+    let kernel_ok = matcher.check_centroid_kernel(
+        &jacket.bgra,
+        jacket.width as usize,
+        jacket.height as usize,
+        4,
+    );
 
     if !kernel_ok {
         if is_unknown {
@@ -621,15 +648,12 @@ fn detect_openmatch_scene_via_edge(
                 "    [telemetry] match_jacket triggered while scene=Unknown, candidate=openmatch"
             );
         }
-        if let Some(match_res) = jacket_roi.and_then(frame, |jacket_img| {
-            let region = jacket_img.to_image_region();
-            matcher.match_jacket(
-                &region.bgra,
-                region.width as usize,
-                region.height as usize,
-                4,
-            )
-        }) {
+        if let Some(match_res) = matcher.match_jacket(
+            &jacket.bgra,
+            jacket.width as usize,
+            jacket.height as usize,
+            4,
+        ) {
             let threshold = matcher.similarity_threshold();
             if match_res.similarity >= threshold {
                 if let Ok(song_id) = match_res.image_id.parse::<i32>() {
