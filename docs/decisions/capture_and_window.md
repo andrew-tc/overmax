@@ -1,0 +1,22 @@
+# Capture & Window Management Decision Log
+
+화면 캡처(GDI, DXGI, Linux), 윈도우 추적(WindowTracker), DWM 컴포지터 상호작용, 창 드래그/오버레이 가시성 관련 주요 설계 결정의 배경과 이유를 기록한다.
+
+---
+
+## 📋 Decision History
+
+| 날짜 | 결정 | 이유 | 참조 |
+|:---|:---|:---|:---|
+| 2026-05 | GDI 캡처 버퍼 인플레이스 재사용 | CPU 프로파일링 결과 memcpy 힙 할당이 주 병목 | [cpu-optimization-message-pump.md](../2026-05-24-cpu-optimization-message-pump.md) |
+| 2026-05 | WindowTracker 동적 폴링 주기 | win32u 시스템 콜 오버헤드 해소 | [cpu-optimization-message-pump-review.md](../2026-05-24-cpu-optimization-message-pump-review.md) |
+| 2026-07-09 | NativeApp::update 330줄 분할 및 락 오버헤드 최적화 | 자이언트 함수를 3개 헬퍼 함수로 분해하고 `game_rect` 락 획득을 1회로 병합 | [native_app_viewports.rs](../../rust/overmax_app/src/ui/native_app_viewports.rs) |
+| 2026-07-13 | 캡처 FPS 및 GUI 렌더링 스팸 최적화 | ScreenCaptureSettings에 active_sleep_ms/background_sleep_ms를 추가해 분석 주기를 유연하게 설정하고, 마우스 오버 시 실제 이동/드래그가 발생할 때만 request_repaint()를 호출하여 무의미한 CPU/GPU 낭비 억제 | [settings.rs](../../rust/overmax_data/src/config/settings.rs) / [native_app_viewports.rs](../../rust/overmax_app/src/ui/native_app_viewports.rs) / [detection_worker.rs](../../rust/overmax_engine/src/detector/detection_worker.rs) |
+| 2026-08-08 | 오버레이 항상 표시 및 DXGI/GDI 캡처 설정 옵션화, 디버그 실시간 대시보드 구축 | 씬 미인식(`SceneType::Unknown`) 또는 특정 유저 포커스 환경에 따른 오버레이 미노출 이슈를 완벽히 해결하고, 캡처 백엔드 선택권(`capture.engine`), Content Protection 선택권(`capture.content_protected`), 오버레이 항시 표시(`overlay.always_visible`), 그리고 100ms 실시간 App State 디버그 대시보드를 제공하여 빠른 원인 진단 및 사용자 편의성 확보 | [settings.rs](../../rust/overmax_data/src/config/settings.rs) / [settings_ui.rs](../../rust/overmax_app/src/ui/settings_ui.rs) / [debug_ui.rs](../../rust/overmax_app/src/ui/debug_ui.rs) / [native_app_viewports.rs](../../rust/overmax_app/src/ui/native_app_viewports.rs) |
+| 2026-08-09 | DWM Z-order 가림 해제 (`GWL_HWNDPARENT` 소거) 및 Win32 ReleaseCapture + WM_NCLBUTTONDOWN OS 네이티브 드래그 완성 | DWM이 오버레이 창을 게임 뒤로 가려버리던 `GWL_HWNDPARENT` 소유권을 전면 제거하고, 드래그 시 `ReleaseCapture` 및 `WM_NCLBUTTONDOWN (HTCAPTION)` 신호를 주입하여 144Hz/240Hz OS 네이티브 윈도우 이동(`SC_MOVE`) 모달 루프에 위임함으로써 버벅임 0%, 덜덜 떨림 0%의 완벽한 오버레이 창 이동을 구현함 | [native_app_viewports.rs](../../rust/overmax_app/src/ui/native_app_viewports.rs) / [overlay_header.rs](../../rust/overmax_app/src/ui/components/overlay_header.rs) / [lite_panel.rs](../../rust/overmax_app/src/ui/components/lite_panel.rs) |
+| 2026-08-10 | Capture Backend 런타임 실시간 스위칭 및 GDI 기본값 전환 | 설정 UI에서 Capture Backend(GDI/DXGI) 변경 시 디텍션 워커가 런타임에 즉시 engine을 스위칭하도록 동기화하고, 안정성 중심의 GDI 백엔드를 기본값으로 전환 | [detection_worker.rs](../../rust/overmax_engine/src/detector/detection_worker.rs) / [windows/mod.rs](../../rust/overmax_engine/src/capture/capture_engine/windows/mod.rs) / [settings_ui.rs](../../rust/overmax_app/src/ui/settings_ui.rs) |
+| 2026-08-10 | DXGI 백엔드 다중 모니터 Output 동적 탐색 및 로컬 오프셋 변환 지원 | DXGI Desktop Duplication 사용 시 서브 모니터에서 게임 구동 시 디텍션이 동작하지 않던 문제를 해결하기 위해, 게임 창 위치에 따른 DXGI Output1 동적 탐색 및 캡처 크롭 오프셋 변환 구현 | [dxgi.rs](../../rust/overmax_engine/src/capture/capture_engine/windows/dxgi.rs) |
+| 2026-08-15 | DXGI vs GDI 캡처 정량 실측 및 Multi-Monitor Adaptive Capture Selector 적용 | GDI 대비 DXGI 캡처 소요시간이 ~30ms -> ~4ms로 6배 이상(85% 절감) 단축됨을 실측하고, Auto 옵션 시 단일모니터=DXGI / 멀티모니터=GDI로 자동 선택되도록 구현 | [mod.rs](../../rust/overmax_engine/src/capture/capture_engine/windows/mod.rs) / [settings_ui.rs](../../rust/overmax_app/src/ui/settings_ui.rs) |
+| 2026-08-15 | GDI BitBlt CAPTUREBLT 플래그 소거 및 DXGI 예외 처리 강화 | DWM 락을 유발하던 CAPTUREBLT를 제거하고 DXGI ACCESS_LOST/Timeout 및 3초 GDI Fail-Safe 폴백 안정화 | [gdi.rs](../../rust/overmax_engine/src/capture/capture_engine/windows/gdi.rs) / [dxgi.rs](../../rust/overmax_engine/src/capture/capture_engine/windows/dxgi.rs) |
+| 2026-08-16 | 텔레메트리 파일 로깅의 `telemetry` Cargo Feature 분리 및 세션 자동 롤링 | 릴리스 빌드에서 파일 쓰기를 기본 소거(`#[cfg(debug_assertions)]`)하되 벤치마크 시 `--features telemetry`로 활성화할 수 있도록 분리하고, 신규 게임 기동 시 `telemetry.prev.log`로 자동 롤링 백업 구현 | [Cargo.toml](../../rust/overmax_engine/Cargo.toml) / [detection_worker.rs](../../rust/overmax_engine/src/detector/detection_worker.rs) |
+| 2026-08-17 | Windows 11 DWM 캡션/테두리 제거(`WM_NCCALCSIZE` 서브클래싱) 및 픽셀 완벽 스크린 앵커 드래그 구축 | DWM 투명 확장 시 비클라이언트 캡션 버튼("- ㅁ X") 및 1px 상단 테두리 선이 노출되던 문제를 `SetWindowSubclass`로 `WM_NCCALCSIZE`를 가로채 100% 영구 소멸시키고, 드래그 처리를 마우스 스크린 절대 좌표 기반 `handle_screen_drag`로 모듈화하여 타이틀바 깜빡임 없는 완벽한 1:1 창 이동 및 플랫폼 캡슐화 달성 | [windows.rs](rust/overmax_app/src/ui/platform/windows.rs) / [native_app_viewports.rs](rust/overmax_app/src/ui/native_app_viewports.rs) |

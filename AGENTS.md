@@ -95,6 +95,12 @@
 # Reference Documents (필요시 참조)
 
 - **상세 제약 조건**: 상세한 시스템 스펙 및 제약 조건은 단일 Source of Truth인 [CONTEXT.md](CONTEXT.md)를 필요할 때 참고한다.
+- **도메인별 설계 결정 (Decision Logs)**:
+  - 디텍션 & CV: [docs/decisions/detection_pipeline.md](docs/decisions/detection_pipeline.md)
+  - 캡처 & 윈도우: [docs/decisions/capture_and_window.md](docs/decisions/capture_and_window.md)
+  - 데이터 & 동기화: [docs/decisions/data_and_sync.md](docs/decisions/data_and_sync.md)
+  - UI & 다국어(i18n): [docs/decisions/ui_and_i18n.md](docs/decisions/ui_and_i18n.md)
+  - Linux 지원: [docs/decisions/linux_support.md](docs/decisions/linux_support.md)
 - **엔지니어링 취향**: 설계 및 코드 변경 시 소유자의 엔지니어링 취향을 반영하기 위해 [ENGINEERING_TASTE.md](ENGINEERING_TASTE.md)를 필요할 때 참고한다.
 
 ---
@@ -106,7 +112,7 @@
 1. `cargo fmt` 및 `cargo clippy --fix`를 실행하여 코드를 정리하고 경고를 수정한다
 2. `TASKS.md`의 완료 항목을 `[x]`로 갱신한다
 3. 새로운 제약 조건이나 아키텍처 변경이 있었다면 `CONTEXT.md`를 갱신한다
-4. 중요한 설계 결정이 있었다면 Decision Log 요약 행을 추가한다
+4. 중요한 설계 결정이 있었다면 해당하는 도메인의 `docs/decisions/<domain>.md` 문서에 Decision Log 요약 행을 추가한다
 
 ---
 

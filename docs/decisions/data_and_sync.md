@@ -1,0 +1,23 @@
+# Data Storage, Cache & Sync Decision Log
+
+SQLite 로컬 저장소, V-Archive 동기화, 캐시 관리(`StartupCacheManager`), 메모리 인덱스 최적화, 추천 프로바이더 관련 주요 설계 결정의 배경과 이유를 기록한다.
+
+---
+
+## 📋 Decision History
+
+| 날짜 | 결정 | 이유 | 참조 |
+|:---|:---|:---|:---|
+| 2026-07-13 | RecordKey 및 RecordValue의 overmax_core 이전 | 핵심 도메인 별칭인 RecordKey 및 RecordValue를 가장 하위인 overmax_core로 옮겨 의존성 정방향 상속 및 여러 크레이트 간 공유 실현 | [game_state.rs](../../rust/overmax_core/src/game_state.rs) / [lib.rs](../../rust/overmax_data/src/lib.rs) |
+| 2026-07-16 | 단일 곡 조회 API 활용한 캐시 최적화 | 업로드 성공 시 전체 캐시 갱신 대신 단일 곡 조회 API(?title=song_id)를 호출하여 로컬 캐시 JSON에 머지함으로써 디스크 I/O 렉 방지 및 네트워크 비용 최적화 | [native_app.rs](../../rust/overmax_app/src/ui/native_app.rs) / [sync.rs](../../rust/overmax_data/src/community/sync.rs) / [varchive_upload.rs](../../rust/overmax_app/src/system/varchive_upload.rs) |
+| 2026-07-16 | since 파라미터 활용한 캐시 증분 조회 최적화 | 시작 시 및 설정창 갱신 시 로컬 캐시의 최종 updatedAt을 파악하여 API에 since 파라미터로 넘겨주고 변경분만 받아와 머지(Merge) 처리하는 고효율 증분 동기화 적용 | [native_app.rs](../../rust/overmax_app/src/ui/native_app.rs) / [sync.rs](../../rust/overmax_data/src/community/sync.rs) / [varchive_upload.rs](../../rust/overmax_app/src/system/varchive_upload.rs) |
+| 2026-07-16 | 시작 시 자동 갱신 옵션 제거 및 상시 활성화 | since 기반 초경량 증분 조회 기능이 안전하게 작동하므로, UI의 auto_refresh 옵션을 제거하고 앱 시작 시 무조건 자동 동기화(Sync)가 진행되도록 개선 | [settings.rs](../../rust/overmax_data/src/config/settings.rs) / [native_app.rs](../../rust/overmax_app/src/ui/native_app.rs) / [settings_ui.rs](../../rust/overmax_app/src/ui/settings_ui.rs) |
+| 2026-07-16 | V-Archive 캐시 SQLite DB 내장화 및 생성 컬럼 최적화 | 기존 JSON 파일 캐시를 SQLite DB(varchive_records)로 통합 및 자동 마이그레이션 적용. score, max_combo, updated_at, rating을 생성형(STORED) 물리 컬럼으로 빼고 복합 인덱스를 적용해 렉 없는 O(1) 조회 성능 확보 | [record_db.rs](../../rust/overmax_data/src/store/record_db.rs) / [native_app.rs](../../rust/overmax_app/src/ui/native_app.rs) / [record_manager.rs](../../rust/overmax_data/src/service/record_manager.rs) |
+| 2026-07-17 | `overmax_data` 곡 매칭 및 추천 분기 가드 정돈 | `client.rs` 및 `recommend.rs` 내의 2중 `if let` 중첩들을 `and_then` 모나딕 체인으로 정리하고, `split_once` 및 `let Some = ... else { continue }` 가드 패턴 도입 | [client.rs](../../rust/overmax_data/src/community/client.rs) / [recommend.rs](../../rust/overmax_data/src/service/recommend.rs) |
+| 2026-07-21 | Sync Window 및 Quick Upload 분기를 위한 RecordKey/is_quick_upload 기반 이벤트 전환 | UI 인덱스(usize) 대신 RecordKey(song_id, mode, diff) 및 is_quick_upload 플래그를 채널로 전달하여, 비동기 스캔 후 인덱스 꼬임 방지 및 오버레이 Toast / Sync Window 카드 상태 변경 분기를 명확히 독립 보장 | [sync_ui.rs](../../rust/overmax_app/src/ui/sync_ui.rs) / [native_app.rs](../../rust/overmax_app/src/ui/native_app.rs) / [native_app_viewports.rs](../../rust/overmax_app/src/ui/native_app_viewports.rs) |
+| 2026-07-21 | RecordDB 단일 SQL LEFT JOIN 쿼리 기반 동기화 후보 추출 구조 개편 | records와 varchive_records 테이블을 단일 LEFT JOIN 쿼리로 직접 대조하여 300여개 가짜 후보(False Positive) 노출 문제를 해결하고 Rust 이중 메모리 로드 로직 소거 | [record_db.rs](../../rust/overmax_data/src/store/record_db.rs) / [sync.rs](../../rust/overmax_data/src/community/sync.rs) |
+| 2026-07-21 | RecordManager O(1) 증분 캐시 갱신(upsert_varchive_record) 도입 | 1곡 업로드 성공 시 전체 DB 재조회를 수행하는 무거운 refresh() 대신, 메모리 캐시 및 dirty 키만 O(1)로 증분 갱신하여 CPU/디스크 부하 대폭 절감 | [record_manager.rs](../../rust/overmax_data/src/service/record_manager.rs) / [native_app.rs](../../rust/overmax_app/src/ui/native_app.rs) |
+| 2026-08-05 | 추천 시스템 Trait 추상화 및 Recommend Provider Protocol (v1) 구축 | 추천 곡 다양화를 위해 `RecommendationSource` trait 및 `CompositeRecommender`를 도입하고 백그라운드 HTTP fetcher (`recommend_provider_fetch.rs`) 및 slim protocol spec (`docs/overmax-recommend-protocol-v1.md`) 구축 완료 | [recommend.rs](../../rust/overmax_data/src/service/recommend.rs) / [recommend_provider_fetch.rs](../../rust/overmax_app/src/system/recommend_provider_fetch.rs) / [overmax-recommend-protocol-v1.md](../overmax-recommend-protocol-v1.md) |
+| 2026-08-12 | VArchiveDB title_map을 인덱스 기반으로 전환 | 실측 결과 build_index()가 RSS를 1,940KB (88.5%) 증가시킴을 확인하고 `HashMap<String, Vec<usize>>`로 전환하여 100% 절감 | [client.rs](../../rust/overmax_data/src/community/client.rs) |
+| 2026-08-12 | RecordDB get_rate_map 스레드 로컬 커넥션 캐싱 도입 | 매 호출 Connection::open으로 인한 읽기 지연시간(1.09ms)을 thread_local 커넥션 재사용으로 0.20ms(81.7% 감소)로 축소 | [record_db.rs](../../rust/overmax_data/src/store/record_db.rs) |
+| 2026-08-15 | `StartupCacheManager` 캡슐화 모듈 도입 | 앱 기동 시 24시간 TTL 만료 캐시 다운로드로 인한 동기 메인 스레드 멈춤 현상을 100% 제거하고, 필수 캐시 부재 시 Cold Start(동기), 정상 존재 시 Warm Start(Non-blocking 비동기 + Arc Swap)로 캡슐화하여 0.1초 즉시 부팅 구현 | [cache_update.rs](../../rust/overmax_app/src/system/cache_update.rs) / [native_app.rs](../../rust/overmax_app/src/ui/native_app.rs) |

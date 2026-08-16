@@ -1,0 +1,27 @@
+# UI & i18n Decision Log
+
+사용자 인터페이스(UI), 오버레이 렌더링(egui), 폰트/투명도, 모듈형 컴포넌트, 제로 코스트 다국어(i18n) 시스템 관련 주요 설계 결정의 배경과 이유를 기록한다.
+
+---
+
+## 📋 Decision History
+
+| 날짜 | 결정 | 이유 | 참조 |
+|:---|:---|:---|:---|
+| 2026-07-08 | 결과창 괄호 및 선곡창 메타 텍스트 폰트 축소 | 뱃지 텍스트(9.0)와 비교/메타 텍스트(10.0) 간의 크기 불일치 시각적 불균형 일괄 해결 | [overlay_ui.rs](../../rust/overmax_app/src/ui/overlay_ui.rs) |
+| 2026-07-10 | 곡 제목 영역 width 고정 및 페이드 아웃 마스크 적용 | 긴 곡 제목으로 인해 오버레이 창 width가 늘어나는 문제를 해결하기 위해, 가용 너비를 제한하고 우측 끝에 그라디언트 투명도 마스크를 적용 | [overlay_ui.rs](../../rust/overmax_app/src/ui/overlay_ui.rs) |
+| 2026-07-13 | 결과창 MaxCombo 연출 지연에 따른 동기화 누락 수정 | recorded_states 캐시를 HashMap으로 변경해 결과창 내에서 rate/maxcombo가 향상되었을 때만 DB upsert를 재수행하여 연출 지연 시 누락 결함 해결 | [native_app_recommend.rs](../../rust/overmax_app/src/ui/native_app_recommend.rs) |
+| 2026-07-13 | 긴 제목 뭉개기 버그 수정 및 FadeClippedLabel 위젯 격리 | 넘치는 제목 마스킹 그라데이션의 c_start 색상을 Color32::TRANSPARENT 대신 bg_color의 알파만 0으로 조정한 색상으로 수정해 보간 시 발생하는 탁한 회색빛 노이즈 해결. 동시에 egui::Widget을 구현하는 FadeClippedLabel 구조체 위젯으로 분리 | [overlay_ui.rs](../../rust/overmax_app/src/ui/overlay_ui.rs) |
+| 2026-07-13 | FadeClippedLabel 위젯의 별도 모듈 분리 | UI 컴포넌트 모듈성 강화를 위해 FadeClippedLabel 위젯을 독립 파일로 쪼개고 ui/components 모듈 구성 | [fade_clipped_label.rs](../../rust/overmax_app/src/ui/components/fade_clipped_label.rs) |
+| 2026-07-13 | PlayMetaRow 위젯의 분리 및 모듈 격리 | overlay_ui.rs의 복잡도 개선을 위해 뱃지 계산 및 메타 레이아웃 렌더링을 담당하는 PlayMetaRow 위젯을 components/play_meta_row.rs로 분리 | [play_meta_row.rs](../../rust/overmax_app/src/ui/components/play_meta_row.rs) |
+| 2026-07-13 | StatusLamp 및 ModeBadge 위젯 분리 | 헤더 및 라이트 패널 코드 간소화를 위해 StatusLamp 및 ModeBadge 위젯을 components/로 모듈화하고, sync_ui.rs 등에서 공용으로 사용하던 mode_color 헬퍼 함수를 ModeBadge의 연관 함수로 이전 | [status_lamp.rs](../../rust/overmax_app/src/ui/components/status_lamp.rs) / [mode_badge.rs](../../rust/overmax_app/src/ui/components/mode_badge.rs) |
+| 2026-07-13 | OverlayHeader 패널 컴포넌트 분리 | overlay_ui.rs의 복잡도 개선을 위해 닫기/설정/업로드 버튼 레이아웃, 클릭 액션 및 드래그 동작이 포함된 상단 헤더 전체 영역을 OverlayHeader 패널 컴포넌트(components/overlay_header.rs)로 격리 | [overlay_header.rs](../../rust/overmax_app/src/ui/components/overlay_header.rs) |
+| 2026-07-13 | LitePanel 컴포넌트 분리 | overlay_ui.rs의 복잡도 개선을 위해 라이트 모드 오버레이 전체의 2열 뱃지 레이아웃과 닫기/설정/업로드 버튼이 포함된 패널 전체 영역을 LitePanel 컴포넌트(components/lite_panel.rs)로 격리 | [lite_panel.rs](../../rust/overmax_app/src/ui/components/lite_panel.rs) |
+| 2026-07-15 | 오버레이 내부 Detail 영역 활용한 Toast 구현 | 오버레이 창 크기 변동 없이 Normal/Lite 모드에 일관된 결과 피드백을 주기 위해 공통 컴포넌트인 OverlayHeaderDetail을 일시적으로 대체 렌더링 | [overlay_header_detail.rs](../../rust/overmax_app/src/ui/components/overlay_header_detail.rs) / [native_app.rs](../../rust/overmax_app/src/ui/native_app.rs) |
+| 2026-07-16 | 업로드 후 TOP 50 랭킹 및 순위 알림 | 업로드 완료 시 SQLite DB의 rating 컬럼을 기반으로 실시간 TOP 50 내 순위를 O(1)로 조회하여 오버레이 토스트 메시지(예: 8B TOP 29위 달성!)로 출력 | [native_app.rs](../../rust/overmax_app/src/ui/native_app.rs) / [record_db.rs](../../rust/overmax_data/src/store/record_db.rs) |
+| 2026-07-16 | 라이트모드 오버레이 모드/난이도 뱃지 높이 일치화 및 구조화 | 라이트모드 뱃지 높이 불일치 문제를 해결하기 위해 Px::mode_badge_h()를 18.0으로 조정하고, ModeBadge 컴포넌트 내부 기본 크기 계산도 Px 구조체 값을 사용하도록 일원화 | [overlay_ui.rs](../../rust/overmax_app/src/ui/overlay_ui.rs) / [mode_badge.rs](../../rust/overmax_app/src/ui/components/mode_badge.rs) |
+| 2026-08-10 | 오버레이 Scale 피드백 루프 해소 및 동적 Height Auto-Fit 적용 | `scale` 조절 시 이전 뷰포트 크기가 매 프레임 InnerSize를 덮어씌워 창 크기가 스케일에 반응하지 않던 피드백 루프를 제거하고, Width 고정 + 폰트 렌더링 결과 높이(`rect.height()`) 동적 핏을 적용하여 스케일 조절 시 유격 0px의 완벽한 오버레이 Fit 구현 | [native_app_viewports.rs](../../rust/overmax_app/src/ui/native_app_viewports.rs) |
+| 2026-08-10 | 오버레이 패널 RGBA Alpha 렌더링 전환 및 Windows 11 DWM 1px Border 제거 | `SetLayeredWindowAttributes` 사각형 전체 알파 덮어쓰기로 인한 둥근 모서리 바깥쪽 반투명 틴트 사각형 비침 현상을 패널 RGBA Alpha `Theme::with_opacity` 렌더링으로 전환해 완전 소거하고, `DwmSetWindowAttribute(DWMWA_BORDER_COLOR)` 속성 주입으로 Win11 1px 테두리 보더 100% 제거 | [overlay_theme.rs](../../rust/overmax_app/src/ui/overlay_theme.rs) / [overlay_ui.rs](../../rust/overmax_app/src/ui/overlay_ui.rs) / [native_app_viewports.rs](../../rust/overmax_app/src/ui/native_app_viewports.rs) |
+| 2026-08-14 | Steam 계정 라벨 표시 단순화 (`"Steam: ..."`) | 4개 매크로 분기로 나뉘어 있던 `settings-current-steam-xxx` 동적 i18n 매크로 대신 직관적이고 표준적인 `"Steam: ..."` 직접 포맷팅으로 전면 단순화 | [settings_ui.rs](../../rust/overmax_app/src/ui/settings_ui.rs) |
+| 2026-08-14 | 0-Cost / 0-Allocation 단일 `t!` i18n 디스패처 구축 | `t()`, `t_fmt!()`, `t_gold()`, `t_assist()`, `Localizable` Trait 및 런타임 `replace` 탐색을 전면 소거하고, `@select` 매크로 헬퍼와 `lookup_ko`/`lookup_en` 1:1 대칭 통합 룩업(SSOT)으로 컴파일 타임 최고 성능과 다국어 확장 유연성을 완벽히 통합 구현 | [i18n.rs](../../rust/overmax_app/src/ui/i18n.rs) |
+| 2026-08-14 | 단일 최상위 `t!` 매크로 룩업 테이블 완전 통합 | 매크로 중첩 래퍼 레이어를 제거하고 정적 룩업, 동적 포맷터, 도메인 메타 매칭을 단일 `t!` 매크로 본문 한곳으로 100% 통합하여 컴파일 타임 0ns 상수로 치환되는 완벽한 SSOT 아키텍처 완성 | [i18n.rs](../../rust/overmax_app/src/ui/i18n.rs) |
