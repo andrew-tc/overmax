@@ -189,12 +189,12 @@ impl JacketMatcher {
             let is_exit = c_diff > self.centroid_max_diff;
             if is_exit {
                 let exits = self.centroid_early_exits.fetch_add(1, Ordering::Relaxed) + 1;
-                let exit_pct = (exits as f64 / total as f64) * 100.0;
+                let _exit_pct = (exits as f64 / total as f64) * 100.0;
                 debug_println!(
                     "[telemetry_kernel] EARLY EXIT #{}/{} ({:.1}%) c_diff={} > max_diff={}",
                     exits,
                     total,
-                    exit_pct,
+                    _exit_pct,
                     c_diff,
                     self.centroid_max_diff
                 );

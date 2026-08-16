@@ -130,7 +130,7 @@ impl DetectionWorker {
     ) -> Self {
         let telemetry_log_path = root.join("cache").join("telemetry.log");
         let prev_log_path = root.join("cache").join("telemetry.prev.log");
-        if telemetry_log_path.exists() {
+        if (cfg!(debug_assertions) || cfg!(feature = "telemetry")) && telemetry_log_path.exists() {
             let _ = std::fs::rename(&telemetry_log_path, &prev_log_path);
         }
         Self {
@@ -521,6 +521,9 @@ impl DetectionWorker {
     }
 
     fn roll_telemetry_log(&self) {
+        if !cfg!(debug_assertions) && !cfg!(feature = "telemetry") {
+            return;
+        }
         let prev_log_path = self.root.join("cache").join("telemetry.prev.log");
         if self.telemetry_log_path.exists() {
             let _ = std::fs::rename(&self.telemetry_log_path, &prev_log_path);
@@ -677,6 +680,9 @@ impl DetectionWorker {
     }
 
     fn append_to_telemetry_log(&self, line: &str) {
+        if !cfg!(debug_assertions) && !cfg!(feature = "telemetry") {
+            return;
+        }
         use std::fs::OpenOptions;
         use std::io::Write;
         if let Some(parent) = self.telemetry_log_path.parent() {

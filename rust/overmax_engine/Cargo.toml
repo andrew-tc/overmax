@@ -23,6 +23,8 @@ memmap2 = "0.9"
 x11rb = { version = "0.13", features = ["composite", "shm"] }
 
 [features]
+default = []
+telemetry = []
 
 
 [target.'cfg(windows)'.dependencies]
