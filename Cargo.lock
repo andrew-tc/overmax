@@ -2786,7 +2786,7 @@ dependencies = [
 
 [[package]]
 name = "overmax-app"
-version = "0.3.3-preview1"
+version = "0.3.3"
 dependencies = [
  "eframe",
  "egui",
