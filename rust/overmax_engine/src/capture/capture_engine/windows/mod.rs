@@ -72,6 +72,11 @@ impl AdaptiveCaptureEngine {
     }
 }
 
+fn is_multi_monitor() -> bool {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_CMONITORS};
+    unsafe { GetSystemMetrics(SM_CMONITORS) > 1 }
+}
+
 impl CaptureEngine for AdaptiveCaptureEngine {
     fn set_preferred_engine(&mut self, preferred: PreferredCaptureEngine) {
         self.set_preferred_engine(preferred);
@@ -94,7 +99,11 @@ impl CaptureEngine for AdaptiveCaptureEngine {
         let try_dxgi = match self.preferred_engine {
             PreferredCaptureEngine::Gdi => false,
             PreferredCaptureEngine::Dxgi => true,
-            PreferredCaptureEngine::Auto => is_fs,
+            PreferredCaptureEngine::Auto => {
+                // 멀티모니터 환경이면 호환성과 안정성을 위해 GDI 우선 (false)
+                // 단일모니터 환경이면 극강의 성능을 위해 DXGI 우선 (true)
+                !is_multi_monitor()
+            }
         };
 
         if try_dxgi {
@@ -121,6 +130,7 @@ impl CaptureEngine for AdaptiveCaptureEngine {
                     Ok(_) => Ok(()),
                     Err(e) => {
                         self.dxgi_backend = None;
+                        self.last_dxgi_init_attempt = std::time::Instant::now();
                         self.fallback_to_gdi(rect, out_frame, &format!("DXGI capture failed ({e})"))
                     }
                 }

@@ -420,7 +420,7 @@ fn default_background_sleep() -> u64 {
     500
 }
 fn default_capture_engine() -> String {
-    "gdi".to_string()
+    "auto".to_string()
 }
 fn default_content_protected() -> bool {
     true

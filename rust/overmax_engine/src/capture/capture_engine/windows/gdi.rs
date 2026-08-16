@@ -4,8 +4,8 @@ use crate::capture::window_tracker::WindowRect;
 use std::ptr::null_mut;
 use windows_sys::Win32::Graphics::Gdi::{
     BitBlt, CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, ReleaseDC,
-    SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, CAPTUREBLT, DIB_RGB_COLORS, HBITMAP, HDC,
-    RGBQUAD, SRCCOPY,
+    SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HBITMAP, HDC, RGBQUAD,
+    SRCCOPY,
 };
 
 pub struct GdiCaptureEngine {
@@ -129,7 +129,7 @@ impl CaptureEngine for GdiCaptureEngine {
                 screen_dc,
                 rect.left,
                 rect.top,
-                SRCCOPY | CAPTUREBLT,
+                SRCCOPY,
             )
         };
 

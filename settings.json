@@ -7,7 +7,7 @@
   "screen_capture": {
     "logo_ocr_cooldown_sec": 1.0,
     "idle_sleep_sec": 0.5,
-    "engine": "gdi",
+    "engine": "auto",
     "content_protected": true
   },
   "debug_window": {

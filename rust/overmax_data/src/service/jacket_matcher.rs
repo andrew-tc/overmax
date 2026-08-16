@@ -189,12 +189,12 @@ impl JacketMatcher {
             let is_exit = c_diff > self.centroid_max_diff;
             if is_exit {
                 let exits = self.centroid_early_exits.fetch_add(1, Ordering::Relaxed) + 1;
-                let exit_pct = (exits as f64 / total as f64) * 100.0;
+                let _exit_pct = (exits as f64 / total as f64) * 100.0;
                 debug_println!(
                     "[telemetry_kernel] EARLY EXIT #{}/{} ({:.1}%) c_diff={} > max_diff={}",
                     exits,
                     total,
-                    exit_pct,
+                    _exit_pct,
                     c_diff,
                     self.centroid_max_diff
                 );
@@ -331,5 +331,37 @@ mod tests {
         let matched = matcher.match_jacket(&query_data, 8, 8, 1).unwrap();
         assert_eq!(matched.image_id, "song-a");
         assert!(matched.similarity >= 0.9);
+    }
+
+    #[test]
+    fn test_benchmark_centroid_kernel_execution_time() {
+        let entries = Arc::new(vec![
+            dummy_entry("song-a", 0x0000_0000_0000_0000),
+            dummy_entry("song-b", 0xFFFF_FFFF_FFFF_FFFF),
+        ]);
+        let config = JacketMatcherConfig {
+            similarity_threshold: 0.75,
+            margin_threshold: 3.0,
+            disable_hog: false,
+        };
+        let matcher = JacketMatcher::new(entries, config);
+
+        let query_data = vec![128u8; 128 * 128 * 4]; // 128x128 BGRA
+        let iterations = 1_000;
+
+        let start = std::time::Instant::now();
+        for _ in 0..iterations {
+            let _ = matcher.check_centroid_kernel(&query_data, 128, 128, 4);
+        }
+        let elapsed = start.elapsed();
+        let avg_nanos = elapsed.as_nanos() as f64 / iterations as f64;
+        let avg_micros = avg_nanos / 1000.0;
+
+        println!(
+            "[Centroid Kernel Benchmark] 1,000 runs total={:?}, avg_per_call={:.2}ns ({:.4}us / {:.6}ms)",
+            elapsed, avg_nanos, avg_micros, avg_micros / 1000.0
+        );
+
+        assert!(avg_micros < 50.0);
     }
 }

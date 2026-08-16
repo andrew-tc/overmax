@@ -499,7 +499,7 @@ fn capture_section(ui: &mut egui::Ui, draft: &mut Value) {
         let mut engine = screen_capture
             .get("engine")
             .and_then(Value::as_str)
-            .unwrap_or("gdi")
+            .unwrap_or("auto")
             .to_string();
 
         form_row(ui, crate::t!("settings-capture-method-win"), |ui| {
@@ -507,9 +507,20 @@ fn capture_section(ui: &mut egui::Ui, draft: &mut Value) {
             egui::ComboBox::from_id_salt("capture_engine_combo")
                 .selected_text(match engine.as_str() {
                     "dxgi" => crate::t!("settings-capture-mode-dxgi"),
-                    _ => crate::t!("settings-capture-mode-gdi"),
+                    "gdi" => crate::t!("settings-capture-mode-gdi"),
+                    _ => crate::t!("settings-capture-mode-auto"),
                 })
                 .show_ui(ui, |ui| {
+                    if ui
+                        .selectable_value(
+                            &mut engine,
+                            "auto".to_string(),
+                            crate::t!("settings-capture-mode-auto"),
+                        )
+                        .clicked()
+                    {
+                        changed = true;
+                    }
                     if ui
                         .selectable_value(
                             &mut engine,

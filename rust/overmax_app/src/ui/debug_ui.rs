@@ -30,6 +30,7 @@ pub struct DebugAppStateSnapshot {
     pub roi_scale: f32,
     pub roi_offset_y: i32,
     pub stable_hits: u32,
+    pub telemetry_snapshot: Option<overmax_engine::detector::telemetry::PipelineTelemetrySnapshot>,
 }
 
 pub fn push_log(lines: &Arc<Mutex<VecDeque<Arc<str>>>>, max_lines: usize, line: impl AsRef<str>) {
@@ -372,6 +373,110 @@ fn render_app_state_dashboard(ui: &mut egui::Ui, state: &DebugAppStateSnapshot) 
                         );
                     });
                 });
+
+                if let Some(ref snap) = state.telemetry_snapshot {
+                    ui.add_space(10.0);
+                    ui.separator();
+                    ui.add_space(10.0);
+
+                    ui.columns(4, |cols| {
+                        // Col 1: Capture & Detect Timing
+                        cols[0].vertical(|ui| {
+                            ui.label(
+                                RichText::new("CAPTURE / DETECT AVG (MAX)")
+                                    .size(Theme::FONT_TINY)
+                                    .color(Theme::TEXT_MUTED)
+                                    .strong(),
+                            );
+                            ui.add_space(3.0);
+                            ui.label(
+                                RichText::new(format!(
+                                    "Cap: {} (max {}) | Det: {} (max {})",
+                                    overmax_engine::detector::telemetry::format_duration_us(
+                                        snap.capture_avg_us
+                                    ),
+                                    overmax_engine::detector::telemetry::format_duration_us(
+                                        snap.capture_max_us
+                                    ),
+                                    overmax_engine::detector::telemetry::format_duration_us(
+                                        snap.detect_avg_us
+                                    ),
+                                    overmax_engine::detector::telemetry::format_duration_us(
+                                        snap.detect_max_us
+                                    ),
+                                ))
+                                .size(Theme::FONT_BODY)
+                                .color(Color32::from_rgb(100, 220, 255))
+                                .strong(),
+                            );
+                        });
+
+                        // Col 2: Pipeline Sub-Timings
+                        cols[1].vertical(|ui| {
+                            ui.label(
+                                RichText::new("PIPELINE STAGE AVG")
+                                    .size(Theme::FONT_TINY)
+                                    .color(Theme::TEXT_MUTED)
+                                    .strong(),
+                            );
+                            ui.add_space(3.0);
+                            ui.label(
+                                RichText::new(format!(
+                                    "Scene: {} | Jkt: {} | Play: {}",
+                                    overmax_engine::detector::telemetry::format_duration_us(
+                                        snap.scene_avg_us
+                                    ),
+                                    overmax_engine::detector::telemetry::format_duration_us(
+                                        snap.jacket_avg_us
+                                    ),
+                                    overmax_engine::detector::telemetry::format_duration_us(
+                                        snap.play_state_avg_us
+                                    ),
+                                ))
+                                .size(Theme::FONT_BODY)
+                                .color(Theme::TEXT_PRIMARY)
+                                .strong(),
+                            );
+                        });
+
+                        // Col 3: Active vs Unknown Frames
+                        cols[2].vertical(|ui| {
+                            ui.label(
+                                RichText::new("5S FRAMES (ACTIVE / UNKNOWN)")
+                                    .size(Theme::FONT_TINY)
+                                    .color(Theme::TEXT_MUTED)
+                                    .strong(),
+                            );
+                            ui.add_space(3.0);
+                            ui.label(
+                                RichText::new(format!(
+                                    "Active: {} | Unknown: {}",
+                                    snap.active_frames, snap.unknown_frames
+                                ))
+                                .size(Theme::FONT_BODY)
+                                .color(Color32::from_rgb(255, 200, 100))
+                                .strong(),
+                            );
+                        });
+
+                        // Col 4: Jacket Match Hits
+                        cols[3].vertical(|ui| {
+                            ui.label(
+                                RichText::new("MATCH JACKET HITS (5S)")
+                                    .size(Theme::FONT_TINY)
+                                    .color(Theme::TEXT_MUTED)
+                                    .strong(),
+                            );
+                            ui.add_space(3.0);
+                            ui.label(
+                                RichText::new(format!("{} hits", snap.match_jacket_count))
+                                    .size(Theme::FONT_BODY)
+                                    .color(Color32::from_rgb(255, 120, 200))
+                                    .strong(),
+                            );
+                        });
+                    });
+                }
             });
         });
 }

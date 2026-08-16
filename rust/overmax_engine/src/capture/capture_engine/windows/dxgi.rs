@@ -236,7 +236,11 @@ impl CaptureEngine for DxgiCaptureEngine {
                 }
                 Err(err) => {
                     let code = err.code().0 as u32;
-                    if code != 0x887A0027 {
+                    if code == 0x887A0027 {
+                        if out_frame.bgra.is_empty() {
+                            return Err("DXGI initial frame timeout".to_string());
+                        }
+                    } else {
                         return Err(format!(
                             "DXGI AcquireNextFrame failed with HRESULT 0x{:X}: {}",
                             code, err

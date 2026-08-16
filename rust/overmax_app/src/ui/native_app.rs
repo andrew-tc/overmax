@@ -268,6 +268,8 @@ pub struct NativeApp {
     pub(crate) platform: platform::PlatformState,
     pub(crate) toast: Option<crate::ui::components::ToastMessage>,
     pub(crate) last_detection_output: Option<DetectionOutput>,
+    pub(crate) last_telemetry_snapshot:
+        Option<overmax_engine::detector::telemetry::PipelineTelemetrySnapshot>,
 }
 
 impl NativeApp {
@@ -469,6 +471,7 @@ impl NativeApp {
             platform,
             toast: None,
             last_detection_output: None,
+            last_telemetry_snapshot: None,
         };
 
         app.handle_auto_refresh();
