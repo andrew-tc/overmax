@@ -1162,12 +1162,58 @@ impl NativeApp {
             fn DwmExtendFrameIntoClientArea(hwnd: HWND, pMarInset: *const Margins) -> i32;
         }
 
+        #[link(name = "comctl32")]
+        extern "system" {
+            fn SetWindowSubclass(
+                hwnd: HWND,
+                pfn_subclass: Option<
+                    unsafe extern "system" fn(
+                        hwnd: HWND,
+                        u_msg: u32,
+                        w_param: usize,
+                        l_param: isize,
+                        u_id_subclass: usize,
+                        dw_ref_data: usize,
+                    ) -> isize,
+                >,
+                u_id_subclass: usize,
+                dw_ref_data: usize,
+            ) -> i32;
+            fn DefSubclassProc(hwnd: HWND, u_msg: u32, w_param: usize, l_param: isize) -> isize;
+        }
+
         #[repr(C)]
         struct Margins {
             cx_left_width: i32,
             cx_right_width: i32,
             cy_top_height: i32,
             cy_bottom_height: i32,
+        }
+
+        unsafe extern "system" fn overlay_subclass_proc(
+            hwnd: HWND,
+            msg: u32,
+            wparam: usize,
+            lparam: isize,
+            _uidsubclass: usize,
+            _refdata: usize,
+        ) -> isize {
+            const WM_NCCALCSIZE: u32 = 0x0083;
+            const WM_NCPAINT: u32 = 0x0085;
+            const WM_NCACTIVATE: u32 = 0x0086;
+
+            if msg == WM_NCCALCSIZE && wparam != 0 {
+                // 비클라이언트(캡션 버튼/상단 테두리) 영역을 0으로 만들어 DWM 캡션 렌더링을 완전히 제거
+                return 0;
+            }
+            if msg == WM_NCPAINT {
+                return 0;
+            }
+            if msg == WM_NCACTIVATE {
+                return 1;
+            }
+
+            DefSubclassProc(hwnd, msg, wparam, lparam)
         }
 
         unsafe {
@@ -1196,7 +1242,10 @@ impl NativeApp {
                 SetWindowLongW(hwnd, GWL_EXSTYLE, target_style);
             }
 
-            // 3. DWM에 프레임 스타일 변경 1회 통보 (캡션 버튼 - ㅁ X 제거 확정)
+            // 3. 서브클래싱 등록: WM_NCCALCSIZE를 가로채 비클라이언트 캡션 버튼(- ㅁ X)을 물리적으로 제거
+            SetWindowSubclass(hwnd, Some(overlay_subclass_proc), 1, 0);
+
+            // 4. DWM에 프레임 스타일 변경 1회 통보
             SetWindowPos(
                 hwnd,
                 std::ptr::null_mut(),
@@ -1207,7 +1256,7 @@ impl NativeApp {
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
             );
 
-            // 4. DWM 테두리 비활성화 및 프레임버퍼 투명 마진 확장
+            // 5. DWM 테두리 비활성화 및 프레임버퍼 투명 마진 확장
             let border_color: u32 = 0xFFFFFFFE; // DWMWCB_NONE
             DwmSetWindowAttribute(
                 hwnd,
