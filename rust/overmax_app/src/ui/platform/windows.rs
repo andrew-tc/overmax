@@ -177,17 +177,191 @@ pub fn native_options(settings: &overmax_data::Settings) -> eframe::NativeOption
 pub struct WindowsWindowCache {
     pub cached_hwnd: Option<isize>,
     pub cached_game_hwnd: Option<isize>,
-    pub last_applied_visible: Option<bool>,
     pub logged_opacity_fail: bool,
     pub prev_snap_geometry: Option<(i32, i32, i32, i32)>,
-    pub dwm_border_disabled: bool,
 }
 
 pub struct PlatformState {
     pub is_dragging: bool,
+    pub drag_anchor: Option<(i32, i32, i32, i32)>,
     pub _tray: Option<TrayIcon>,
     pub win_cache: WindowsWindowCache,
     pub last_painted_rect: Option<egui::Rect>,
+}
+
+#[link(name = "dwmapi")]
+extern "system" {
+    fn DwmSetWindowAttribute(
+        hwnd: windows_sys::Win32::Foundation::HWND,
+        dw_attribute: u32,
+        pv_attribute: *const std::ffi::c_void,
+        cb_attribute: u32,
+    ) -> i32;
+    fn DwmExtendFrameIntoClientArea(
+        hwnd: windows_sys::Win32::Foundation::HWND,
+        p_mar_inset: *const Margins,
+    ) -> i32;
+}
+
+#[link(name = "comctl32")]
+extern "system" {
+    fn SetWindowSubclass(
+        hwnd: windows_sys::Win32::Foundation::HWND,
+        pfn_subclass: Option<
+            unsafe extern "system" fn(
+                hwnd: windows_sys::Win32::Foundation::HWND,
+                u_msg: u32,
+                w_param: usize,
+                l_param: isize,
+                u_id_subclass: usize,
+                dw_ref_data: usize,
+            ) -> isize,
+        >,
+        u_id_subclass: usize,
+        dw_ref_data: usize,
+    ) -> i32;
+    fn DefSubclassProc(
+        hwnd: windows_sys::Win32::Foundation::HWND,
+        u_msg: u32,
+        w_param: usize,
+        l_param: isize,
+    ) -> isize;
+}
+
+#[repr(C)]
+struct Margins {
+    cx_left_width: i32,
+    cx_right_width: i32,
+    cy_top_height: i32,
+    cy_bottom_height: i32,
+}
+
+unsafe extern "system" fn overlay_subclass_proc(
+    hwnd: windows_sys::Win32::Foundation::HWND,
+    msg: u32,
+    wparam: usize,
+    lparam: isize,
+    _uidsubclass: usize,
+    _refdata: usize,
+) -> isize {
+    const WM_NCCALCSIZE: u32 = 0x0083;
+    const WM_NCPAINT: u32 = 0x0085;
+    const WM_NCACTIVATE: u32 = 0x0086;
+
+    if msg == WM_NCCALCSIZE && wparam != 0 {
+        // 비클라이언트(캡션 버튼/상단 테두리) 영역을 0으로 만들어 DWM 캡션 렌더링을 완전히 제거
+        return 0;
+    }
+    if msg == WM_NCPAINT {
+        return 0;
+    }
+    if msg == WM_NCACTIVATE {
+        return 1;
+    }
+
+    DefSubclassProc(hwnd, msg, wparam, lparam)
+}
+
+fn setup_overlay_window(hwnd: windows_sys::Win32::Foundation::HWND) {
+    use windows_sys::Win32::UI::WindowsAndMessaging::*;
+    unsafe {
+        // 1. Win32 기본 스타일: 시스템 메뉴 / 캡션 버튼 (- ㅁ X) 완전 제거
+        let win_style = GetWindowLongW(hwnd, GWL_STYLE);
+        let target_win_style = (win_style
+            & !(WS_CAPTION as i32
+                | WS_THICKFRAME as i32
+                | WS_MINIMIZEBOX as i32
+                | WS_MAXIMIZEBOX as i32
+                | WS_SYSMENU as i32
+                | WS_BORDER as i32
+                | WS_DLGFRAME as i32))
+            | WS_POPUP as i32;
+        if win_style != target_win_style {
+            SetWindowLongW(hwnd, GWL_STYLE, target_win_style);
+        }
+
+        // 2. Win32 확장 스타일: 비활성 툴윈도우 + 레이어드 투명
+        let style = GetWindowLongW(hwnd, GWL_EXSTYLE);
+        let target_style = (style & !(WS_EX_TOPMOST as i32))
+            | WS_EX_LAYERED as i32
+            | WS_EX_NOACTIVATE as i32
+            | WS_EX_TOOLWINDOW as i32;
+        if style != target_style {
+            SetWindowLongW(hwnd, GWL_EXSTYLE, target_style);
+        }
+
+        // 3. 서브클래싱 등록: WM_NCCALCSIZE를 가로채 비클라이언트 캡션 버튼(- ㅁ X)을 물리적으로 제거
+        SetWindowSubclass(hwnd, Some(overlay_subclass_proc), 1, 0);
+
+        // 4. DWM에 프레임 스타일 변경 1회 통보
+        SetWindowPos(
+            hwnd,
+            std::ptr::null_mut(),
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+        );
+
+        // 5. DWM 테두리 비활성화 및 프레임버퍼 투명 마진 확장
+        let border_color: u32 = 0xFFFFFFFE; // DWMWCB_NONE
+        DwmSetWindowAttribute(
+            hwnd,
+            34, // DWMWA_BORDER_COLOR
+            &border_color as *const _ as *const _,
+            std::mem::size_of::<u32>() as u32,
+        );
+
+        let margins = Margins {
+            cx_left_width: -1,
+            cx_right_width: -1,
+            cy_top_height: -1,
+            cy_bottom_height: -1,
+        };
+        DwmExtendFrameIntoClientArea(hwnd, &margins);
+    }
+}
+
+fn find_overlay_window() -> Option<windows_sys::Win32::Foundation::HWND> {
+    use windows_sys::Win32::Foundation::HWND;
+    use windows_sys::Win32::System::Threading::GetCurrentProcessId;
+    use windows_sys::Win32::UI::WindowsAndMessaging::*;
+
+    struct EnumData {
+        target_pid: u32,
+        found_hwnd: Option<HWND>,
+    }
+
+    let target_pid = unsafe { GetCurrentProcessId() };
+    let mut data = EnumData {
+        target_pid,
+        found_hwnd: None,
+    };
+
+    unsafe {
+        extern "system" fn enum_callback(hwnd: HWND, lparam: isize) -> i32 {
+            unsafe {
+                let data = &mut *(lparam as *mut EnumData);
+                let mut pid = 0u32;
+                GetWindowThreadProcessId(hwnd, &mut pid);
+                if pid == data.target_pid {
+                    let mut text = [0u16; 512];
+                    let len = GetWindowTextW(hwnd, text.as_mut_ptr(), 512);
+                    let title = String::from_utf16_lossy(&text[..len as usize]);
+                    if title == "Overmax" {
+                        data.found_hwnd = Some(hwnd);
+                        return 0; // 즉시 중단
+                    }
+                }
+                1 // 계속 검색
+            }
+        }
+
+        EnumWindows(Some(enum_callback), &mut data as *mut EnumData as isize);
+    }
+
+    data.found_hwnd
 }
 
 impl PlatformState {
@@ -209,10 +383,134 @@ impl PlatformState {
 
         Ok(Self {
             is_dragging: false,
+            drag_anchor: None,
             _tray: tray,
             win_cache: WindowsWindowCache::default(),
             last_painted_rect: None,
         })
+    }
+
+    pub fn apply_overlay_visibility(
+        &mut self,
+        visible: bool,
+        is_active: bool,
+        force_topmost: bool,
+    ) -> bool {
+        use windows_sys::Win32::Foundation::HWND;
+        use windows_sys::Win32::UI::WindowsAndMessaging::*;
+
+        let hwnd = match self.win_cache.cached_hwnd {
+            Some(h) => h as HWND,
+            None => match find_overlay_window() {
+                Some(h) => {
+                    setup_overlay_window(h);
+                    self.win_cache.cached_hwnd = Some(h as isize);
+                    h
+                }
+                None => return false,
+            },
+        };
+
+        if unsafe { IsWindow(hwnd) } == 0 {
+            self.win_cache.cached_hwnd = None;
+            return false;
+        }
+
+        let vis_flag = if visible {
+            SWP_SHOWWINDOW
+        } else {
+            SWP_HIDEWINDOW
+        };
+
+        unsafe {
+            SetWindowPos(
+                hwnd,
+                if is_active || force_topmost {
+                    HWND_TOPMOST
+                } else {
+                    HWND_NOTOPMOST
+                },
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | vis_flag,
+            );
+        }
+
+        true
+    }
+
+    pub fn handle_screen_drag(
+        &mut self,
+        is_dragging_intent: bool,
+        stop_intent: bool,
+        dpi: f32,
+    ) -> Option<UiCommand> {
+        use windows_sys::Win32::Foundation::{HWND, POINT, RECT};
+        use windows_sys::Win32::UI::WindowsAndMessaging::*;
+
+        if is_dragging_intent {
+            self.is_dragging = true;
+            if let Some(hwnd_val) = self.win_cache.cached_hwnd {
+                let hwnd = hwnd_val as HWND;
+                let mut cur_pt = POINT { x: 0, y: 0 };
+                unsafe {
+                    GetCursorPos(&mut cur_pt);
+                }
+                if self.drag_anchor.is_none() {
+                    let mut rect = RECT {
+                        left: 0,
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                    };
+                    unsafe {
+                        GetWindowRect(hwnd, &mut rect);
+                    }
+                    self.drag_anchor = Some((cur_pt.x, cur_pt.y, rect.left, rect.top));
+                }
+                if let Some((start_cx, start_cy, start_wx, start_wy)) = self.drag_anchor {
+                    let target_x = start_wx + (cur_pt.x - start_cx);
+                    let target_y = start_wy + (cur_pt.y - start_cy);
+                    unsafe {
+                        SetWindowPos(
+                            hwnd,
+                            std::ptr::null_mut(),
+                            target_x,
+                            target_y,
+                            0,
+                            0,
+                            SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+                        );
+                    }
+                }
+            }
+        }
+
+        if stop_intent {
+            self.is_dragging = false;
+            if let Some((_, _, _, _)) = self.drag_anchor.take() {
+                if let Some(hwnd_val) = self.win_cache.cached_hwnd {
+                    let hwnd = hwnd_val as HWND;
+                    let mut rect = RECT {
+                        left: 0,
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                    };
+                    unsafe {
+                        GetWindowRect(hwnd, &mut rect);
+                    }
+                    return Some(UiCommand::SetOverlayPosition {
+                        x: (rect.left as f32 / dpi).round() as i32,
+                        y: (rect.top as f32 / dpi).round() as i32,
+                    });
+                }
+            }
+        }
+
+        None
     }
 }
 
