@@ -112,6 +112,10 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
 - [x] **오버레이 패널 RGBA Alpha 렌더링 전환 및 Windows 11 DWM 1px Border 소거**
   - [x] Win32 `SetLayeredWindowAttributes` 사각형 전체 알파 덮어쓰기를 차단하고 `Theme::with_opacity` 패널 fill RGBA 렌더링으로 전환해 Windows 10/11 둥근 모서리 바깥쪽 반투명 틴트 사각형 비침 현상 100% 소거
   - [x] Win11 전용 `DWMWA_BORDER_COLOR` (`0xFFFFFFFE`) 속성 주입으로 Windows 11 1px 테두리 보더 100% 제거
+- [x] **Windows 11 DWM 캡션/테두리 원천 제거 및 픽셀 완벽 스크린 앵커 드래그 구축**
+  - [x] DWM 프레임 확장 시 발생하는 상단 1px 테두리 및 우상단 네이티브 캡션 버튼("- ㅁ X")을 `SetWindowSubclass` 기반 `WM_NCCALCSIZE` 가로채기로 100% 영구 소멸
+  - [x] `WM_NCLBUTTONDOWN` 비클라이언트 모달 루프를 제거하고 마우스 스크린 절대 좌표 기반 `handle_screen_drag` 모듈화로 1픽셀 오차 없는 1:1 창 이동 구현
+  - [x] Win32 윈도우 셋업/서브클래싱/가시성/드래그 로직을 `ui::platform::windows` 모듈로 100% 캡슐화 및 UI 뷰포트 레이어 정돈
 
 ## 9. 씬 감지 파이프라인 경량화 (게임 플레이 중 프레임 드랍 완화)
 

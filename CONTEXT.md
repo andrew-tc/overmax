@@ -11,8 +11,8 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 - **현재 Windows 인식 방식**: 화면 캡처 + Rust 네이티브 CV 이미지 매칭 (`overmax_cv`) + OCR (Windows OCR)
   - _Windows 캡처 엔진_: GDI 캡처 엔진 및 DXGI Desktop Duplication 캡처 엔진을 감싸는 `AdaptiveCaptureEngine` Facade 구성. GDI 백엔드가 안정성 기본값으로 작동하며 설정창에서 DXGI로 런타임 스위칭 가능. DXGI 캡처 시 multi-monitor Output 자동 탐색 및 가상 스크린 좌표 오프셋 변환을 통해 서브 모니터 구동을 완벽 지원함.
 - **현재 Windows UI**: egui / winit (하드웨어 가속 활용 멀티 뷰포트 네이티브 UI)
-  - 전체화면 포커스 차단 및 Z-Order 유지: 게임 윈도우 최소화 방지를 위해 `WS_EX_NOACTIVATE` 및 `WS_EX_TOOLWINDOW` 스타일을 주입하고, 게임 창을 오버레이 창의 Owner(`GWL_HWNDPARENT`)로 연결하여 전체 창 모드(Borderless Fullscreen) 플레이 시 드래그 앤 드롭 후 포커스가 게임으로 복귀해도 오버레이가 항상 최상단에 물리도록 보장함. 비활성 시 topmost 해제로 인한 DWM 소유 관계 깜빡임을 막기 위해 `is_active` 상태 검증 캐싱을 정밀화하고, `cached_game_hwnd`를 이용해 매 프레임 `FindWindowW` 오버헤드를 차단함.
-  - 오버레이 스냅과 드래그 제어: egui의 내장 네이티브 드래그 기능인 `ViewportCommand::StartDrag`를 도입하여 OS가 오버레이 창의 드래그를 네이티브로 처리하도록 위임함. 이로써 불필요한 마우스 절대 좌표 연산 및 임시 구조체 필드를 소멸시킴. 구석 고정(Snap) 시에는 `try_lock()`으로 백그라운드 스레드와의 락 경합을 방지하고, 기하 구조 캐시(`PREV_SNAP_GEOMETRY`)를 적용하여 좌표 변화가 없을 때는 `SetWindowPos` 호출을 생략(0회)함.
+  - 전체화면 포커스 차단 및 DWM 비클라이언트 테두리/캡션 제거: 게임 윈도우 최소화 방지를 위해 `WS_EX_NOACTIVATE` 및 `WS_EX_TOOLWINDOW`, `WS_EX_LAYERED`, `WS_POPUP` 스타일을 적용하고, `SetWindowSubclass`로 `WM_NCCALCSIZE`를 가로채 비클라이언트 영역을 0으로 강제함으로써 Windows 11 DWM의 상단 1px 테두리 선 및 우상단 네이티브 캡션 버튼("- ㅁ X") 합성을 원천 차단함. 비활성 시 topmost 해제로 인한 깜빡임을 막기 위해 `is_active` 상태 검증 캐싱을 정밀화하고, `cached_game_hwnd`를 이용해 매 프레임 `FindWindowW` 오버헤드를 차단함.
+  - 오버레이 스냅과 스크린 앵커 드래그 제어: 마우스 드래그 시 Win32 비클라이언트 메시지(`WM_NCLBUTTONDOWN`)나 비동기 뷰포트 델타를 쓰지 않고, 드래그 시작 시점의 스크린 절대 좌표와 창 위치를 앵커로 잡는 픽셀 완벽 스크린 앵커 드래그(`PlatformState::handle_screen_drag`)를 적용하여 1픽셀의 오차 없이 커서를 100% 추종하며 타이틀바 헤더 노출을 방지함. 구석 고정(Snap) 시에는 `try_lock()`으로 백그라운드 스레드와의 락 경합을 방지하고, 기하 구조 캐시(`prev_snap_geometry`)를 적용하여 좌표 변화가 없을 때는 `SetWindowPos` 호출을 생략(0회)함.
 - **데이터**: V-Archive DB (JSON) 및 로컬 기록 DB (SQLite)
 
 ---
@@ -255,6 +255,7 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
 | 2026-08-14 | 0-Cost / 0-Allocation 단일 `t!` i18n 디스패처 구축 | `t()`, `t_fmt!()`, `t_gold()`, `t_assist()`, `Localizable` Trait 및 런타임 `replace` 탐색을 전면 소거하고, `@select` 매크로 헬퍼와 `lookup_ko`/`lookup_en` 1:1 대칭 통합 룩업(SSOT)으로 컴파일 타임 최고 성능과 다국어 확장 유연성을 완벽히 통합 구현 | [i18n.rs](rust/overmax_app/src/ui/i18n.rs) |
 | 2026-08-14 | 단일 최상위 `t!` 매크로 룩업 테이블 완전 통합 | 매크로 중첩 래퍼 레이어를 제거하고 정적 룩업, 동적 포맷터, 도메인 메타 매칭을 단일 `t!` 매크로 본문 한곳으로 100% 통합하여 컴파일 타임 0ns 상수로 치환되는 완벽한 SSOT 아키텍처 완성 | [i18n.rs](rust/overmax_app/src/ui/i18n.rs) |
 | 2026-08-15 | `StartupCacheManager` 캡슐화 모듈 도입 | 앱 기동 시 24시간 TTL 만료 캐시 다운로드로 인한 동기 메인 스레드 멈춤 현상을 100% 제거하고, 필수 캐시 부재 시 Cold Start(동기), 정상 존재 시 Warm Start(Non-blocking 비동기 + Arc Swap)로 캡슐화하여 0.1초 즉시 부팅 구현 | [cache_update.rs](rust/overmax_app/src/system/cache_update.rs) / [native_app.rs](rust/overmax_app/src/ui/native_app.rs) |
+| 2026-08-17 | Windows 11 DWM 캡션/테두리 제거(`WM_NCCALCSIZE` 서브클래싱) 및 픽셀 완벽 스크린 앵커 드래그 구축 | DWM 투명 확장 시 비클라이언트 캡션 버튼("- ㅁ X") 및 1px 상단 테두리 선이 노출되던 문제를 `SetWindowSubclass`로 `WM_NCCALCSIZE`를 가로채 100% 영구 소멸시키고, 드래그 처리를 마우스 스크린 절대 좌표 기반 `handle_screen_drag`로 모듈화하여 타이틀바 깜빡임 없는 완벽한 1:1 창 이동 및 플랫폼 캡슐화 달성 | [windows.rs](rust/overmax_app/src/ui/platform/windows.rs) / [native_app_viewports.rs](rust/overmax_app/src/ui/native_app_viewports.rs) |
 
 
 
