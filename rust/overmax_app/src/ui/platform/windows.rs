@@ -177,14 +177,13 @@ pub fn native_options(settings: &overmax_data::Settings) -> eframe::NativeOption
 pub struct WindowsWindowCache {
     pub cached_hwnd: Option<isize>,
     pub cached_game_hwnd: Option<isize>,
-    pub last_applied_visible: Option<bool>,
     pub logged_opacity_fail: bool,
     pub prev_snap_geometry: Option<(i32, i32, i32, i32)>,
-    pub dwm_border_disabled: bool,
 }
 
 pub struct PlatformState {
     pub is_dragging: bool,
+    pub drag_anchor: Option<(i32, i32, i32, i32)>,
     pub _tray: Option<TrayIcon>,
     pub win_cache: WindowsWindowCache,
     pub last_painted_rect: Option<egui::Rect>,
@@ -209,6 +208,7 @@ impl PlatformState {
 
         Ok(Self {
             is_dragging: false,
+            drag_anchor: None,
             _tray: tray,
             win_cache: WindowsWindowCache::default(),
             last_painted_rect: None,

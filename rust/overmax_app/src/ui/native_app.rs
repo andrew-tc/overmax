@@ -94,6 +94,7 @@ pub fn run_native_app() -> eframe::Result<()> {
             visuals.window_fill = eframe::egui::Color32::TRANSPARENT;
             visuals.window_stroke = eframe::egui::Stroke::NONE;
             visuals.window_shadow = eframe::egui::Shadow::NONE;
+            visuals.widgets.noninteractive.bg_stroke = eframe::egui::Stroke::NONE;
             cc.egui_ctx.set_visuals(visuals);
             let _ = overlay_ui::install_cjk_fonts(&cc.egui_ctx);
             NativeApp::new(cc.egui_ctx.clone())
