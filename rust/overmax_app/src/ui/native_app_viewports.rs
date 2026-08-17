@@ -895,32 +895,11 @@ impl NativeApp {
             },
         );
 
-        #[cfg(target_os = "windows")]
-        {
-            let is_drag = actions.start_drag || actions.drag_delta.is_some();
-            let stop_drag = actions.restore_game_focus || ui.ctx().input(|i| !i.pointer.any_down());
-            let dpi = ui.ctx().pixels_per_point();
-            if let Some(cmd) = self.platform.handle_screen_drag(is_drag, stop_drag, dpi) {
-                self.handle_ui_command(cmd);
-            }
-        }
-
-        #[cfg(not(target_os = "windows"))]
-        {
-            if let Some(delta) = actions.drag_delta {
-                self.platform.is_dragging = true;
-                if let Some(rect) = ui.ctx().input(|i| i.viewport().outer_rect) {
-                    let new_x = rect.min.x + delta.x;
-                    let new_y = rect.min.y + delta.y;
-                    ui.ctx()
-                        .send_viewport_cmd(ViewportCommand::OuterPosition(egui::pos2(
-                            new_x, new_y,
-                        )));
-                }
-            }
-            if actions.restore_game_focus || ui.ctx().input(|i| !i.pointer.any_down()) {
-                self.platform.is_dragging = false;
-            }
+        let is_drag = actions.start_drag || actions.drag_delta.is_some();
+        let stop_drag = actions.restore_game_focus || ui.ctx().input(|i| !i.pointer.any_down());
+        let dpi = ui.ctx().pixels_per_point();
+        if let Some(cmd) = self.platform.handle_screen_drag(is_drag, stop_drag, dpi) {
+            self.handle_ui_command(cmd);
         }
 
         if let Some(rect) = actions.response_rect {
