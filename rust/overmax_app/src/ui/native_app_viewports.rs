@@ -552,7 +552,11 @@ impl NativeApp {
         );
 
         // Windows 전용: 오버레이 창 가시성 및 최상위 권한 적용 (게임 미실행 시 숨김 처리하여 까만 뷰포트 노출 차단)
-        let found = self.apply_window_visibility(overlay_on, force_topmost);
+        let game_hwnd = self.game_hwnd_cached();
+        let is_active = self.determine_active_state(game_hwnd);
+        let found = self
+            .platform
+            .apply_overlay_visibility(overlay_on, is_active, force_topmost);
         if !found && overlay_on && !self.platform.win_cache.logged_opacity_fail {
             debug_ui::push_log(
                 &self.debug_state.log_lines,
@@ -893,70 +897,11 @@ impl NativeApp {
 
         #[cfg(target_os = "windows")]
         {
-            use windows_sys::Win32::UI::WindowsAndMessaging::*;
-            if actions.start_drag || actions.drag_delta.is_some() {
-                self.platform.is_dragging = true;
-                if let Some(hwnd_val) = self.platform.win_cache.cached_hwnd {
-                    let hwnd = hwnd_val as HWND;
-                    let mut cur_pt = windows_sys::Win32::Foundation::POINT { x: 0, y: 0 };
-                    unsafe {
-                        GetCursorPos(&mut cur_pt);
-                    }
-                    if self.platform.drag_anchor.is_none() {
-                        let mut rect = windows_sys::Win32::Foundation::RECT {
-                            left: 0,
-                            top: 0,
-                            right: 0,
-                            bottom: 0,
-                        };
-                        unsafe {
-                            GetWindowRect(hwnd, &mut rect);
-                        }
-                        self.platform.drag_anchor = Some((cur_pt.x, cur_pt.y, rect.left, rect.top));
-                    }
-                    if let Some((start_cx, start_cy, start_wx, start_wy)) =
-                        self.platform.drag_anchor
-                    {
-                        let target_x = start_wx + (cur_pt.x - start_cx);
-                        let target_y = start_wy + (cur_pt.y - start_cy);
-                        unsafe {
-                            SetWindowPos(
-                                hwnd,
-                                std::ptr::null_mut(),
-                                target_x,
-                                target_y,
-                                0,
-                                0,
-                                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
-                            );
-                        }
-                    }
-                }
-            }
-
-            if actions.restore_game_focus || ui.ctx().input(|i| !i.pointer.any_down()) {
-                self.platform.is_dragging = false;
-                if let Some((_, _, _, _)) = self.platform.drag_anchor.take() {
-                    if let Some(hwnd_val) = self.platform.win_cache.cached_hwnd {
-                        let hwnd = hwnd_val as HWND;
-                        let mut rect = windows_sys::Win32::Foundation::RECT {
-                            left: 0,
-                            top: 0,
-                            right: 0,
-                            bottom: 0,
-                        };
-                        unsafe {
-                            GetWindowRect(hwnd, &mut rect);
-                        }
-                        let dpi = ui.ctx().pixels_per_point();
-                        self.handle_ui_command(
-                            crate::ui::ui_command::UiCommand::SetOverlayPosition {
-                                x: (rect.left as f32 / dpi).round() as i32,
-                                y: (rect.top as f32 / dpi).round() as i32,
-                            },
-                        );
-                    }
-                }
+            let is_drag = actions.start_drag || actions.drag_delta.is_some();
+            let stop_drag = actions.restore_game_focus || ui.ctx().input(|i| !i.pointer.any_down());
+            let dpi = ui.ctx().pixels_per_point();
+            if let Some(cmd) = self.platform.handle_screen_drag(is_drag, stop_drag, dpi) {
+                self.handle_ui_command(cmd);
             }
         }
 
@@ -1061,69 +1006,6 @@ impl NativeApp {
         is_act
     }
 
-    fn find_overlay_window(&self) -> Option<HWND> {
-        use windows_sys::Win32::System::Threading::GetCurrentProcessId;
-        use windows_sys::Win32::UI::WindowsAndMessaging::*;
-
-        struct EnumData {
-            target_pid: u32,
-            found_hwnd: Option<HWND>,
-        }
-
-        let target_pid = unsafe { GetCurrentProcessId() };
-        let mut data = EnumData {
-            target_pid,
-            found_hwnd: None,
-        };
-
-        unsafe {
-            extern "system" fn enum_callback(hwnd: HWND, lparam: isize) -> i32 {
-                unsafe {
-                    let data = &mut *(lparam as *mut EnumData);
-                    let mut pid = 0u32;
-                    GetWindowThreadProcessId(hwnd, &mut pid);
-                    if pid == data.target_pid {
-                        let mut text = [0u16; 512];
-                        let len = GetWindowTextW(hwnd, text.as_mut_ptr(), 512);
-                        let title = String::from_utf16_lossy(&text[..len as usize]);
-                        let visible = IsWindowVisible(hwnd) != 0;
-
-                        if title == "Overmax" {
-                            data.found_hwnd = Some(hwnd);
-                            return 0; // 즉시 중단
-                        }
-
-                        // fallback: 오버레이 창 타이틀이 미세하게 변경된 경우에만 제목 매칭
-                        if data.found_hwnd.is_none()
-                            && visible
-                            && title.starts_with("Overmax")
-                            && !title.contains("설정")
-                            && !title.contains("Debug")
-                            && !title.contains("동기화")
-                        {
-                            data.found_hwnd = Some(hwnd);
-                        }
-                    }
-                    1
-                }
-            }
-
-            EnumWindows(Some(enum_callback), &mut data as *mut _ as isize);
-        }
-        let res = data.found_hwnd;
-        if res.is_none() {
-            debug_ui::push_log(
-                &self.debug_state.log_lines,
-                self.max_log_lines(),
-                format!(
-                    "[Win32] Overmax 오버레이 HWND 감지 실패 (PID: {})",
-                    target_pid
-                ),
-            );
-        }
-        res
-    }
-
     fn game_hwnd_cached(&mut self) -> Option<HWND> {
         use windows_sys::Win32::UI::WindowsAndMessaging::*;
         let mut g_hwnd = self.platform.win_cache.cached_game_hwnd.map(|h| h as HWND);
@@ -1146,185 +1028,6 @@ impl NativeApp {
             }
         }
         g_hwnd
-    }
-
-    #[cfg(target_os = "windows")]
-    fn setup_overlay_window(hwnd: HWND) {
-        use windows_sys::Win32::UI::WindowsAndMessaging::*;
-        #[link(name = "dwmapi")]
-        extern "system" {
-            fn DwmSetWindowAttribute(
-                hwnd: HWND,
-                dwAttribute: u32,
-                pvAttribute: *const std::ffi::c_void,
-                cbAttribute: u32,
-            ) -> i32;
-            fn DwmExtendFrameIntoClientArea(hwnd: HWND, pMarInset: *const Margins) -> i32;
-        }
-
-        #[link(name = "comctl32")]
-        extern "system" {
-            fn SetWindowSubclass(
-                hwnd: HWND,
-                pfn_subclass: Option<
-                    unsafe extern "system" fn(
-                        hwnd: HWND,
-                        u_msg: u32,
-                        w_param: usize,
-                        l_param: isize,
-                        u_id_subclass: usize,
-                        dw_ref_data: usize,
-                    ) -> isize,
-                >,
-                u_id_subclass: usize,
-                dw_ref_data: usize,
-            ) -> i32;
-            fn DefSubclassProc(hwnd: HWND, u_msg: u32, w_param: usize, l_param: isize) -> isize;
-        }
-
-        #[repr(C)]
-        struct Margins {
-            cx_left_width: i32,
-            cx_right_width: i32,
-            cy_top_height: i32,
-            cy_bottom_height: i32,
-        }
-
-        unsafe extern "system" fn overlay_subclass_proc(
-            hwnd: HWND,
-            msg: u32,
-            wparam: usize,
-            lparam: isize,
-            _uidsubclass: usize,
-            _refdata: usize,
-        ) -> isize {
-            const WM_NCCALCSIZE: u32 = 0x0083;
-            const WM_NCPAINT: u32 = 0x0085;
-            const WM_NCACTIVATE: u32 = 0x0086;
-
-            if msg == WM_NCCALCSIZE && wparam != 0 {
-                // 비클라이언트(캡션 버튼/상단 테두리) 영역을 0으로 만들어 DWM 캡션 렌더링을 완전히 제거
-                return 0;
-            }
-            if msg == WM_NCPAINT {
-                return 0;
-            }
-            if msg == WM_NCACTIVATE {
-                return 1;
-            }
-
-            DefSubclassProc(hwnd, msg, wparam, lparam)
-        }
-
-        unsafe {
-            // 1. Win32 기본 스타일: 시스템 메뉴 / 캡션 버튼 (- ㅁ X) 완전 제거
-            let win_style = GetWindowLongW(hwnd, GWL_STYLE);
-            let target_win_style = (win_style
-                & !(WS_CAPTION as i32
-                    | WS_THICKFRAME as i32
-                    | WS_MINIMIZEBOX as i32
-                    | WS_MAXIMIZEBOX as i32
-                    | WS_SYSMENU as i32
-                    | WS_BORDER as i32
-                    | WS_DLGFRAME as i32))
-                | WS_POPUP as i32;
-            if win_style != target_win_style {
-                SetWindowLongW(hwnd, GWL_STYLE, target_win_style);
-            }
-
-            // 2. Win32 확장 스타일: 비활성 툴윈도우 + 레이어드 투명
-            let style = GetWindowLongW(hwnd, GWL_EXSTYLE);
-            let target_style = (style & !(WS_EX_TOPMOST as i32))
-                | WS_EX_LAYERED as i32
-                | WS_EX_NOACTIVATE as i32
-                | WS_EX_TOOLWINDOW as i32;
-            if style != target_style {
-                SetWindowLongW(hwnd, GWL_EXSTYLE, target_style);
-            }
-
-            // 3. 서브클래싱 등록: WM_NCCALCSIZE를 가로채 비클라이언트 캡션 버튼(- ㅁ X)을 물리적으로 제거
-            SetWindowSubclass(hwnd, Some(overlay_subclass_proc), 1, 0);
-
-            // 4. DWM에 프레임 스타일 변경 1회 통보
-            SetWindowPos(
-                hwnd,
-                std::ptr::null_mut(),
-                0,
-                0,
-                0,
-                0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
-            );
-
-            // 5. DWM 테두리 비활성화 및 프레임버퍼 투명 마진 확장
-            let border_color: u32 = 0xFFFFFFFE; // DWMWCB_NONE
-            DwmSetWindowAttribute(
-                hwnd,
-                34, // DWMWA_BORDER_COLOR
-                &border_color as *const _ as *const _,
-                std::mem::size_of::<u32>() as u32,
-            );
-
-            let margins = Margins {
-                cx_left_width: -1,
-                cx_right_width: -1,
-                cy_top_height: -1,
-                cy_bottom_height: -1,
-            };
-            DwmExtendFrameIntoClientArea(hwnd, &margins);
-        }
-    }
-
-    fn apply_window_visibility(&mut self, visible: bool, force_topmost: bool) -> bool {
-        use windows_sys::Win32::UI::WindowsAndMessaging::*;
-
-        let hwnd = match self.platform.win_cache.cached_hwnd {
-            Some(h) => h as HWND,
-            None => match self.find_overlay_window() {
-                Some(h) => {
-                    Self::setup_overlay_window(h);
-                    self.platform.win_cache.cached_hwnd = Some(h as isize);
-                    debug_ui::push_log(
-                        &self.debug_state.log_lines,
-                        self.max_log_lines(),
-                        format!("[Win32] 오버레이 창 HWND 감지 및 초기화 완료: {:?}", h),
-                    );
-                    h
-                }
-                None => return false,
-            },
-        };
-
-        if unsafe { IsWindow(hwnd) } == 0 {
-            self.platform.win_cache.cached_hwnd = None;
-            return false;
-        }
-
-        let game_hwnd = self.game_hwnd_cached();
-        let is_active = self.determine_active_state(game_hwnd);
-        let vis_flag = if visible {
-            SWP_SHOWWINDOW
-        } else {
-            SWP_HIDEWINDOW
-        };
-
-        unsafe {
-            SetWindowPos(
-                hwnd,
-                if is_active || force_topmost {
-                    HWND_TOPMOST
-                } else {
-                    HWND_NOTOPMOST
-                },
-                0,
-                0,
-                0,
-                0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | vis_flag,
-            );
-        }
-
-        true
     }
 }
 
