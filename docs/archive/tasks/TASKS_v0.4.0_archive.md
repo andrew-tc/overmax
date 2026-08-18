@@ -1,0 +1,87 @@
+# TASKS (v0.4.0 Archive)
+
+Overmax v0.4.0 마일스톤 시작 전(v0.3.x)까지 완료된 작업 목록 아카이브입니다. (이후 활성 작업은 [`TASKS.md`](../../TASKS.md)로 이관)
+
+---
+
+## 1. 추천 기능 고도화 (Recommend Provider Protocol & Trait 추상화)
+
+- [x] **Phase 1: In-process Trait 추상화 & CompositeRecommender (로컬 전용)**
+  - [x] 1.1 `overmax_data`: `RecommendContext`, `VaryDim`, `RecommendBundle`, `SourceStatus`, `LocalRecommendFooter`, `RecommendPanel`, `RecommendationSource` trait 정의
+  - [x] 1.2 `overmax_data`: 기존 `Recommender` → `LocalFloorRecommender`로 리팩토링 및 `RecommendationSource` trait 구현
+  - [x] 1.3 `overmax_data`: `ProviderCacheReader` + `CompositeRecommender` 구현 및 폴백 유닛 테스트 작성
+  - [x] 1.4 `overmax_app`: `native_app_recommend.rs` 데이터 연결부를 `RecommendPanel`로 업데이트 (`as_legacy_result()` 레거시 호환 projection 사용)
+  - [x] 1.5 전체 workspace 빌드/테스트 통과 및 회귀 검증 완료
+- [x] **Phase 2: Provider Fetch 인프라 & 설정 UI**
+  - [x] 2.1 `overmax_app`: 백그라운드 Provider fetch worker 구현 (`system/recommend_provider_fetch.rs`)
+  - [x] 2.2 `overmax_data` & `settings.user.json`: `RecommendProviderSettings` 스키마 및 settings 추가
+  - [x] 2.3 `overmax_app`: Settings UI System 탭에 Provider 설정 섹션 (토글, URL, 연결 테스트) 추가
+- [x] **Phase 3: 다중 소스 UI & 커뮤니티 공개 문서**
+  - [x] 3.1 커뮤니티 공개용 slim spec (`docs/guides/recommend-provider-protocol.md`) 및 예제 python mock server (`examples/recommend_mock_server.py`) 제공
+
+---
+
+## 2. 메모리 사용량 및 쿼리 최적화
+
+- [x] 백그라운드 실행 및 인게임 영향 최소화를 위한 메모리 사용량 최적화
+  - [x] `VArchiveDB.title_map` 메모리 낭비 실측 (songs 로드 대비 +1,940 KB / 88.5% 상주 오버헤드 확인) 및 `HashMap<String, Vec<usize>>` 인덱스 기반 전환으로 추가 메모리 오버헤드 100% (1,940 KB → 0 KB) 절감
+  - [x] `RecordDB.get_rate_map()` 매 호출 SQLite `Connection::open()` 지연시간 실측 (6곡 1.09ms / 800곡 4.67ms) 및 `thread_local!` 커넥션 재사용 캐싱으로 6곡 지연시간 0.20ms (81.7% 감소) 단축
+
+---
+
+## 3. V-Archive 동기화 및 DB 내장화
+
+- [x] 단일 패턴 업로드 후 V-Archive API(?title=song_id)를 호출하여 로컬 캐시에 즉각 상세 기록을 머지(Merge)하는 고속 캐시 최적화 구현
+- [x] 시작 시 및 설정창 갱신 시 최신 updatedAt 타임스탬프를 이용한 `since` 파라미터 기반 캐시 증분 동기화 구현
+- [x] 증분 동기화 기반 네트워크 부하 최소화에 따른 시작 시 자동 동기화 상시 활성화 적용
+- [x] V-Archive 캐시의 SQLite DB 내장화 및 Stored Generated Columns(score, max_combo, updated_at, rating) 및 인덱스 복합 최적화 적용
+- [x] 업로드 후 최신 DB 데이터를 기준으로 TOP 50 랭킹 진입 여부 및 순위 판별하여 오버레이 토스트로 노출
+- [x] V-Archive 동기화 창 필터 시스템(모드, 난이도, 1~15/SC1~SC15 레벨, Rate 범위 슬라이더, 맥스콤보, 미업로드 제외 및 settings.user.json 자동 영속화) 구현 완료
+
+---
+
+## 4. CV 디텍션 파이프라인 1-Pass 전환 & 100% OCR 제거
+
+- [x] 선곡창 곡 ID/모드/난이도 캐시(last_played_song_id, song_select_mode/diff) 의존성을 완전 제거하여 결과창이 오직 결과창의 픽셀들로만 독립적으로 분석하여 기록 정합성을 보장하도록 개선
+- [x] Freestyle 및 OpenMatch 씬 진입 시 재킷 엣지/유사도 매칭을 로고 OCR보다 우선 수행하여 OCR Bypass 실현 및 반응 속도 최적화
+- [x] 결과창(Result) 씬에서도 씬 판별 시점에 재킷 매칭을 동시에 수행하도록 설계하여, commit_result_scene의 중복 연산을 지우고 씬 감지/곡 ID 확인 프로세스를 OCR Bypass 파이프라인으로 일원화
+- [x] Windows OCR 로고 스캔 최종 폴백을 완전히 비활성화하여 씬 판별 단계에서의 Windows OCR 의존성을 100% 제거 (OCR-Free 씬 판별 실현)
+- [x] 제각각이던 자켓 인식 유사도 임계치를 설정 파일의 `similarity_threshold` 값을 기준으로 오프셋 없이 일관되게 통일 연동하도록 개선
+- [x] 제각각이던 자켓 엣지 디텍션 임계 강도를 JACKET_EDGE_THRESHOLD = 15.0 상수로 일관되게 일치시킴
+- [x] 자켓 우측 곡 카테고리 띠(5x60) 영역이 고른 단색(Solid)이고 검은색이 아닌 상태인지 판단하는 `check_category_band_solid` 감지 필터를 구현하고, 엣지 감지 결과와 OR 결합하여 씬 판단 신뢰성 향상
+- [x] 자켓 변경 시 오인식이 고착되는 문제를 방지하기 위해 JacketMatcher 내부의 최근 매칭 캐시(LRU) 조회 우회 로직을 전면 제거
+- [x] 오픈매치 결과창(ResultOpen2, ResultOpen3) 판독을 위한 PlayerPanel ROI 엣지 기반 감지 로직 보강
+- [x] 프리스타일 결과창 판독 시 mode_colorbar ROI의 색상 일치성 및 엣지 강도 체크 기능 추가
+- [x] static scene 판독 시 프리스타일 선곡창 감지와 오픈매치 대기실 감지의 우선순위 조정
+- [x] 파이프라인 정밀도 검증을 위한 verify_pipeline 도구(바이너리) 도입
+- [x] 즐겨찾기(Favorite) 하트 뱃지 가림 영역(우상단 23%) 마스킹 필터 추가 및 DB 재빌드를 통해 즐겨찾기 표시 곡의 유사도 하락 차단
+- [x] 기존 오리지널 DB 규격을 변경 없이 지원하고 즐겨찾기 인식을 개선하기 위해 런타임 해시 및 HOG 마스킹 연산 기법 도입
+- [x] 자켓 비균일 3구역 마스킹 필터 구현을 통해 외곽 그래픽 테두리/노이즈에 따른 유사도 하락 차단
+- [x] 프리스타일 및 오픈매치 선곡창 자켓 매칭 오분류 방지를 위한 유사도 경합 모델(Winner-takes-all) 설계 적용
+- [x] ROI 조회 및 크롭 후 가공 처리를 패턴화하여 `RoiRect` 및 `RoiManager`에 모나딕 체이닝 헬퍼 메서드(`and_then_roi` 등)와 `ImageRegion`에 캡슐화된 CV 래퍼 메서드 도입
+- [x] HOG 알고리즘을 100% 제거하고 `1차 u64 해시 Early Exit + 2차 2x2 분할 그리드 히스토그램 L1 벌점 WTA` 방식의 초고속 이미지 매칭 엔진 도입 (종합 속도 161배 향상, 순수 매칭 루프 405배 고속화 달성)
+- [x] DB 빌드와 런타임 간의 히스토그램 추출 해상도를 64x64 정규화 해상도 공간(Lanczos3 축소)으로 일치시켜 미스매치를 완전히 완화하고, HOG 로딩 스킵을 통한 6MB 메모리 절감 및 similarity_threshold 기본값 0.65 보정으로 정확도 100% 달성
+- [x] Rate OCR과 Score 역산 값 불일치 시 템플릿 매칭 기반 Score 역산 값(`Score / 10,000`)을 우선 반영하도록 Rate 책정 로직 개선
+- [x] Windows OCR 의존성 및 WinRT C++ COM 연동을 완전히 제거하고 Pure Rust Native CV 템플릿 매칭 엔진으로 전면 단일화
+- [x] 모드 및 난이도 관련 문자열 리터럴("4B"~"8B", "NM"~"SC")을 Mode 및 Difficulty Enum 기반 타입 안전 시스템으로 코드베이스 전반 전면 리팩토링 및 템플릿 매칭 힙 할당 제거 완료
+- [x] DB 내 자켓 4x4 히스토그램 대표 중심점(Centroid) 및 허용 반경(Radius) 사전 계산을 통해, 비자켓 노이즈 이미지 입력 시 600+ 곡 전체 DB SoA 매칭 순회 전 0.001ms 만에 Early-Exit 하는 초고속 사전 게이트 적용
+
+---
+
+## 5. 다국어 (i18n) 시스템 구축
+
+- [x] UI 및 인게임 오버레이 다국어(i18n) Zero-Cost 정적 룩업(`&'static str`) 파이프라인 구축 및 컴파일 타임 최적화 (한국어, 영어)
+- [x] UI `format!(..., t(...))` 포맷 조합 문구 및 대화상자 하드코딩 문구를 런타임 0-cost 컴파일 타임 검증 매크로 `t_fmt!` 패턴으로 전면 리팩토링 및 다국어(Ko/En) 어순 호환성 확보 완료
+- [x] `t()`, `t_fmt!()`, `t_gold()`, `t_assist()` 파편화를 단일 `t!` 매크로 및 `Localizable` trait으로 통합하여 컴파일 타임 0-cost Type Safety 및 일관성 확보 완료
+
+---
+
+## 6. 오버레이 UX, 캡처 백엔드 옵션화 & Windows 11 DWM 최적화
+
+- [x] **오버레이 항상 보임 옵션 (`overlay.always_visible`)** 추가
+- [x] **캡처 파이프라인 및 백엔드 설정 옵션화 (`capture`)**: GDI / DXGI 선택 지원 및 다중 모니터 Output 자동 탐색 지원
+- [x] **디버그 창 실시간화 및 Real-time App State 대시보드 구축 (`debug`)**
+- [x] **DWM Z-order 가림 해제 및 144Hz/240Hz OS 네이티브 윈도우 드래그 완성**
+- [x] **일반 모드 오버레이 `scale` 피드백 루프 해소 및 동적 Height Auto-Fit 구현**
+- [x] **오버레이 패널 RGBA Alpha 렌더링 전환 및 Windows 11 DWM 1px Border 소거**
+- [x] **Windows 11 DWM 캡션/테두리 원천 제거 (`WM_NCCALCSIZE`) 및 픽셀 완벽 스크린 앵커 드래그 구축**

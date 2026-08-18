@@ -77,6 +77,7 @@ OS별 구동 가이드 및 외부 연동 프로토콜 규격을 보관합니다.
 
 ### 6. Archive (`docs/archive/tasks/`)
 완료된 이전 버전의 마일스톤 태스크 목록입니다.
+* [`TASKS_v0.4.0_archive.md`](archive/tasks/TASKS_v0.4.0_archive.md): v0.4.0 이전 마일스톤 완료 작업 (추천 Trait, 1-Pass 매칭, DPI V2, i18n 등).
 * [`TASKS_v0.3.0_archive.md`](archive/tasks/TASKS_v0.3.0_archive.md): v0.3.0 마일스톤 완료 작업.
 * [`TASKS_v0.2.0_archive.md`](archive/tasks/TASKS_v0.2.0_archive.md): v0.2.0 마일스톤 완료 작업.
 

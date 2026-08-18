@@ -1,156 +1,45 @@
 # TASKS
 
-Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입니다.
+Overmax v0.4.0 마일스톤 활성 작업 목록 및 백로그입니다.  
+(이전 완료 작업 목록은 [`docs/archive/tasks/TASKS_v0.4.0_archive.md`](docs/archive/tasks/TASKS_v0.4.0_archive.md)를 참조)
 
 ---
 
-## 1. 추천 기능 고도화 (Recommend Provider Protocol & Trait 추상화)
+## 1. 아키텍처 안정성 및 동시성 가드 (Architecture Robustness & Boundaries)
 
-- [x] **Phase 1: In-process Trait 추상화 & CompositeRecommender (로컬 전용)**
-  - [x] 1.1 `overmax_data`: `RecommendContext`, `VaryDim`, `RecommendBundle`, `SourceStatus`, `LocalRecommendFooter`, `RecommendPanel`, `RecommendationSource` trait 정의
-  - [x] 1.2 `overmax_data`: 기존 `Recommender` → `LocalFloorRecommender`로 리팩토링 및 `RecommendationSource` trait 구현
-  - [x] 1.3 `overmax_data`: `ProviderCacheReader` + `CompositeRecommender` 구현 및 폴백 유닛 테스트 작성
-  - [x] 1.4 `overmax_app`: `native_app_recommend.rs` 데이터 연결부를 `RecommendPanel`로 업데이트 (`as_legacy_result()` 레거시 호환 projection 사용)
-  - [x] 1.5 전체 workspace 빌드/테스트 통과 및 회귀 검증 완료
-- [x] **Phase 2: Provider Fetch 인프라 & 설정 UI**
-  - [x] 2.1 `overmax_app`: 백그라운드 Provider fetch worker 구현 (`system/recommend_provider_fetch.rs`)
-  - [x] 2.2 `overmax_data` & `settings.user.json`: `RecommendProviderSettings` 스키마 및 settings 추가
-  - [x] 2.3 `overmax_app`: Settings UI System 탭에 Provider 설정 섹션 (토글, URL, 연결 테스트) 추가
-- [x] **Phase 3: 다중 소스 UI & 커뮤니티 공개 문서**
-  - [x] 3.1 커뮤니티 공개용 slim spec (`docs/guides/recommend-provider-protocol.md`) 및 예제 python mock server (`examples/recommend_mock_server.py`) 제공
-
-## 2. 메모리 사용량 최적화
-
-- [x] 백그라운드 실행 및 인게임 영향 최소화를 위한 메모리 사용량 최적화
-  - [x] [완료] `VArchiveDB.title_map` 메모리 낭비 실측 (songs 로드 대비 +1,940 KB / 88.5% 상주 오버헤드 확인) 및 `HashMap<String, Vec<usize>>` 인덱스 기반 전환으로 추가 메모리 오버헤드 100% (1,940 KB → 0 KB) 절감
-  - [x] [완료] `RecordDB.get_rate_map()` 매 호출 SQLite `Connection::open()` 지연시간 실측 (6곡 1.09ms / 800곡 4.67ms) 및 `thread_local!` 커넥션 재사용 캐싱으로 6곡 지연시간 0.20ms (81.7% 감소) 단축
-
-
-
-## 3. 감지 씬 다양화
-
-- [ ] OCR 외에 다른 방법으로 씬 감지 할 수 있을지를 탐색
-- [ ] 래더매치 등 활용이 필요한 곳에 감지 대응
-
-## 4. V-Archive 클라이언트 완전 대체 (장기 목표)
-
-- [ ] [장기] 공식 V-Archive 클라이언트를 보완/대체하기 위한 백그라운드 기록 자동 업로드 파이프라인 설계
-- [ ] [장기] Steam 세션 감지 및 로컬 갱신 데이터를 API를 통해 V-Archive로 안전하게 즉각 백업 업로드하는 모듈 구현
-- [x] [완료] 단일 패턴 업로드 후 V-Archive API(?title=song_id)를 호출하여 로컬 캐시에 즉각 상세 기록을 머지(Merge)하는 고속 캐시 최적화 구현
-- [x] [완료] 시작 시 및 설정창 갱신 시 최신 updatedAt 타임스탬프를 이용한 `since` 파라미터 기반 캐시 증분 동기화 구현
-- [x] [완료] 증분 동기화 기반 네트워크 부하 최소화에 따른 시작 시 자동 동기화 상시 활성화 적용
-- [x] [완료] V-Archive 캐시의 SQLite DB 내장화 및 Stored Generated Columns(score, max_combo, updated_at, rating) 및 인덱스 복합 최적화 적용
-- [x] [완료] 업로드 후 최신 DB 데이터를 기준으로 TOP 50 랭킹 진입 여부 및 순위 판별하여 오버레이 토스트로 노출
-- [x] [완료] V-Archive 동기화 창 필터 시스템(모드, 난이도, 1~15/SC1~SC15 레벨, Rate 범위 슬라이더, 맥스콤보, 미업로드 제외 및 settings.user.json 자동 영속화) 구현 완료
-
-## 5. 파이프라인 정리 및 안정성 강화
-
-- [x] [완료] 선곡창 곡 ID/모드/난이도 캐시(last_played_song_id, song_select_mode/diff) 의존성을 완전 제거하여 결과창이 오직 결과창의 픽셀들로만 독립적으로 분석하여 기록 정합성을 보장하도록 개선
-- [x] [완료] Freestyle 및 OpenMatch 씬 진입 시 재킷 엣지/유사도 매칭을 로고 OCR보다 우선 수행하여 OCR Bypass 실현 및 반응 속도 최적화
-- [x] [완료] 결과창(Result) 씬에서도 씬 판별 시점에 재킷 매칭을 동시에 수행하도록 설계하여, commit_result_scene의 중복 연산을 지우고 씬 감지/곡 ID 확인 프로세스를 OCR Bypass 파이프라인으로 일원화 (곡 ID 매칭 성공 시에만 결과창 진입을 허용하는 엄격한 타입 설계 적용)
-- [x] [완료] Windows OCR 로고 스캔 최종 폴백을 완전히 비활성화하여 씬 판별 단계에서의 Windows OCR 의존성을 100% 제거 (OCR-Free 씬 판별 실현)
-- [x] [완료] 제각각이던 자켓 인식 유사도 임계치를 설정 파일의 `similarity_threshold` 값을 기준으로 오프셋 없이 일관되게 통일 연동하도록 개선
-- [x] [완료] 제각각이던 자켓 엣지 디텍션 임계 강도를 JACKET_EDGE_THRESHOLD = 15.0 상수로 일관되게 일치시킴
-- [x] [완료] 자켓 우측 곡 카테고리 띠(5x60) 영역이 고른 단색(Solid)이고 검은색이 아닌 상태인지 판단하는 `check_category_band_solid` 감지 필터를 구현하고, 엣지 감지 결과와 OR 결합하여 씬 판단 신뢰성 향상
-- [x] [완료] 자켓 변경 시 오인식이 고착되는 문제를 방지하기 위해 JacketMatcher 내부의 최근 매칭 캐시(LRU) 조회 우회 로직을 전면 제거
-- [x] [완료] 오픈매치 결과창(ResultOpen2, ResultOpen3) 판독을 위한 PlayerPanel ROI 엣지 기반 감지 로직 보강
-- [x] [완료] 프리스타일 결과창 판독 시 mode_colorbar ROI의 색상 일치성 및 엣지 강도 체크 기능 추가
-- [x] [완료] static scene 판독 시 프리스타일 선곡창 감지와 오픈매치 대기실 감지의 우선순위 조정
-- [x] [완료] 파이프라인 정밀도 검증을 위한 verify_pipeline 도구(바이너리) 도입
-- [x] [완료] 즐겨찾기(Favorite) 하트 뱃지 가림 영역(우상단 23%) 마스킹 필터 추가 및 DB 재빌드를 통해 즐겨찾기 표시 곡의 유사도 하락 차단
-- [x] [완료] 기존 오리지널 DB 규격을 변경 없이 지원하고 즐겨찾기 인식을 개선하기 위해 런타임 해시 및 HOG 마스킹 연산 기법 도입
-- [x] [완료] 자켓 비균일 3구역 마스킹 필터 구현을 통해 외곽 그래픽 테두리/노이즈에 따른 유사도 하락 차단
-- [x] [완료] metadata DB 스키마 확장을 통한 마스킹 해시 세트의 적재 및 하위 호환 마이그레이션(ALTER TABLE) 보장
-- [x] [완료] V2 metadata 확장 구조 철회 및 HOG를 상시 사용하는 안정적인 V1 런타임 비트 마스크 및 HOG 마스크 구조로 전면 복구 완료
-- [x] [완료] 프리스타일 및 오픈매치 선곡창 자켓 매칭 오분류 방지를 위한 유사도 경합 모델(Winner-takes-all) 설계 적용
-- [x] [완료] ROI 조회 및 크롭 후 가공 처리를 패턴화하여 `RoiRect` 및 `RoiManager`에 모나딕 체이닝 헬퍼 메서드(`and_then_roi` 등)와 `ImageRegion`에 캡슐화된 CV 래퍼 메서드 도입
-- [x] [완료] HOG 알고리즘을 100% 제거하고 `1차 u64 해시 Early Exit + 2차 2x2 분할 그리드 히스토그램 L1 벌점 WTA` 방식의 초고속 이미지 매칭 엔진 도입 (종합 속도 161배 향상, 순수 매칭 루프 405배 고속화 달성)
-- [x] [완료] 기존 SQLite DB 구조의 호환성 보장을 위해 2x2 분할 그리드 히스토그램 데이터를 images 테이블의 metadata 컬럼 내 JSON 규격으로 직렬화/역직렬화하여 적재 및 호환성 유지
-- [x] [완료] DB 빌드와 런타임 간의 히스토그램 추출 해상도를 64x64 정규화 해상도 공간(Lanczos3 축소)으로 일치시켜 미스매치를 완전히 완화하고, HOG 로딩 스킵을 통한 6MB 메모리 절감 및 similarity_threshold 기본값 0.65 보정으로 정확도 100% 달성
-- [x] [완료] Windows OCR Fallback을 Cargo Feature Flag(`ocr-fallback`)로 옵셔널 분리하여 `--no-default-features` 지정 시 WinRT OCR 의존성이 0%인 Pure Rust Native 엔진 컴파일 지원
-- [x] [완료] Rate OCR과 Score 역산 값 불일치 시 템플릿 매칭 기반 Score 역산 값(`Score / 10,000`)을 우선 반영하도록 Rate 책정 로직 개선
-- [x] [완료] Windows OCR 의존성 및 WinRT C++ COM 연동을 완전히 제거하고 Pure Rust Native CV 템플릿 매칭 엔진으로 전면 단일화
-- [x] [완료] OcrDetector 껍데기 구조체 및 ocr_engine 모듈 전면 삭제, 템플릿 매칭 로직을 detector::templates 모듈의 순수 함수로 일원화하여 OCR 단어 및 레거시 잔재 코드 완전 소거
-- [x] [완료] 모드 및 난이도 관련 문자열 리터럴("4B"~"8B", "NM"~"SC")을 Mode 및 Difficulty Enum 기반 타입 안전 시스템으로 코드베이스 전반 전면 리팩토링 및 템플릿 매칭 힙 할당 제거 완료
-- [x] [완료] 디텍션 파이프라인 최적화(Pure Rust CV 템플릿 매칭 및 Mode/Difficulty Enum 전면화)에 맞춰 아키텍처 문서, SSOT(CONTEXT.md) 및 README.md 전면 업데이트 완료
-
-
-## 6. 다국어 (i18n) 지원
-
-- [x] [완료] UI 및 인게임 오버레이 다국어(i18n) Zero-Cost 정적 룩업(`&'static str`) 파이프라인 구축 및 컴파일 타임 최적화 (한국어, 영어)
-- [x] [완료] UI `format!(..., t(...))` 포맷 조합 문구 및 대화상자 하드코딩 문구를 런타임 0-cost 컴파일 타임 검증 매크로 `t_fmt!` 패턴으로 전면 리팩토링 및 다국어(Ko/En) 어순 호환성 확보 완료
-- [x] [완료] `t()`, `t_fmt!()`, `t_gold()`, `t_assist()` 파편화를 단일 `t!` 매크로 및 `Localizable` trait으로 통합하여 컴파일 타임 0-cost Type Safety 및 일관성 확보 완료
-- [x] [완료] 다국어 확장성(일본어 등 신규 언어 추가)과 Zero-Replace / Zero-Realloc 최고 성능을 동시에 보장하는 `@select` 언어 명시형 매크로 디스패처 및 `lookup_xx` 0-cost 룩업 아키텍처 구현 완료
-- [ ] 일본어(JA) 번역 및 다국어 텍스트 지원 추가
-
-## 7. CI / 빌드 자동화 및 패키징 개선
-
-- [x] [완료] GitHub CI 워크플로우(`ci.yml`) 수동 패키징 전환 및 `workflow_dispatch` 타겟 플랫폼 스위치(all/windows/linux) 추가
-
-## 8. 오버레이 디버그/가시성 강화 및 캡처 설정 옵션화
-
-- [x] **오버레이 항상 보임 옵션 (`overlay.always_visible`)**
-  - [x] `overlay.always_visible` 설정 항목 추가 (씬 감지 결과에 상관없이 오버레이를 항상 화면에 띄우도록 설정)
-  - [x] 설정 UI(`settings_ui.rs`) 오버레이 탭에 "오버레이 항상 표시" 체크박스 추가 및 `native_app_viewports.rs` `overlay_on` 판정식에 연동
-- [x] **캡처 파이프라인 및 백엔드 설정 옵션화 (`capture`)**
-  - [x] `capture.engine` 설정 추가 (GDI 기본값 / DXGI 선택 지원)
-  - [x] `capture.engine` 런타임 동적 스위칭 지원 (앱 재시작 없이 런타임 변경 반영)
-  - [x] DXGI 캡처 백엔드의 다중 모니터(서브 모니터) Output 자동 탐색 및 가상 좌표 오프셋 변환 지원
-  - [x] `capture.content_protected` 설정 추가 (기본값 `true`, 캡처 시 오버레이 화면 보호 및 캡처 노출 여부 제어)
-  - [x] 설정 UI(`settings_ui.rs`)에 캡처 백엔드 드롭다운 및 Content Protection 체크박스/경고 문구 연동
-- [x] **디버그 창 실시간화 및 Real-time App State 대시보드 구축 (`debug`)**
-  - [x] 디버그 창 오픈 시 Repaint Cadence 실시간화 (100ms 이내 실시간 리프레시)
-  - [x] 디버그 창에 현재 App State (Game HWND, Active State, Topmost State, Opacity, SceneType, Confidence, Capture Engine, Content Protection 등) 실시간 대시보드 패널 구축
-- [x] **오버레이 가시성 및 HWND/포커스 진단 로그 보강**
-  - [x] `native_app_viewports.rs` 의 HWND 탐색, `is_active` 포커스 평가, `SetWindowPos`, `SetLayeredWindowAttributes` 호출에 진단용 상세 로그 추가
-- [x] **DWM Z-order 가림 해제 및 144Hz/240Hz OS 네이티브 윈도우 드래그 완성**
-  - [x] DWM 오버레이 창 가림 원인이었던 `GWL_HWNDPARENT` 소유권 묶기 구문 전면 삭제
-  - [x] Win32 `ReleaseCapture` + `WM_NCLBUTTONDOWN (HTCAPTION)` 을 통해 egui 마우스 피드백 꼬임 및 덜덜 떨림 0%의 OS 네이티브 윈도우 이동(`SC_MOVE`) 달성
-- [x] **일반 모드 오버레이 `scale` 피드백 루프 해소 및 동적 Height Auto-Fit 구현**
-  - [x] 매 프레임 `InnerSize`를 덮어써 `scale` 조절 시 창 크기가 확대/축소되지 않던 피드백 루프 전면 제거
-  - [x] 배율 너비 고정(`BASE_WIDTH * scale`) + 폰트/패널 실제 렌더링 높이(`rect.height()`) 동적 Height Auto-Fit을 적용하여 스케일 조절 시 유격 0px의 완벽한 창 Fit 달성
-- [x] **오버레이 패널 RGBA Alpha 렌더링 전환 및 Windows 11 DWM 1px Border 소거**
-  - [x] Win32 `SetLayeredWindowAttributes` 사각형 전체 알파 덮어쓰기를 차단하고 `Theme::with_opacity` 패널 fill RGBA 렌더링으로 전환해 Windows 10/11 둥근 모서리 바깥쪽 반투명 틴트 사각형 비침 현상 100% 소거
-  - [x] Win11 전용 `DWMWA_BORDER_COLOR` (`0xFFFFFFFE`) 속성 주입으로 Windows 11 1px 테두리 보더 100% 제거
-- [x] **Windows 11 DWM 캡션/테두리 원천 제거 및 픽셀 완벽 스크린 앵커 드래그 구축**
-  - [x] DWM 프레임 확장 시 발생하는 상단 1px 테두리 및 우상단 네이티브 캡션 버튼("- ㅁ X")을 `SetWindowSubclass` 기반 `WM_NCCALCSIZE` 가로채기로 100% 영구 소멸
-  - [x] `WM_NCLBUTTONDOWN` 비클라이언트 모달 루프를 제거하고 마우스 스크린 절대 좌표 기반 `handle_screen_drag` 모듈화로 1픽셀 오차 없는 1:1 창 이동 구현
-  - [x] Win32 윈도우 셋업/서브클래싱/가시성/드래그 로직을 `ui::platform::windows` 모듈로 100% 캡슐화 및 UI 뷰포트 레이어 정돈
-
-## 9. 씬 감지 파이프라인 경량화 (게임 플레이 중 프레임 드랍 완화)
-
-- [x] **Step 0: 사전 확인 (죽은 코드 확인)**
-  - [x] `logo_roi` / `get_roi("logo")` 경로가 실제 판별 흐름에서 쓰이는지 확인 (`rg -n 'get_roi\("logo"|get_roi_for_scene\("logo"|logo_roi\(\)' rust/`) (확인 완료: 런타임 디텍션 경로에서 미사용 확인; 이번 범위 외)
-- [x] **Step 1: 게이트 short-circuit 적용 (엣지/밴드 중복 계산 제거)**
-  - [x] `detect_result_scene_via_edge`, `detect_freestyle_scene_via_edge`, `detect_openmatch_scene_via_edge` 3개 함수에 `check_category_band_solid` || `detect_jacket_edges` short-circuit 평가 순서 적용
-  - [x] `cargo check`, `cargo test`, `cargo clippy` 검증 및 씬 전이 유닛 테스트 통과 확인
-- [x] **Step 2: `match_jacket` 호출 빈도 실측 (Unknown 씬 구간 한정)**
-  - [x] `detect_result_scene_via_edge` / `detect_freestyle_scene_via_edge` / `detect_openmatch_scene_via_edge` 내 `gate_ok` 통과 시 `last_logo_scene == Unknown` 조건 한정 `debug_println!` 텔레메트리 로그 추가
-  - [x] 디버그 빌드 실행 후 게임 플레이 시 `match_jacket` 분당 호출 빈도 실측 및 기록 (실측 결과: 인게임 99.2초 동안 `match_jacket` 총 68회 트리거, **분당 41.13회**)
-- [x] **Step 3: 추가 프루닝 (카테고리 띠 단단화 & Result 앵커 주입)**
-  - [x] 불안정한 `edge_ok` 씬 게이트 조건 전면 제거 및 100% 신뢰성의 `check_category_band_solid` 카테고리 띠 단독 게이트 적용
-  - [x] `detect_result_scene_via_edge`에 결과창 고정 앵커(`mode_colorbar` 평균 BGR / `check_open_match_badge`) 게이트 주입
-  - [x] `cargo check`, `cargo test`, `cargo clippy` 검증 통과
-- [x] **Global Jacket Centroid Kernel Early-Exit Gate 기법 도입 & 1차 게이트 최적화**
-  - [x] DB 내 자켓 4x4 히스토그램 대표 중심점(Centroid) 및 허용 반경(Radius) 사전 계산을 통해, 비자켓 노이즈 이미지 입력 시 600+ 곡 전체 DB SoA 매칭 순회 전 0.001ms 만에 Early-Exit 하는 초고속 사전 게이트 적용
-  - [x] 1차 초고속 Centroid Kernel Gate 전면 배치: 더 가벼운 Centroid Kernel Gate를 게이트 평가 1차 순서로 전면 배치하여 비자켓 프레임 유입 시 숏서킷 효율 극대화 및 파이프라인 정돈 완료
-
-## 10. 아키텍처 안정성 및 경계 정돈 (Architecture Robustness & Boundaries)
-
-- [ ] **10.1 SQLite 다중 스레드 동시성 가드 (`SQLITE_BUSY` 방지)**
+- [ ] **1.1 SQLite 다중 스레드 동시성 가드 (`SQLITE_BUSY` 방지)**
   - [ ] `record.db` 연결 시 `PRAGMA journal_mode=WAL;` 및 `busy_timeout` (5000ms) 설정 강제
   - [ ] 디텍션 워커의 플레이 기록 `upsert` 시 `SQLITE_BUSY` 재시도(Retry with backoff) 가드 추가로 플레이 기록 유실 원천 차단
-- [ ] **10.2 설정(`SharedSettings`) 동기화 안전성 강화 및 I/O 큐 분리**
+- [ ] **1.2 설정(`SharedSettings`) 동기화 안전성 강화 및 I/O 큐 분리**
   - [ ] `serde_json::Value` 뮤텍스 락 경합 해소를 위한 정적 Typed Config 구조체 기반 스냅샷 읽기 적용
   - [ ] UI 슬라이더 조작 시 무차별 `std::thread::spawn` 호출을 방지하는 단일 백그라운드 설정 저장 큐(Debounce Worker) 구축
-- [ ] **10.3 `StartupCacheManager` 캐시 갱신 전파 일원화 (Stale Reference 해소)**
+- [ ] **1.3 `StartupCacheManager` 캐시 갱신 전파 일원화 (Stale Reference 해소)**
   - [ ] 백그라운드 `songs.json` 갱신 시 `NativeApp`의 `varchive_db`뿐만 아니라 `Recommender` 내부 캐시 포인터도 함께 갱신하도록 Refresh 파이프라인 일원화
-- [ ] **10.4 디텍션 워커 틱과 egui Repaint 스케줄링 최적화**
+- [ ] **1.4 디텍션 워커 틱과 egui Repaint 스케줄링 최적화**
   - [ ] 정적 화면(화면 변화 없음)에서 매 틱마다 `ctx.request_repaint()`가 호출되어 발생하는 불필요한 GPU/CPU 렌더링 낭비 방지
   - [ ] `DetectionOutput`이 이전 프레임 대비 실질적으로 변경되었거나 창 위치가 이동했을 때만 Repaint를 요청하는 Throttle/Gate 적용
-- [ ] **10.5 `overmax_engine`과 `overmax_data` 계층 결합도 완화 (장기)**
+
+---
+
+## 2. 감지 씬 다양화 및 인게임 확장
+
+- [ ] **2.1 래더매치(Ladder Match) 씬 감지 대응**
+  - [ ] 래더매치 밴픽/선곡 화면 및 대기실 감지 대응
+  - [ ] 래더매치 결과창 인식 지원
+
+---
+
+## 3. 다국어 (i18n) 지원 확장
+
+- [ ] **3.1 일본어(JA) 번역 및 폰트 지원 추가**
+  - [ ] UI 및 오버레이 텍스트 일본어 리소스 작성
+  - [ ] 일본어 CJK 폰트 렌더링 검증
+
+---
+
+## 4. 장기 백로그 (Long-term Backlog)
+
+- [ ] **4.1 `overmax_engine`과 `overmax_data` 계층 결합도 완화 (Event-driven Architecture)**
   - [ ] `DetectionPipeline` 내부의 SQLite 직접 `upsert` 의존성을 제거하고, 엔진은 `VerifiedPlayEvent` 방출만 담당하도록 책임 분리
-
-
-
-
+- [ ] **4.2 공식 V-Archive 클라이언트 보완/대체 자동 업로드 파이프라인 (장기)**
+  - [ ] 게임 플레이 종료 시 감지된 플레이 기록을 V-Archive API로 안전하게 자동 백그라운드 업로드하는 파이프라인 설계
