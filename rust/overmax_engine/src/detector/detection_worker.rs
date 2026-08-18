@@ -574,6 +574,7 @@ impl DetectionWorker {
                 is_leaving: false,
                 confidence: 0.0,
                 state: GameSessionState::detecting(),
+                event: None,
                 current_song_id: None,
                 image_db_ready: false,
                 jacket_status: JacketMatchStatus::NotSongSelect,

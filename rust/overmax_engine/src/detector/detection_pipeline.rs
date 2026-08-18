@@ -5,7 +5,7 @@ use crate::detector::hysteresis::HysteresisBuffer;
 use crate::detector::play_state::PlayStateDetector;
 use crate::detector::roi::RoiManager;
 use crate::detector::telemetry::{PipelineStatsCollector, PipelineTelemetrySnapshot};
-use overmax_core::{GameSessionState, SceneType};
+use overmax_core::{GameSessionState, SceneType, VerifiedPlayEvent};
 use overmax_data::ImageIndexDb;
 use std::time::Instant;
 
@@ -23,6 +23,7 @@ pub struct DetectionOutput {
     pub is_leaving: bool,
     pub confidence: f32,
     pub state: GameSessionState,
+    pub event: Option<VerifiedPlayEvent>,
     pub current_song_id: Option<i32>,
     pub image_db_ready: bool,
     pub jacket_status: JacketMatchStatus,
@@ -174,6 +175,7 @@ impl DetectionPipeline {
                 confidence,
                 GameSessionState::detecting(),
                 JacketMatchStatus::NotSongSelect,
+                None,
             );
         }
 
@@ -186,6 +188,7 @@ impl DetectionPipeline {
                 confidence,
                 GameSessionState::detecting(),
                 JacketMatchStatus::Leaving,
+                None,
             );
         }
 
@@ -200,7 +203,7 @@ impl DetectionPipeline {
         self.stats.jacket.update(jacket_elapsed);
 
         let play_state_start = Instant::now();
-        let state = self
+        let (state, event) = self
             .play_state
             .detect(frame, &self.rois, self.current_song_id, now);
         let play_state_elapsed = play_state_start.elapsed().as_micros() as u64;
@@ -214,6 +217,7 @@ impl DetectionPipeline {
             confidence,
             state,
             jacket_status,
+            event,
         )
     }
 
@@ -394,6 +398,7 @@ impl DetectionPipeline {
         confidence: f32,
         state: GameSessionState,
         jacket_status: JacketMatchStatus,
+        event: Option<VerifiedPlayEvent>,
     ) -> DetectionOutput {
         DetectionOutput {
             scene_detected,
@@ -402,6 +407,7 @@ impl DetectionPipeline {
             is_leaving,
             confidence,
             state,
+            event,
             current_song_id: self.current_song_id,
             image_db_ready: self.image_db.is_ready(),
             jacket_status,
