@@ -114,6 +114,7 @@ pub struct SharedSettings {
     pub base: Arc<Mutex<Value>>,
     pub merged: Arc<Mutex<Value>>,
     pub draft: Arc<Mutex<Value>>,
+    pub writer: Arc<crate::system::settings_writer::SettingsDebounceWriter>,
 }
 
 impl SharedSettings {
@@ -134,10 +135,6 @@ impl SharedSettings {
             Ok(g) => g.clone(),
             Err(e) => e.into_inner().clone(),
         };
-        let mut merged_g = match self.merged.lock() {
-            Ok(g) => g.clone(),
-            Err(e) => e.into_inner().clone(),
-        };
         let mut draft_g = match self.draft.lock() {
             Ok(g) => g.clone(),
             Err(e) => e.into_inner().clone(),
@@ -147,21 +144,17 @@ impl SharedSettings {
             if let Value::Object(ref mut map) = draft_g {
                 map.insert("sync_filter".to_string(), filter_val);
             }
+            overmax_data::normalize_settings(&mut draft_g);
+            let diff = overmax_data::diff_settings(&base_g, &draft_g);
+
             if let Ok(mut g) = self.draft.lock() {
                 *g = draft_g.clone();
             }
+            if let Ok(mut m) = self.merged.lock() {
+                *m = overmax_data::load_merged_settings(root, (*self.defaults).clone());
+            }
 
-            let root_buf = root.to_path_buf();
-            let defaults = self.defaults.clone();
-            std::thread::spawn(move || {
-                let _ = crate::ui::settings_ui::save_settings_to_disk(
-                    &root_buf,
-                    &defaults,
-                    &base_g,
-                    &mut draft_g,
-                    &mut merged_g,
-                );
-            });
+            self.writer.queue_save(root, diff);
         }
     }
 }
@@ -395,11 +388,15 @@ impl NativeApp {
         filters.insert("[WindowTracker]".to_string(), true);
         filters.insert("[Main]".to_string(), true);
 
+        let settings_writer =
+            Arc::new(crate::system::settings_writer::SettingsDebounceWriter::new());
+
         let settings = SharedSettings {
             defaults: defaults.clone(),
             base: base_settings.clone(),
             merged: merged_settings.clone(),
             draft: settings_draft.clone(),
+            writer: settings_writer,
         };
 
         let ui_state = SharedUiState {
