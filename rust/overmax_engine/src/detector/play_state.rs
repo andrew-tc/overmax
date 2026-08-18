@@ -547,37 +547,6 @@ pub fn detect_max_combo_result(frame: &CapturedFrame, rois: &RoiManager) -> bool
     score_perfect <= 20.0 || score_mc <= 20.0
 }
 
-pub fn resolve_most_plausible_rate(
-    rate_ocr: f32,
-    score_rate: f32,
-    _is_song_select: bool,
-) -> Option<f32> {
-    let score_rate_rounded = (score_rate * 100.0).floor() / 100.0;
-    if (rate_ocr - score_rate_rounded).abs() >= 0.01 {
-        debug_println!(
-            "    [detect] Rate mismatch (Rate OCR: {:.2}%, Score Rate: {:.2}%). Prioritizing Score Rate: {:.2}% (is_song_select: {})",
-            rate_ocr,
-            score_rate,
-            score_rate_rounded,
-            _is_song_select
-        );
-    }
-    Some(score_rate_rounded)
-}
-
-#[allow(dead_code)]
-pub fn get_rate_plausibility(rate: f32) -> i32 {
-    if (90.0..=100.0).contains(&rate) {
-        3
-    } else if (70.0..=90.0).contains(&rate) {
-        2
-    } else if (50.0..=70.0).contains(&rate) {
-        1
-    } else {
-        0
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::{detect_button_mode, rate_inputs_changed, PlayStateDetector, RateInputChecksums};
@@ -665,21 +634,6 @@ mod tests {
                 bgr.write_to_bgra(&mut frame.bgra[idx..idx + 4], 255);
             }
         }
-    }
-
-    #[test]
-    fn test_resolve_most_plausible_rate_prioritizes_score() {
-        use super::resolve_most_plausible_rate;
-        // Rate OCR: 98.85%, Score Rate: 99.85% (from score 998,500)
-        // In both song select and result screen, score rate (99.85%) must be prioritized
-        assert_eq!(resolve_most_plausible_rate(98.85, 99.85, true), Some(99.85));
-        assert_eq!(
-            resolve_most_plausible_rate(98.85, 99.85, false),
-            Some(99.85)
-        );
-
-        // When matching
-        assert_eq!(resolve_most_plausible_rate(99.85, 99.85, true), Some(99.85));
     }
 
     #[test]

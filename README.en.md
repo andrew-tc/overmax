@@ -54,12 +54,12 @@ For supported environments, how to check compatibility, current implementation s
 > * **Borderless fullscreen (windowed fullscreen) is recommended**: to have the overlay window display correctly on top of the game while playing, set the game's display option to **"Borderless Fullscreen"**.
 > * **If using exclusive fullscreen**: running the game in regular **"Fullscreen"** mode causes the overlay to render behind the game instead of on top of it, due to Windows OS and the game's anti-cheat (XIGNCODE3) restrictions. If you must use exclusive fullscreen, drag the overlay window onto a **secondary monitor** in a dual-monitor setup and use it there instead.
 
-> **Note**: the overlay UI is written with Korean as the base language.
+> **Note**: the overlay UI supports multilingual interface (Korean, English, Japanese), which can be switched from the settings window.
 
 ### Settings
 
 - Click the **gear button (⚙)** in the overlay header to open the settings window.
-- From the settings window you can adjust **overlay size (S / M / L / XL)** and **opacity**.
+- From the settings window you can adjust **overlay size (S / M / L / XL)**, **opacity**, and **display language (한국어 / English / 日本語)**.
 - The overlay uses egui's native drag support, so you can smoothly move it anywhere with the mouse; its position is saved automatically.
 - **Lite Mode** can be enabled from the settings window. While Lite Mode is active, accidental drag movement is blocked, and the overlay automatically snaps to and locks onto the configured screen corner (top-left, top-right, bottom-left, bottom-right) without jitter.
 
@@ -77,10 +77,11 @@ cargo build --release -p overmax-app
 
 ### Project structure (Rust)
 
-- `rust/overmax_app`: main application (egui/winit-based UI and event loop)
-- `rust/overmax_core`: core state model and shared logic
-- `rust/overmax_data`: settings, DB (SQLite), V-Archive API integration
-- `rust/overmax_cv`: core image-processing algorithms (Perceptual Hash, histogram, edge detection, template-matching preprocessing, etc.)
+- `rust/overmax_app`: main application (egui/winit-based native multi-viewport UI and event loop)
+- `rust/overmax_engine`: screen capture (DXGI/GDI/X11), detection pipeline, state machines, and telemetry
+- `rust/overmax_core`: core state model and common domain types
+- `rust/overmax_data`: settings, DB (SQLite), recommendation engine, and V-Archive API integration
+- `rust/overmax_cv`: pure-Rust image processing core algorithms (Perceptual Hash, histogram, template-matching engine, etc.)
 
 ### Build & release scripts
 

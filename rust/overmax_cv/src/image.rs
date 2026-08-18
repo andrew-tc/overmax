@@ -58,16 +58,6 @@ pub fn resize_area_f32(src: &[u8], sw: usize, sh: usize, dw: usize, dh: usize) -
     dst
 }
 
-pub fn resize_bilinear_u8(src: &[u8], sw: usize, sh: usize, dw: usize, dh: usize) -> Vec<u8> {
-    let mut dst = vec![0; dw * dh];
-    for y in 0..dh {
-        for x in 0..dw {
-            dst[y * dw + x] = bilinear_pixel(src, sw, sh, dw, dh, x, y);
-        }
-    }
-    dst
-}
-
 fn ahash(gray: &[u8], width: usize, height: usize) -> u64 {
     let resized = resize_area_f32(gray, width, height, 8, 8);
     let mean = resized.iter().sum::<f32>() / resized.len() as f32;
@@ -120,64 +110,6 @@ fn area_pixel(src: &[u8], sw: usize, dx: usize, dy: usize, sx: f32, sy: f32) -> 
 
 fn overlap(start: f32, end: f32, idx: f32) -> f32 {
     end.min(idx + 1.0) - start.max(idx)
-}
-
-struct BilinearCoords {
-    x0: usize,
-    y0: usize,
-    x1: usize,
-    y1: usize,
-    fx: f32,
-    fy: f32,
-}
-
-fn bilinear_pixel(
-    src: &[u8],
-    sw: usize,
-    sh: usize,
-    dw: usize,
-    dh: usize,
-    dx: usize,
-    dy: usize,
-) -> u8 {
-    let sx = (dx as f32 + 0.5) * sw as f32 / dw as f32 - 0.5;
-    let sy = (dy as f32 + 0.5) * sh as f32 / dh as f32 - 0.5;
-    let x0 = sx.floor().max(0.0) as usize;
-    let y0 = sy.floor().max(0.0) as usize;
-    let x1 = (x0 + 1).min(sw - 1);
-    let y1 = (y0 + 1).min(sh - 1);
-    let fx = sx - sx.floor();
-    let fy = sy - sy.floor();
-    interpolate_2d(
-        src,
-        sw,
-        BilinearCoords {
-            x0,
-            y0,
-            x1,
-            y1,
-            fx,
-            fy,
-        },
-    )
-}
-
-fn interpolate_2d(src: &[u8], sw: usize, c: BilinearCoords) -> u8 {
-    let top = lerp(
-        f32::from(src[c.y0 * sw + c.x0]),
-        f32::from(src[c.y0 * sw + c.x1]),
-        c.fx,
-    );
-    let bottom = lerp(
-        f32::from(src[c.y1 * sw + c.x0]),
-        f32::from(src[c.y1 * sw + c.x1]),
-        c.fx,
-    );
-    lerp(top, bottom, c.fy).round().clamp(0.0, 255.0) as u8
-}
-
-fn lerp(a: f32, b: f32, t: f32) -> f32 {
-    a + (b - a) * t
 }
 
 fn dct_2d_32(src: &[f32]) -> Vec<f32> {
@@ -545,14 +477,6 @@ pub fn binarize_by_global_contrast(
         },
         foreground_value,
     )
-}
-
-pub fn diff_panel_threshold(max: u8, min: u8) -> u8 {
-    if max - min > 30 {
-        (min as f32 + (max - min) as f32 * 0.55) as u8
-    } else {
-        120
-    }
 }
 
 pub fn adaptive_threshold_bradley_roth(

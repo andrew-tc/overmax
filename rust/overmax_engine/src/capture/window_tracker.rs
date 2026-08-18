@@ -15,26 +15,6 @@ pub struct WindowSnapshot {
 }
 
 impl WindowRect {
-    #[allow(dead_code)]
-    pub fn abs(self, rx: f32, ry: f32) -> (i32, i32) {
-        (
-            self.left + (self.width as f32 * rx) as i32,
-            self.top + (self.height as f32 * ry) as i32,
-        )
-    }
-
-    #[allow(dead_code)]
-    pub fn abs_rect(self, rx1: f32, ry1: f32, rx2: f32, ry2: f32) -> WindowRect {
-        let (left, top) = self.abs(rx1, ry1);
-        let (right, bottom) = self.abs(rx2, ry2);
-        WindowRect {
-            left,
-            top,
-            width: right - left,
-            height: bottom - top,
-        }
-    }
-
     pub fn is_valid(self) -> bool {
         self.width > 0 && self.height > 0
     }
@@ -55,34 +35,21 @@ mod tests {
     use super::WindowRect;
 
     #[test]
-    fn converts_ratio_points_to_absolute_pixels() {
-        let rect = WindowRect {
+    fn test_window_rect_validity() {
+        let valid_rect = WindowRect {
             left: 100,
             top: 50,
             width: 1920,
             height: 1080,
         };
+        assert!(valid_rect.is_valid());
 
-        assert_eq!(rect.abs(0.5, 0.25), (1060, 320));
-    }
-
-    #[test]
-    fn converts_ratio_rect_to_capture_rect() {
-        let rect = WindowRect {
-            left: 10,
-            top: 20,
-            width: 100,
-            height: 80,
+        let zero_rect = WindowRect {
+            left: 0,
+            top: 0,
+            width: 0,
+            height: 0,
         };
-
-        assert_eq!(
-            rect.abs_rect(0.1, 0.25, 0.6, 0.75),
-            WindowRect {
-                left: 20,
-                top: 40,
-                width: 50,
-                height: 40,
-            }
-        );
+        assert!(!zero_rect.is_valid());
     }
 }
