@@ -37,8 +37,8 @@ Overmax v0.4.0 마일스톤 활성 작업 목록 및 백로그입니다.
 
 ## 3. 이벤트 기반 아키텍처 및 플레이 기록 파이프라인 디커플링 (Event-driven Architecture & Decoupling)
 
-- [ ] **3.1 [Step 1] `overmax_core`에 `VerifiedPlayEvent` 도메인 이벤트 정의**
-  - [ ] `song_id`, `mode`, `diff`, `rate`, `score`, `is_max_combo`, `is_result_screen`을 포함하는 무할당(Zero-Allocation) 이벤트 구조체 정의
+- [x] **3.1 [Step 1] `overmax_core`에 `VerifiedPlayEvent` 도메인 이벤트 정의**
+  - [x] `song_id`, `mode`, `diff`, `rate`, `is_max_combo`, `is_result_screen`을 포함하는 무할당(Zero-Allocation) 이벤트 구조체 정의
 - [ ] **3.2 [Step 2] `PlayStateDetector` 및 `DetectionPipeline` Rising-Edge 1회 방출 로직 구현**
   - [ ] 결과창 체류 중 중복 방출을 막는 세션 래치(`event_emitted_for_session`) 도입
   * [ ] 결과창 진입 ➔ 안정화 완료 시점에 단 1회 `DetectionOutput.event: Option<VerifiedPlayEvent>` 방출 (Zero-Allocation)
