@@ -8,7 +8,7 @@ use crate::capture::frame::CapturedFrame;
 use crate::capture::window_tracker::WindowSnapshot;
 use crate::capture::window_tracker::WindowTracker;
 use crate::detector::detection_pipeline::{DetectionOutput, DetectionPipeline, JacketMatchStatus};
-use overmax_core::{Changed, GameSessionState};
+use overmax_core::GameSessionState;
 use overmax_data::{DataCompatibility, ImageIndexDb, Settings};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
@@ -90,6 +90,17 @@ fn current_timestamp_str() -> String {
     format!("{hours:02}:{minutes:02}:{seconds:02}.{millis:03}")
 }
 
+#[derive(Clone, PartialEq)]
+struct RepaintFingerprint {
+    game_rect: Option<crate::capture::window_tracker::WindowRect>,
+    is_fullscreen: bool,
+    current_song_id: Option<i32>,
+    is_song_select: bool,
+    scene_detected: bool,
+    jacket_status: JacketMatchStatus,
+    capture_fatal: Option<String>,
+}
+
 struct DetectionWorker {
     root: PathBuf,
     telemetry_log_path: PathBuf,
@@ -104,11 +115,7 @@ struct DetectionWorker {
     was_found: bool,
     is_foreground: bool,
     repaint_callback: Box<dyn Fn() + Send + Sync + 'static>,
-    last_song_id: Changed<Option<i32>>,
-    last_is_song_select: Changed<bool>,
-    last_scene_detected: Changed<bool>,
-    last_jacket_status: Changed<JacketMatchStatus>,
-    last_is_fullscreen: Changed<bool>,
+    last_fingerprint: Option<RepaintFingerprint>,
     last_scene_type: overmax_core::SceneType,
     frame_buffer: CapturedFrame,
     window_scheduler: WindowQueryScheduler,
@@ -147,11 +154,7 @@ impl DetectionWorker {
             was_found: false,
             is_foreground: false,
             repaint_callback,
-            last_song_id: Changed::new(None),
-            last_is_song_select: Changed::new(false),
-            last_scene_detected: Changed::new(false),
-            last_jacket_status: Changed::new(JacketMatchStatus::NotSongSelect),
-            last_is_fullscreen: Changed::new(false),
+            last_fingerprint: None,
             last_scene_type: overmax_core::SceneType::Unknown,
             frame_buffer: CapturedFrame {
                 width: 0,
@@ -312,18 +315,20 @@ impl DetectionWorker {
                 self.log_detection_summary(&out);
                 self.check_and_log_scene_transition(&out);
 
-                // IMPORTANT: `.update()` has side effects (mutates cached state).
-                // All five calls must execute before combining — do NOT inline into `||` or allow short-circuit.
-                let jacket_changed = self.last_jacket_status.update(out.jacket_status.clone());
-                let song_changed = self.last_song_id.update(out.current_song_id);
-                let song_select_changed = self.last_is_song_select.update(out.is_song_select);
-                let scene_changed = self.last_scene_detected.update(out.scene_detected);
-                let fullscreen_changed = self.last_is_fullscreen.update(out.state.is_fullscreen);
-                let state_changed = jacket_changed
-                    | song_changed
-                    | song_select_changed
-                    | scene_changed
-                    | fullscreen_changed;
+                let fingerprint = RepaintFingerprint {
+                    game_rect: out.game_rect,
+                    is_fullscreen: out.state.is_fullscreen,
+                    current_song_id: out.current_song_id,
+                    is_song_select: out.is_song_select,
+                    scene_detected: out.scene_detected,
+                    jacket_status: out.jacket_status.clone(),
+                    capture_fatal: out.capture_fatal.clone(),
+                };
+
+                let state_changed = self.last_fingerprint.as_ref() != Some(&fingerprint);
+                if state_changed {
+                    self.last_fingerprint = Some(fingerprint);
+                }
 
                 let _ = self.detection_tx.send(out);
                 if state_changed {
@@ -414,17 +419,20 @@ impl DetectionWorker {
                 out.state.is_fullscreen = snapshot.fullscreen;
                 self.log_detection_summary(&out);
 
-                // IMPORTANT: `.update()` has side effects (mutates cached state).
-                let jacket_changed = self.last_jacket_status.update(out.jacket_status.clone());
-                let song_changed = self.last_song_id.update(out.current_song_id);
-                let song_select_changed = self.last_is_song_select.update(out.is_song_select);
-                let scene_changed = self.last_scene_detected.update(out.scene_detected);
-                let fullscreen_changed = self.last_is_fullscreen.update(out.state.is_fullscreen);
-                let state_changed = jacket_changed
-                    | song_changed
-                    | song_select_changed
-                    | scene_changed
-                    | fullscreen_changed;
+                let fingerprint = RepaintFingerprint {
+                    game_rect: out.game_rect,
+                    is_fullscreen: out.state.is_fullscreen,
+                    current_song_id: out.current_song_id,
+                    is_song_select: out.is_song_select,
+                    scene_detected: out.scene_detected,
+                    jacket_status: out.jacket_status.clone(),
+                    capture_fatal: out.capture_fatal.clone(),
+                };
+
+                let state_changed = self.last_fingerprint.as_ref() != Some(&fingerprint);
+                if state_changed {
+                    self.last_fingerprint = Some(fingerprint);
+                }
 
                 let _ = self.detection_tx.send(out);
                 if state_changed || overlay_snapshot_changed {
@@ -566,6 +574,7 @@ impl DetectionWorker {
                 is_leaving: false,
                 confidence: 0.0,
                 state: GameSessionState::detecting(),
+                event: None,
                 current_song_id: None,
                 image_db_ready: false,
                 jacket_status: JacketMatchStatus::NotSongSelect,
@@ -615,7 +624,11 @@ impl DetectionWorker {
         let capture_settings = self.settings.screen_capture();
         if self.was_found {
             if self.is_foreground {
-                if *self.last_is_song_select || *self.last_scene_detected {
+                let is_active = self
+                    .last_fingerprint
+                    .as_ref()
+                    .is_some_and(|f| f.is_song_select || f.scene_detected);
+                if is_active {
                     Duration::from_millis(capture_settings.active_sleep_ms)
                 } else {
                     Duration::from_millis(1000)

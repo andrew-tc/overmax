@@ -1,23 +1,22 @@
 use overmax_core::SceneType;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RoiRect {
+#[derive(Debug, Clone)]
+pub struct RawRoiRect {
     pub x: i32,
     pub y: i32,
     pub width: i32,
     pub height: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct SceneRoiConfig {
-    pub rois: HashMap<String, RoiRect>,
+    pub rois: HashMap<String, RawRoiRect>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct GlobalRoiConfig {
-    pub logo: RoiRect,
+    pub logo: RawRoiRect,
     pub scenes: HashMap<SceneType, SceneRoiConfig>,
 }
 
@@ -27,7 +26,7 @@ macro_rules! scenes {
         $(
             let mut rois = HashMap::new();
             $(
-                rois.insert($name.to_string(), RoiRect { x: $x, y: $y, width: $w, height: $h });
+                rois.insert($name.to_string(), RawRoiRect { x: $x, y: $y, width: $w, height: $h });
             )*
             map.insert($scene, SceneRoiConfig { rois });
         )*
@@ -98,11 +97,11 @@ impl Default for GlobalRoiConfig {
         );
 
         Self {
-            logo: RoiRect {
-                x: 0,
-                y: 18,
-                width: 340,
-                height: 75,
+            logo: RawRoiRect {
+                x: 10,
+                y: 10,
+                width: 100,
+                height: 100,
             },
             scenes,
         }

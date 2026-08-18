@@ -218,7 +218,13 @@ pub fn save_user_settings(root: impl AsRef<Path>, diff: &Value) -> std::io::Resu
     }
 
     let text = serde_json::to_string_pretty(diff).unwrap_or_else(|_| "{}".to_string());
-    fs::write(&paths.settings_user_json, text)?;
+    let tmp_path = paths.settings_user_json.with_extension("json.tmp");
+    fs::write(&tmp_path, &text)?;
+    if let Err(e) = fs::rename(&tmp_path, &paths.settings_user_json) {
+        // Fallback on Windows if target already exists and atomic rename fails
+        let _ = fs::remove_file(&paths.settings_user_json);
+        fs::rename(&tmp_path, &paths.settings_user_json).map_err(|_| e)?;
+    }
     Ok(())
 }
 

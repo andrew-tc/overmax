@@ -114,6 +114,7 @@ pub struct SharedSettings {
     pub base: Arc<Mutex<Value>>,
     pub merged: Arc<Mutex<Value>>,
     pub draft: Arc<Mutex<Value>>,
+    pub writer: Arc<crate::system::settings_writer::SettingsDebounceWriter>,
 }
 
 impl SharedSettings {
@@ -134,10 +135,6 @@ impl SharedSettings {
             Ok(g) => g.clone(),
             Err(e) => e.into_inner().clone(),
         };
-        let mut merged_g = match self.merged.lock() {
-            Ok(g) => g.clone(),
-            Err(e) => e.into_inner().clone(),
-        };
         let mut draft_g = match self.draft.lock() {
             Ok(g) => g.clone(),
             Err(e) => e.into_inner().clone(),
@@ -147,21 +144,17 @@ impl SharedSettings {
             if let Value::Object(ref mut map) = draft_g {
                 map.insert("sync_filter".to_string(), filter_val);
             }
+            overmax_data::normalize_settings(&mut draft_g);
+            let diff = overmax_data::diff_settings(&base_g, &draft_g);
+
             if let Ok(mut g) = self.draft.lock() {
                 *g = draft_g.clone();
             }
+            if let Ok(mut m) = self.merged.lock() {
+                *m = overmax_data::load_merged_settings(root, (*self.defaults).clone());
+            }
 
-            let root_buf = root.to_path_buf();
-            let defaults = self.defaults.clone();
-            std::thread::spawn(move || {
-                let _ = crate::ui::settings_ui::save_settings_to_disk(
-                    &root_buf,
-                    &defaults,
-                    &base_g,
-                    &mut draft_g,
-                    &mut merged_g,
-                );
-            });
+            self.writer.queue_save(root, diff);
         }
     }
 }
@@ -248,8 +241,6 @@ pub struct NativeApp {
     pub(crate) capture_fatal: Option<String>,
     pub(crate) session: GameSessionState,
     pub(crate) confidence: f32,
-    pub(crate) recorded_states:
-        std::collections::HashMap<overmax_data::RecordKey, overmax_data::RecordValue>,
     pub(crate) sync_channels: SyncWorkerChannels,
     pub(crate) detection_rx: Receiver<DetectionOutput>,
     pub(crate) ui_cmd_rx: Receiver<UiCommand>,
@@ -395,11 +386,15 @@ impl NativeApp {
         filters.insert("[WindowTracker]".to_string(), true);
         filters.insert("[Main]".to_string(), true);
 
+        let settings_writer =
+            Arc::new(crate::system::settings_writer::SettingsDebounceWriter::new());
+
         let settings = SharedSettings {
             defaults: defaults.clone(),
             base: base_settings.clone(),
             merged: merged_settings.clone(),
             draft: settings_draft.clone(),
+            writer: settings_writer,
         };
 
         let ui_state = SharedUiState {
@@ -439,7 +434,6 @@ impl NativeApp {
             capture_fatal: None,
             session: GameSessionState::detecting(),
             confidence: 0.0,
-            recorded_states: std::collections::HashMap::new(),
             sync_channels: SyncWorkerChannels {
                 sync_rx,
                 sync_tx,
@@ -987,14 +981,23 @@ impl NativeApp {
         }
     }
 
-    pub(crate) fn drain_fetch_results(&mut self) {
-        let mut refreshed = false;
+    pub(crate) fn poll_startup_cache(&mut self) {
         if self
             .startup_cache_manager
             .poll_updates(&mut self.varchive_db, &mut self.sheet_meta)
         {
-            refreshed = true;
+            self.on_varchive_db_updated();
         }
+    }
+
+    fn on_varchive_db_updated(&mut self) {
+        self.recommender = Arc::new(self.recommender.with_varchive_db(self.varchive_db.clone()));
+        self.record_manager.refresh();
+        self.refresh_overlay_data();
+    }
+
+    pub(crate) fn drain_fetch_results(&mut self) {
+        let mut refreshed = false;
         while let Ok((v_id, btn, res)) = self.sync_channels.fetch_res_rx.try_recv() {
             match res {
                 Ok(_) => {

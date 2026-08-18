@@ -2806,6 +2806,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "smithay-client-toolkit 0.20.0",
+ "tempfile",
  "wayland-client",
  "wgpu",
  "windows",
@@ -2833,10 +2834,14 @@ dependencies = [
  "overmax-core",
  "overmax_cv",
  "rayon",
+ "reqwest",
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2",
  "strsim",
+ "tempfile",
+ "zip 2.4.2",
 ]
 
 [[package]]

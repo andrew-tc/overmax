@@ -1,7 +1,7 @@
 use crate::capture::frame::CapturedFrame;
 use crate::capture::frame_utils::{crop_roi, ImageView};
+use crate::detector::roi_config::{GlobalRoiConfig, RawRoiRect};
 use overmax_core::{Difficulty, SceneType};
-use overmax_data::{GlobalRoiConfig, RoiRect as DataRoiRect};
 
 const REF_WIDTH: i32 = 1920;
 const REF_HEIGHT: i32 = 1080;
@@ -38,8 +38,8 @@ impl RoiRect {
     }
 }
 
-impl From<DataRoiRect> for RoiRect {
-    fn from(rect: DataRoiRect) -> Self {
+impl From<RawRoiRect> for RoiRect {
+    fn from(rect: RawRoiRect) -> Self {
         Self {
             x1: rect.x,
             y1: rect.y,

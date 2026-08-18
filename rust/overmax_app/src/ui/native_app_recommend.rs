@@ -17,9 +17,6 @@ impl NativeApp {
             }
             self.window_snapshot = output.window_snapshot;
             self.capture_fatal = output.capture_fatal.clone();
-            if !output.is_song_select {
-                self.recorded_states.clear();
-            }
 
             if output.state.scene.is_result() {
                 if let Some(ctx_val) = &output.state.context {
@@ -44,41 +41,17 @@ impl NativeApp {
                 self.session = output.state.clone();
             }
 
-            if output.state.is_valid() {
-                if let Some(ctx_val) = &output.state.context {
-                    if ctx_val.rate >= overmax_engine::detector::play_state::MIN_VALID_RATE {
-                        let key = (ctx_val.song_id, ctx_val.mode, ctx_val.diff);
-                        let should_upsert =
-                            if let Some(&(prev_rate, prev_mc)) = self.recorded_states.get(&key) {
-                                ctx_val.rate > prev_rate || (ctx_val.is_max_combo && !prev_mc)
-                            } else {
-                                true
-                            };
-
-                        if should_upsert {
-                            debug_ui::push_log(
-                                &self.debug_state.log_lines,
-                                self.max_log_lines(),
-                                format!(
-                                    "[Main] 기록 저장: {}, {}, {}, {:.2}%, MaxCombo: {}",
-                                    key.0, key.1, key.2, ctx_val.rate, ctx_val.is_max_combo
-                                ),
-                            );
-                            let is_result = output.is_result;
-                            if self.record_manager.upsert(
-                                key.0,
-                                key.1,
-                                key.2,
-                                ctx_val.rate,
-                                ctx_val.is_max_combo,
-                                is_result,
-                            ) {
-                                self.recorded_states
-                                    .insert(key, (ctx_val.rate, ctx_val.is_max_combo));
-                                changed = true;
-                            }
-                        }
-                    }
+            if let Some(event) = output.event {
+                if self.record_manager.handle_verified_play(&event) {
+                    debug_ui::push_log(
+                        &self.debug_state.log_lines,
+                        self.max_log_lines(),
+                        format!(
+                            "[Main] 기록 갱신: {}, {}, {}, {:.2}%, MaxCombo: {}",
+                            event.song_id, event.mode, event.diff, event.rate, event.is_max_combo
+                        ),
+                    );
+                    changed = true;
                 }
             }
         }

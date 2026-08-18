@@ -217,15 +217,15 @@ mod tests {
         let db_path = make_db("search");
         let conn = create_images_db(&db_path);
         let image = gradient_image();
-        let (phash, dhash, ahash, hog) =
-            overmax_cv::compute_image_features(&image, 8, 8, 1).unwrap();
+        let (phash, dhash, ahash) = overmax_cv::compute_image_hashes(&image, 8, 8, 1).unwrap();
+        let dummy_hog = vec![0.0f32; 1764];
         insert_image_with_features(
             &conn,
             "target",
             &format!("{:016x}", phash),
             &format!("{:016x}", dhash),
             &format!("{:016x}", ahash),
-            &hog,
+            &dummy_hog,
         );
         insert_image(&conn, "other", "ffffffffffffffff", 0.1);
         drop(conn);

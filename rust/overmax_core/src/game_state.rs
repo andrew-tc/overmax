@@ -160,6 +160,22 @@ pub struct PlayContext {
     pub is_max_combo: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct VerifiedPlayEvent {
+    pub song_id: i32,
+    pub mode: Mode,
+    pub diff: Difficulty,
+    pub rate: f32,
+    pub is_max_combo: bool,
+    pub is_result_screen: bool,
+}
+
+impl VerifiedPlayEvent {
+    pub fn record_key(&self) -> RecordKey {
+        (self.song_id, self.mode, self.diff)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct GameSessionState {
     pub scene: SceneType,

@@ -2,7 +2,7 @@ use crate::capture::frame::CapturedFrame;
 use crate::capture::frame_utils::{compute_pixel_checksum, region_mean_bgr};
 use crate::detector::roi::RoiManager;
 use crate::detector::templates;
-use overmax_core::{Changed, Difficulty, GameSessionState, Mode, PlayContext};
+use overmax_core::{Changed, Difficulty, GameSessionState, Mode, PlayContext, VerifiedPlayEvent};
 use std::collections::VecDeque;
 
 pub const MIN_VALID_RATE: f32 = 80.0;
@@ -70,6 +70,7 @@ pub struct PlayStateDetector {
     cache: ModeDiffCache,
     last_song_id: Changed<Option<i32>>,
     result_rate_window: VecDeque<f32>,
+    event_emitted_for_session: bool,
 }
 
 impl PlayStateDetector {
@@ -229,6 +230,7 @@ impl PlayStateDetector {
             cache: ModeDiffCache::new(),
             last_song_id: Changed::new(None),
             result_rate_window: VecDeque::new(),
+            event_emitted_for_session: false,
         }
     }
 
@@ -244,10 +246,12 @@ impl PlayStateDetector {
         // 결과창 진입 시 복구용(result_mode/diff) 캐시는 reset 시에도 보존합니다.
         self.last_song_id.update(None);
         self.result_rate_window.clear();
+        self.event_emitted_for_session = false;
     }
 
     pub fn clear_detected_cache(&mut self) {
         self.cache.clear_result_cache();
+        self.event_emitted_for_session = false;
     }
 
     #[cfg(test)]
@@ -310,7 +314,7 @@ impl PlayStateDetector {
         rois: &RoiManager,
         song_id: Option<i32>,
         now: f64,
-    ) -> GameSessionState {
+    ) -> (GameSessionState, Option<VerifiedPlayEvent>) {
         let scene = rois.current_scene();
         let is_result = scene.is_result();
 
@@ -327,6 +331,7 @@ impl PlayStateDetector {
         } else {
             self.cache.result_mode.update(None);
             self.cache.result_diff.update(None);
+            self.event_emitted_for_session = false;
 
             let (m, d, conf) = self.process_mode_diff_detection(frame, rois, now);
             mode = m;
@@ -377,23 +382,45 @@ impl PlayStateDetector {
         };
         self.push_raw(raw);
 
-        if let Some(stable) = self.stable_raw() {
+        let stable_context = self.stable_raw().map(|s| s.context.clone());
+        if let Some(stable_ctx) = stable_context {
             let state = GameSessionState {
                 scene,
-                context: stable.context.clone(),
+                context: stable_ctx.clone(),
                 is_stable: true,
                 is_fullscreen: false, // will be overwritten/updated by detection worker
             };
             self.last_stable_state = Some(state.clone());
-            return state;
+
+            let mut verified_event = None;
+            if is_result && !self.event_emitted_for_session {
+                if let Some(ctx) = &stable_ctx {
+                    if ctx.rate >= MIN_VALID_RATE {
+                        self.event_emitted_for_session = true;
+                        verified_event = Some(VerifiedPlayEvent {
+                            song_id: ctx.song_id,
+                            mode: ctx.mode,
+                            diff: ctx.diff,
+                            rate: ctx.rate,
+                            is_max_combo: ctx.is_max_combo,
+                            is_result_screen: true,
+                        });
+                    }
+                }
+            }
+
+            return (state, verified_event);
         }
 
-        GameSessionState {
-            scene,
-            context,
-            is_stable: false,
-            is_fullscreen: false,
-        }
+        (
+            GameSessionState {
+                scene,
+                context,
+                is_stable: false,
+                is_fullscreen: false,
+            },
+            None,
+        )
     }
 
     fn push_raw(&mut self, raw: RawPlayState) {
@@ -573,9 +600,9 @@ mod tests {
         let mut rois = RoiManager::new(1920, 1080);
         rois.set_scene(SceneType::Freestyle);
 
-        assert!(!detector.detect(&frame, &rois, Some(7), 1.0).is_stable);
-        assert!(!detector.detect(&frame, &rois, Some(7), 2.0).is_stable);
-        assert!(detector.detect(&frame, &rois, Some(7), 3.0).is_stable);
+        assert!(!detector.detect(&frame, &rois, Some(7), 1.0).0.is_stable);
+        assert!(!detector.detect(&frame, &rois, Some(7), 2.0).0.is_stable);
+        assert!(detector.detect(&frame, &rois, Some(7), 3.0).0.is_stable);
     }
 
     #[test]
@@ -588,8 +615,9 @@ mod tests {
         rois.set_scene(SceneType::ResultFreestyle);
 
         // 결과창에서 mode_digit/diff_panel ROI가 없어 인식에 실패하면 None이어야 함
-        let state = detector.detect(&frame, &rois, Some(7), 1.0);
+        let (state, event) = detector.detect(&frame, &rois, Some(7), 1.0);
         assert!(state.context.is_none());
+        assert!(event.is_none());
     }
 
     #[test]
@@ -601,12 +629,12 @@ mod tests {
         let mut rois = RoiManager::new(1920, 1080);
         rois.set_scene(SceneType::Freestyle);
 
-        let state1 = detector.detect(&frame, &rois, Some(1), 1.0);
+        let (state1, _) = detector.detect(&frame, &rois, Some(1), 1.0);
         assert_eq!(detector.last_mode_diff_detection_ts, 1.0);
         assert!(detector.last_mode_diff_checksums.is_some());
 
         // 동일 프레임에서 시간만 지나도 체크섬이 안 바뀌면 timestamp가 1.0으로 유지됨 (재계산 스킵)
-        let state2 = detector.detect(&frame, &rois, Some(1), 2.0);
+        let (state2, _) = detector.detect(&frame, &rois, Some(1), 2.0);
         assert_eq!(detector.last_mode_diff_detection_ts, 1.0);
         assert_eq!(
             state1.context.as_ref().map(|c| c.mode),
@@ -615,7 +643,7 @@ mod tests {
 
         // 난이도 카드 하이라이트 변경 -> checksum 변경으로 3.0s 시점에 갱신됨
         paint_rect(&mut frame, 218, 488, 328, 516, Bgr::from_rgb_hex(0xFFFFFF));
-        let _state3 = detector.detect(&frame, &rois, Some(1), 3.0);
+        let (_state3, _) = detector.detect(&frame, &rois, Some(1), 3.0);
         assert_eq!(detector.last_mode_diff_detection_ts, 3.0);
     }
 
@@ -648,5 +676,85 @@ mod tests {
             Some(previous),
             RateInputChecksums { score: 2_051 }
         ));
+    }
+
+    #[test]
+    fn test_verified_play_event_emits_once_per_result_session() {
+        let mut detector = PlayStateDetector::new(3);
+        detector.cache.result_mode.update(Some(super::Mode::B4));
+        detector
+            .cache
+            .result_diff
+            .update(Some(super::Difficulty::NM));
+        detector.last_rate_result = Some(99.5); // MIN_VALID_RATE (80.0) 이상
+
+        let frame = blank_frame();
+        let mut rois = RoiManager::new(1920, 1080);
+        rois.set_scene(SceneType::ResultFreestyle);
+
+        // Frame 1: Detecting (History 1/3) -> Event None
+        let (state1, event1) = detector.detect(&frame, &rois, Some(10), 1.0);
+        assert!(!state1.is_stable);
+        assert!(event1.is_none());
+
+        // Frame 2: Detecting (History 2/3) -> Event None
+        let (state2, event2) = detector.detect(&frame, &rois, Some(10), 1.1);
+        assert!(!state2.is_stable);
+        assert!(event2.is_none());
+
+        // Frame 3: Stable 확정 (History 3/3) -> Event 단 1회 방출!
+        let (state3, event3) = detector.detect(&frame, &rois, Some(10), 1.2);
+        assert!(state3.is_stable);
+        assert!(event3.is_some());
+        let event = event3.unwrap();
+        assert_eq!(event.song_id, 10);
+        assert_eq!(event.mode, super::Mode::B4);
+        assert_eq!(event.diff, super::Difficulty::NM);
+        assert_eq!(event.rate, 99.5);
+        assert!(event.is_result_screen);
+
+        // Frame 4: 결과창 체류 지속 -> Event 중복 방출 0회 (None)
+        let (state4, event4) = detector.detect(&frame, &rois, Some(10), 1.3);
+        assert!(state4.is_stable);
+        assert!(
+            event4.is_none(),
+            "결과창 체류 중 중복 이벤트가 방출되면 안 됨"
+        );
+
+        // Frame 5: 결과창 체류 지속 -> Event 중복 방출 0회 (None)
+        let (state5, event5) = detector.detect(&frame, &rois, Some(10), 1.4);
+        assert!(state5.is_stable);
+        assert!(event5.is_none());
+
+        // 선곡 화면으로 복귀 -> 래치 자동 리셋
+        rois.set_scene(SceneType::Freestyle);
+        detector.clear_detected_cache();
+        let (state_select, event_select) = detector.detect(&frame, &rois, Some(10), 2.0);
+        assert!(event_select.is_none());
+        assert!(!state_select.scene.is_result());
+
+        // 다음 곡 플레이 후 새 결과창 진입
+        rois.set_scene(SceneType::ResultFreestyle);
+        detector.cache.result_mode.update(Some(super::Mode::B6));
+        detector
+            .cache
+            .result_diff
+            .update(Some(super::Difficulty::HD));
+        detector.last_rate_result = Some(98.0);
+
+        let _ = detector.detect(&frame, &rois, Some(20), 3.0);
+        let _ = detector.detect(&frame, &rois, Some(20), 3.1);
+        let (state_new_res, event_new_res) = detector.detect(&frame, &rois, Some(20), 3.2);
+
+        assert!(state_new_res.is_stable);
+        assert!(
+            event_new_res.is_some(),
+            "새 결과창 진입 시 래치가 리셋되어 새 이벤트가 방출되어야 함"
+        );
+        let new_event = event_new_res.unwrap();
+        assert_eq!(new_event.song_id, 20);
+        assert_eq!(new_event.mode, super::Mode::B6);
+        assert_eq!(new_event.diff, super::Difficulty::HD);
+        assert_eq!(new_event.rate, 98.0);
     }
 }
