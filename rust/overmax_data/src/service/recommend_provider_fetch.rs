@@ -1,10 +1,12 @@
 //! Recommendation Provider Fetcher — network requests for external recommendation sources.
 
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use std::time::Duration;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
-use overmax_data::{RecommendContext, VaryDim};
+use crate::service::recommend::{RecommendContext, VaryDim};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -71,10 +73,6 @@ pub fn test_provider_connection_blocking(provider_url: &str) -> Result<ProviderM
 
     Ok(manifest)
 }
-
-use std::collections::HashMap;
-use std::sync::Mutex;
-use std::time::Instant;
 
 static MANIFEST_CACHE: Mutex<Option<HashMap<String, (ProviderManifest, Instant)>>> =
     Mutex::new(None);

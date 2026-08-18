@@ -1,7 +1,6 @@
-//! V-Archive score registration — mirrors `data/varchive_uploader.py`.
+//! V-Archive score registration & API queries.
 
 use std::path::Path;
-
 use overmax_core::{Difficulty, Mode};
 
 const BASE_URL: &str = "https://v-archive.net/client/open/{user_no}/score";
