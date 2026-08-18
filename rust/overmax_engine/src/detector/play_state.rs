@@ -2,9 +2,7 @@ use crate::capture::frame::CapturedFrame;
 use crate::capture::frame_utils::{compute_pixel_checksum, region_mean_bgr};
 use crate::detector::roi::RoiManager;
 use crate::detector::templates;
-use overmax_core::{
-    Changed, Difficulty, GameSessionState, Mode, PlayContext, VerifiedPlayEvent,
-};
+use overmax_core::{Changed, Difficulty, GameSessionState, Mode, PlayContext, VerifiedPlayEvent};
 use std::collections::VecDeque;
 
 pub const MIN_VALID_RATE: f32 = 80.0;
@@ -678,5 +676,85 @@ mod tests {
             Some(previous),
             RateInputChecksums { score: 2_051 }
         ));
+    }
+
+    #[test]
+    fn test_verified_play_event_emits_once_per_result_session() {
+        let mut detector = PlayStateDetector::new(3);
+        detector.cache.result_mode.update(Some(super::Mode::B4));
+        detector
+            .cache
+            .result_diff
+            .update(Some(super::Difficulty::NM));
+        detector.last_rate_result = Some(99.5); // MIN_VALID_RATE (80.0) 이상
+
+        let frame = blank_frame();
+        let mut rois = RoiManager::new(1920, 1080);
+        rois.set_scene(SceneType::ResultFreestyle);
+
+        // Frame 1: Detecting (History 1/3) -> Event None
+        let (state1, event1) = detector.detect(&frame, &rois, Some(10), 1.0);
+        assert!(!state1.is_stable);
+        assert!(event1.is_none());
+
+        // Frame 2: Detecting (History 2/3) -> Event None
+        let (state2, event2) = detector.detect(&frame, &rois, Some(10), 1.1);
+        assert!(!state2.is_stable);
+        assert!(event2.is_none());
+
+        // Frame 3: Stable 확정 (History 3/3) -> Event 단 1회 방출!
+        let (state3, event3) = detector.detect(&frame, &rois, Some(10), 1.2);
+        assert!(state3.is_stable);
+        assert!(event3.is_some());
+        let event = event3.unwrap();
+        assert_eq!(event.song_id, 10);
+        assert_eq!(event.mode, super::Mode::B4);
+        assert_eq!(event.diff, super::Difficulty::NM);
+        assert_eq!(event.rate, 99.5);
+        assert!(event.is_result_screen);
+
+        // Frame 4: 결과창 체류 지속 -> Event 중복 방출 0회 (None)
+        let (state4, event4) = detector.detect(&frame, &rois, Some(10), 1.3);
+        assert!(state4.is_stable);
+        assert!(
+            event4.is_none(),
+            "결과창 체류 중 중복 이벤트가 방출되면 안 됨"
+        );
+
+        // Frame 5: 결과창 체류 지속 -> Event 중복 방출 0회 (None)
+        let (state5, event5) = detector.detect(&frame, &rois, Some(10), 1.4);
+        assert!(state5.is_stable);
+        assert!(event5.is_none());
+
+        // 선곡 화면으로 복귀 -> 래치 자동 리셋
+        rois.set_scene(SceneType::Freestyle);
+        detector.clear_detected_cache();
+        let (state_select, event_select) = detector.detect(&frame, &rois, Some(10), 2.0);
+        assert!(event_select.is_none());
+        assert!(!state_select.scene.is_result());
+
+        // 다음 곡 플레이 후 새 결과창 진입
+        rois.set_scene(SceneType::ResultFreestyle);
+        detector.cache.result_mode.update(Some(super::Mode::B6));
+        detector
+            .cache
+            .result_diff
+            .update(Some(super::Difficulty::HD));
+        detector.last_rate_result = Some(98.0);
+
+        let _ = detector.detect(&frame, &rois, Some(20), 3.0);
+        let _ = detector.detect(&frame, &rois, Some(20), 3.1);
+        let (state_new_res, event_new_res) = detector.detect(&frame, &rois, Some(20), 3.2);
+
+        assert!(state_new_res.is_stable);
+        assert!(
+            event_new_res.is_some(),
+            "새 결과창 진입 시 래치가 리셋되어 새 이벤트가 방출되어야 함"
+        );
+        let new_event = event_new_res.unwrap();
+        assert_eq!(new_event.song_id, 20);
+        assert_eq!(new_event.mode, super::Mode::B6);
+        assert_eq!(new_event.diff, super::Difficulty::HD);
+        assert_eq!(new_event.rate, 98.0);
     }
 }
