@@ -55,7 +55,8 @@ OS별 구동 가이드 및 외부 연동 프로토콜 규격을 보관합니다.
 * **캡처 & 시스템 최적화**:
   * [`2026-06-05-overlay-fullscreen-technical-analysis.md`](plans/2026-06-05-overlay-fullscreen-technical-analysis.md): 전체화면 오버레이 기술 분석.
   * [`2026-05-24-cpu-optimization-message-pump.md`](plans/2026-05-24-cpu-optimization-message-pump.md) / [`review.md`](plans/2026-05-24-cpu-optimization-message-pump-review.md): 메시지 펌프 CPU 최적화 분석.
-* **데이터 & 기능 기획**:
+* **데이터 & 아키텍처 안정성**:
+  * [`2026-08-18-architecture-robustness-plan.md`](plans/2026-08-18-architecture-robustness-plan.md): SQLite 동시성 가드, 설정 I/O 큐, 캐시 전파 및 Repaint 스케줄링 계획.
   * [`2026-07-16-varchive-db-cache-design.md`](plans/2026-07-16-varchive-db-cache-design.md): V-Archive SQLite DB 캐시 설계.
   * [`2026-07-10-recommend-provider-protocol-design.md`](plans/2026-07-10-recommend-provider-protocol-design.md): 추천 제공자 인터페이스 및 프로토콜 설계.
   * [`2026-06-16-daily-missions-and-grid-ideas.md`](plans/2026-06-16-daily-missions-and-grid-ideas.md): 일일 미션 및 그리드 아이디어.
