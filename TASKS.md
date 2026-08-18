@@ -43,8 +43,8 @@ Overmax v0.4.0 마일스톤 활성 작업 목록 및 백로그입니다.
   - [x] 결과창 체류 중 중복 방출을 막는 세션 래치(`event_emitted_for_session`) 도입
   - [x] 결과창 진입 ➔ 안정화 완료 시점에 단 1회 `DetectionOutput.event: Option<VerifiedPlayEvent>` 방출 (Zero-Allocation)
   - [x] 선곡/인게임 전환 시 래치 자동 리셋
-- [ ] **3.3 [Step 3] `overmax_app` UI 레이어 이벤트 핸들러 전환**
-  - [ ] `native_app_recommend.rs`의 원시 상태 조건 검사(`is_valid`, `rate >= MIN_VALID_RATE`, `recorded_states`) 코드를 제거하고 `output.event` 수신 시 `record_manager.upsert` 호출로 간결화
+- [x] **3.3 [Step 3] `overmax_app` UI 레이어 이벤트 핸들러 전환**
+  - [x] `native_app_recommend.rs`의 원시 상태 조건 검사(`is_valid`, `rate >= MIN_VALID_RATE`, `recorded_states`) 코드를 제거하고 `output.event` 수신 시 `record_manager.upsert` 호출로 간결화
 - [ ] **3.4 [Step 4] 다중 프레임 체류 및 상태 전환 시 중복/누락 방지 검증**
   - [ ] 결과창 장시간 체류 시 이벤트 1회 방출 및 선곡 화면 복귀 시 안전성 단위 테스트 추가
 
