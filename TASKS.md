@@ -135,5 +135,22 @@ Overmax의 차기 마일스톤(v0.4.0)을 위한 작업 목록 및 백로그입�
   - [x] DB 내 자켓 4x4 히스토그램 대표 중심점(Centroid) 및 허용 반경(Radius) 사전 계산을 통해, 비자켓 노이즈 이미지 입력 시 600+ 곡 전체 DB SoA 매칭 순회 전 0.001ms 만에 Early-Exit 하는 초고속 사전 게이트 적용
   - [x] 1차 초고속 Centroid Kernel Gate 전면 배치: 더 가벼운 Centroid Kernel Gate를 게이트 평가 1차 순서로 전면 배치하여 비자켓 프레임 유입 시 숏서킷 효율 극대화 및 파이프라인 정돈 완료
 
+## 10. 아키텍처 안정성 및 경계 정돈 (Architecture Robustness & Boundaries)
+
+- [ ] **10.1 SQLite 다중 스레드 동시성 가드 (`SQLITE_BUSY` 방지)**
+  - [ ] `record.db` 연결 시 `PRAGMA journal_mode=WAL;` 및 `busy_timeout` (5000ms) 설정 강제
+  - [ ] 디텍션 워커의 플레이 기록 `upsert` 시 `SQLITE_BUSY` 재시도(Retry with backoff) 가드 추가로 플레이 기록 유실 원천 차단
+- [ ] **10.2 설정(`SharedSettings`) 동기화 안전성 강화 및 I/O 큐 분리**
+  - [ ] `serde_json::Value` 뮤텍스 락 경합 해소를 위한 정적 Typed Config 구조체 기반 스냅샷 읽기 적용
+  - [ ] UI 슬라이더 조작 시 무차별 `std::thread::spawn` 호출을 방지하는 단일 백그라운드 설정 저장 큐(Debounce Worker) 구축
+- [ ] **10.3 `StartupCacheManager` 캐시 갱신 전파 일원화 (Stale Reference 해소)**
+  - [ ] 백그라운드 `songs.json` 갱신 시 `NativeApp`의 `varchive_db`뿐만 아니라 `Recommender` 내부 캐시 포인터도 함께 갱신하도록 Refresh 파이프라인 일원화
+- [ ] **10.4 디텍션 워커 틱과 egui Repaint 스케줄링 최적화**
+  - [ ] 정적 화면(화면 변화 없음)에서 매 틱마다 `ctx.request_repaint()`가 호출되어 발생하는 불필요한 GPU/CPU 렌더링 낭비 방지
+  - [ ] `DetectionOutput`이 이전 프레임 대비 실질적으로 변경되었거나 창 위치가 이동했을 때만 Repaint를 요청하는 Throttle/Gate 적용
+- [ ] **10.5 `overmax_engine`과 `overmax_data` 계층 결합도 완화 (장기)**
+  - [ ] `DetectionPipeline` 내부의 SQLite 직접 `upsert` 의존성을 제거하고, 엔진은 `VerifiedPlayEvent` 방출만 담당하도록 책임 분리
+
+
 
 
