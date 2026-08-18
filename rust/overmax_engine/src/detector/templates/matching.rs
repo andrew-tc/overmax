@@ -28,11 +28,11 @@ impl fmt::Debug for RateTelemetry {
 }
 
 /// Rate 영역을 Pure Rust CV 템플릿 매칭으로 감지합니다.
-pub fn detect_rate(rate: &ImageView) -> (Option<f32>, String, Option<RateTelemetry>) {
+pub fn detect_rate(rate: &ImageView) -> (Option<f32>, Option<RateTelemetry>) {
     let cv_templates = get_digit_templates(super::digit::DIGIT_TEMPLATES_RATE);
     let matched = match match_digits_template(rate, &cv_templates) {
         Ok(m) => m,
-        Err(_) => return (None, String::new(), None),
+        Err(_) => return (None, None),
     };
     let (matched_str, binary, threshold, max_y) = matched;
 
@@ -43,7 +43,7 @@ pub fn detect_rate(rate: &ImageView) -> (Option<f32>, String, Option<RateTelemet
 
     if let Some(val) = rate_val {
         let telemetry = RateTelemetry {
-            rate_text: matched_str.clone(),
+            rate_text: matched_str,
             threshold,
             bg_mean: max_y as f32,
             use_invert: false,
@@ -51,35 +51,58 @@ pub fn detect_rate(rate: &ImageView) -> (Option<f32>, String, Option<RateTelemet
             image_width: rate.width,
             image_height: rate.height,
         };
-        (Some(val), matched_str, Some(telemetry))
+        (Some(val), Some(telemetry))
     } else {
-        (None, String::new(), None)
+        (None, None)
     }
 }
 
-/// Score 영역을 템플릿 매칭을 통해 정수로 파싱합니다.
+/// Score 영역을 템플릿 매칭을 통해 정수로 직접 누적하여 파싱합니다 (Zero String Allocation).
 pub fn detect_score(score: &ImageView) -> Option<u32> {
+    let w = score.width;
+    let h = score.height;
+    if w * h == 0 {
+        return None;
+    }
+
+    let region = score.to_image_region();
+    let (binary, _, _) = overmax_cv::binarize_by_global_contrast(
+        &region.bgra,
+        w,
+        h,
+        overmax_cv::LumaMethod::Average,
+        255,
+    )
+    .ok()?;
+
+    let segments = overmax_cv::segment_characters(&binary, w, h).ok()?;
+    if segments.len() != 6 && segments.len() != 7 {
+        return None;
+    }
+
     let cv_templates = get_digit_templates(super::digit::DIGIT_TEMPLATES_SCORE);
-    match match_digits_template(score, &cv_templates) {
-        Ok((matched_str, _, _, _)) => {
-            let parsed = parse_score_text(&matched_str);
-            if parsed.is_none() || matched_str.contains('?') {
-                println!(
-                    "      [Debug Score] Template matching failed/invalid. Matched String: '{}', Parsed: {:?}",
-                    matched_str, parsed
-                );
-                None
-            } else {
-                parsed
+    let mut score_val = 0u32;
+    let mut char_bin = Vec::with_capacity(32 * h);
+
+    for &(x1, x2) in &segments {
+        let char_w = x2 - x1;
+        let char_h = h;
+        char_bin.resize(char_w * char_h, 0);
+        for y in 0..char_h {
+            for x in 0..char_w {
+                char_bin[y * char_w + x] = binary[y * w + (x1 + x)];
             }
         }
-        Err(e) => {
-            println!(
-                "      [Debug Score] match_digits_template failed with error: {}",
-                e
-            );
-            None
-        }
+
+        let matched = overmax_cv::match_character(&char_bin, char_w, char_h, &cv_templates).ok()??;
+        let digit = matched.0.to_digit(10)?;
+        score_val = score_val * 10 + digit;
+    }
+
+    if score_val <= 1_000_000 {
+        Some(score_val)
+    } else {
+        None
     }
 }
 
@@ -344,17 +367,6 @@ fn match_best_template<T: Copy + std::fmt::Display>(
     best_val
 }
 
-fn parse_score_text(text: &str) -> Option<u32> {
-    let clean = text
-        .chars()
-        .filter(|c| c.is_ascii_digit())
-        .collect::<String>();
-    if clean.len() != 6 && clean.len() != 7 {
-        return None;
-    }
-    clean.parse::<u32>().ok()
-}
-
 fn parse_rate_text(text: &str) -> Option<f32> {
     let mut cleaned = String::new();
     let mut dot_seen = false;
@@ -381,14 +393,7 @@ fn parse_rate_text(text: &str) -> Option<f32> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_rate_text, parse_score_text};
-
-    #[test]
-    fn parses_score_text_correctly() {
-        assert_eq!(parse_score_text("999,800"), Some(999800));
-        assert_eq!(parse_score_text("1,000,000"), Some(1000000));
-        assert_eq!(parse_score_text("abc"), None);
-    }
+    use super::parse_rate_text;
 
     #[test]
     fn parses_rate_text_like_python_path() {

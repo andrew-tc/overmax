@@ -62,7 +62,7 @@ pub struct PlayStateDetector {
     history: VecDeque<Option<RawPlayState>>,
     last_stable_state: Option<GameSessionState>,
     last_rate_checksums: Option<RateInputChecksums>,
-    last_rate_result: (Option<f32>, String, Option<RateTelemetry>),
+    last_rate_result: (Option<f32>, Option<RateTelemetry>),
     last_rate_detection_ts: f64,
     last_mode_diff_checksums: Option<ModeDiffChecksums>,
     last_mode_diff_result: Option<(Option<Mode>, Option<Difficulty>, bool)>,
@@ -134,10 +134,7 @@ impl PlayStateDetector {
                             calc_rate
                         );
 
-                        self.apply_rate_detection_result(
-                            is_result,
-                            (Some(calc_rate), format!("{score_val}"), None),
-                        );
+                        self.apply_rate_detection_result(is_result, (Some(calc_rate), None));
                     }
                 } else if let Some(rate_res) =
                     rois.and_then_roi(frame, "rate", |img| Some(templates::detect_rate(img)))
@@ -150,14 +147,14 @@ impl PlayStateDetector {
         }
 
         let rate = self.last_rate_result.0.unwrap_or(0.0);
-        let telemetry = self.last_rate_result.2.clone();
+        let telemetry = self.last_rate_result.1.clone();
         (rate, telemetry)
     }
 
     fn apply_rate_detection_result(
         &mut self,
         is_result: bool,
-        mut res: (Option<f32>, String, Option<RateTelemetry>),
+        mut res: (Option<f32>, Option<RateTelemetry>),
     ) {
         if is_result {
             if let Some(new_r) = res.0 {
@@ -230,7 +227,7 @@ impl PlayStateDetector {
             history: VecDeque::new(),
             last_stable_state: None,
             last_rate_checksums: None,
-            last_rate_result: (None, String::new(), None),
+            last_rate_result: (None, None),
             last_rate_detection_ts: 0.0,
             last_mode_diff_checksums: None,
             last_mode_diff_result: None,
@@ -245,7 +242,7 @@ impl PlayStateDetector {
         self.history.clear();
         self.last_stable_state = None;
         self.last_rate_checksums = None;
-        self.last_rate_result = (None, String::new(), None);
+        self.last_rate_result = (None, None);
         self.last_rate_detection_ts = 0.0;
         self.last_mode_diff_checksums = None;
         self.last_mode_diff_result = None;
