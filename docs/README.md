@@ -34,8 +34,7 @@ Overmax 프로젝트의 설계 문서, 아키텍처 다이어그램, 의사결�
 ### 3. Guides & Specifications (`docs/guides/`)
 OS별 구동 가이드 및 외부 연동 프로토콜 규격을 보관합니다.
 * [`linux-support.md`](guides/linux-support.md) / [`linux-support.en.md`](guides/linux-support.en.md): Linux 환경 빌드 및 실행 가이드 (한/영).
-* [`overmax-recommend-protocol-v1.md`](guides/overmax-recommend-protocol-v1.md): 외부 추천 엔진 연동 프로토콜 v1 규격.
-* [`2026-07-10-recommend-provider-protocol.md`](guides/2026-07-10-recommend-provider-protocol.md): 추천 제공자 인터페이스 설계 규격.
+* [`recommend-provider-protocol.md`](guides/recommend-provider-protocol.md): 외부 추천 엔진 연동 프로토콜 v1 규격.
 
 ### 4. Plans & RFCs (`docs/plans/`)
 과거 및 진행 중인 기술 기획서, 분석 보고서, 실험 결과를 보존합니다.
@@ -54,6 +53,7 @@ OS별 구동 가이드 및 외부 연동 프로토콜 규격을 보관합니다.
   * [`2026-05-24-cpu-optimization-message-pump.md`](plans/2026-05-24-cpu-optimization-message-pump.md) / [`review.md`](plans/2026-05-24-cpu-optimization-message-pump-review.md): 메시지 펌프 CPU 최적화 분석.
 * **데이터 & 기능 기획**:
   * [`2026-07-16-varchive-db-cache-design.md`](plans/2026-07-16-varchive-db-cache-design.md): V-Archive SQLite DB 캐시 설계.
+  * [`2026-07-10-recommend-provider-protocol-design.md`](plans/2026-07-10-recommend-provider-protocol-design.md): 추천 제공자 인터페이스 및 프로토콜 설계.
   * [`2026-06-16-daily-missions-and-grid-ideas.md`](plans/2026-06-16-daily-missions-and-grid-ideas.md): 일일 미션 및 그리드 아이디어.
   * [`2026-06-16-result-screen-auto-capture-idea.md`](plans/2026-06-16-result-screen-auto-capture-idea.md): 결과창 자동 캡처 아이디어.
   * [`2026-06-05-result-screen-and-ladder-ban-analysis.md`](plans/2026-06-05-result-screen-and-ladder-ban-analysis.md): 결과창 및 래더 밴픽 분석.
