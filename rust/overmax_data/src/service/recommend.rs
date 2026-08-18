@@ -155,7 +155,7 @@ impl FloorRateSummary {
 
 pub struct LocalFloorRecommender {
     vdb: Arc<VArchiveDB>,
-    rdb: Arc<RecordManager>,
+    pub(crate) rdb: Arc<RecordManager>,
     floor_rate_cache: Mutex<HashMap<FloorCacheKey, FloorRateSummary>>,
     floor_rate_dirty: Mutex<HashMap<FloorCacheKey, bool>>,
     floor_patterns: Mutex<HashMap<FloorCacheKey, Vec<RecordKey>>>,
@@ -820,6 +820,15 @@ impl CompositeRecommender {
         self
     }
 
+    /// Re-binds the recommender with a newly updated VArchiveDB while preserving
+    /// existing providers and record manager references.
+    pub fn with_varchive_db(&self, new_vdb: Arc<VArchiveDB>) -> Self {
+        Self {
+            local: Arc::new(LocalFloorRecommender::new(new_vdb, self.local.rdb.clone())),
+            provider: self.provider.clone(),
+        }
+    }
+
     pub fn local(&self) -> &Arc<LocalFloorRecommender> {
         &self.local
     }
@@ -999,6 +1008,40 @@ mod tests {
         assert_eq!(bundle.entries[0].song_id, 10);
         assert_eq!(bundle.entries[0].button_mode, Mode::B4);
         assert_eq!(bundle.entries[0].difficulty, Difficulty::SC);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_composite_recommender_with_varchive_db_preserves_provider() {
+        let vdb1 = Arc::new(VArchiveDB::new());
+        let vdb2 = Arc::new(VArchiveDB::new());
+        let temp_dir = std::env::temp_dir().join(format!("rec_test_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&temp_dir);
+
+        let record_db = Arc::new(crate::store::record_db::RecordDB::new(
+            temp_dir.join("rec.db"),
+            None,
+        ));
+        let rdb = Arc::new(RecordManager::new(record_db));
+
+        let reader = ProviderCacheReader::new(
+            "custom_source",
+            "Custom Source",
+            &temp_dir,
+            vec![],
+            Duration::from_secs(60),
+        );
+
+        let recommender = CompositeRecommender::new(vdb1, rdb).with_provider(reader);
+        assert!(recommender.provider.is_some());
+
+        let rebound = recommender.with_varchive_db(vdb2);
+        assert!(rebound.provider.is_some());
+        assert_eq!(
+            rebound.provider.as_ref().unwrap().source_id(),
+            "custom_source"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

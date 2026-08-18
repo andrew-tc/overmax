@@ -984,14 +984,23 @@ impl NativeApp {
         }
     }
 
-    pub(crate) fn drain_fetch_results(&mut self) {
-        let mut refreshed = false;
+    pub(crate) fn poll_startup_cache(&mut self) {
         if self
             .startup_cache_manager
             .poll_updates(&mut self.varchive_db, &mut self.sheet_meta)
         {
-            refreshed = true;
+            self.on_varchive_db_updated();
         }
+    }
+
+    fn on_varchive_db_updated(&mut self) {
+        self.recommender = Arc::new(self.recommender.with_varchive_db(self.varchive_db.clone()));
+        self.record_manager.refresh();
+        self.refresh_overlay_data();
+    }
+
+    pub(crate) fn drain_fetch_results(&mut self) {
+        let mut refreshed = false;
         while let Ok((v_id, btn, res)) = self.sync_channels.fetch_res_rx.try_recv() {
             match res {
                 Ok(_) => {

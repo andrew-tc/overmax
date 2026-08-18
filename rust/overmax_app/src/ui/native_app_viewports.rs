@@ -650,6 +650,7 @@ impl NativeApp {
         self.poll_scan_requests(ctx);
         self.poll_upload_requests(ctx);
         self.poll_fetch_requests(ctx);
+        self.poll_startup_cache();
         self.drain_sync_scan();
         self.drain_upload_results();
         self.drain_fetch_results();
