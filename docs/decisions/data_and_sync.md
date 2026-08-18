@@ -21,3 +21,6 @@ SQLite 로컬 저장소, V-Archive 동기화, 캐시 관리(`StartupCacheManager
 | 2026-08-12 | VArchiveDB title_map을 인덱스 기반으로 전환 | 실측 결과 build_index()가 RSS를 1,940KB (88.5%) 증가시킴을 확인하고 `HashMap<String, Vec<usize>>`로 전환하여 100% 절감 | [client.rs](../../rust/overmax_data/src/community/client.rs) |
 | 2026-08-12 | RecordDB get_rate_map 스레드 로컬 커넥션 캐싱 도입 | 매 호출 Connection::open으로 인한 읽기 지연시간(1.09ms)을 thread_local 커넥션 재사용으로 0.20ms(81.7% 감소)로 축소 | [record_db.rs](../../rust/overmax_data/src/store/record_db.rs) |
 | 2026-08-15 | `StartupCacheManager` 캡슐화 모듈 도입 | 앱 기동 시 24시간 TTL 만료 캐시 다운로드로 인한 동기 메인 스레드 멈춤 현상을 100% 제거하고, 필수 캐시 부재 시 Cold Start(동기), 정상 존재 시 Warm Start(Non-blocking 비동기 + Arc Swap)로 캡슐화하여 0.1초 즉시 부팅 구현 | [cache_update.rs](../../rust/overmax_app/src/system/cache_update.rs) / [native_app.rs](../../rust/overmax_app/src/ui/native_app.rs) |
+| 2026-08-18 | RecordDB SQLite WAL 모드 & busy_timeout 5000ms 강제 및 with_retry 가드 도입 | 다중 스레드 동시 쓰기(V-Archive 동기화 + 인게임 결과창 저장) 시 발생하는 `SQLITE_BUSY` 락 충돌 및 기록 유실을 방지하기 위해 WAL 모드 강제 및 지수 백오프 재시도 가드 적용 | [record_db.rs](../../rust/overmax_data/src/store/record_db.rs) |
+| 2026-08-18 | SettingsDebounceWriter 및 원자적 파일 교체 도입 | UI 슬라이더 조작 시 매번 스레드를 띄우는 I/O 레이스를 방지하기 위해 100ms 디바운스 백그라운드 큐 구축 및 임시 파일 기반 atomic rename 적용 | [settings_writer.rs](../../rust/overmax_app/src/system/settings_writer.rs) / [settings.rs](../../rust/overmax_data/src/config/settings.rs) |
+
