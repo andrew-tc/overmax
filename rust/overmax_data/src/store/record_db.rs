@@ -58,7 +58,7 @@ impl RecordDB {
             let _ = fs::create_dir_all(parent);
         }
 
-        let conn_result = Connection::open(&self.db_path);
+        let conn_result = self.open_conn();
         if let Ok(mut conn) = conn_result {
             if self.create_records_table(&conn).is_ok()
                 && self.create_varchive_records_table(&conn).is_ok()
@@ -69,6 +69,41 @@ impl RecordDB {
             }
         }
         false
+    }
+
+    /// Internal connection factory ensuring WAL mode, busy timeout, and synchronous settings.
+    pub fn open_conn(&self) -> Result<Connection> {
+        let conn = Connection::open(&self.db_path)?;
+        conn.execute_batch(
+            "PRAGMA journal_mode = WAL;
+             PRAGMA busy_timeout = 5000;
+             PRAGMA synchronous = NORMAL;",
+        )?;
+        Ok(conn)
+    }
+
+    /// Executes an operation with exponential backoff retry for transient SQLITE_BUSY errors.
+    pub fn with_retry<T, F>(&self, mut op: F) -> Result<T>
+    where
+        F: FnMut(&Connection) -> Result<T>,
+    {
+        let mut backoff = std::time::Duration::from_millis(10);
+        for attempt in 0..3 {
+            let conn = self.open_conn()?;
+            match op(&conn) {
+                Ok(val) => return Ok(val),
+                Err(rusqlite::Error::SqliteFailure(err, _))
+                    if (err.extended_code == 5 /* SQLITE_BUSY */ || err.extended_code == 261 /* SQLITE_BUSY_RECOVERY */ || err.extended_code == 6/* SQLITE_LOCKED */)
+                        && attempt < 2 =>
+                {
+                    std::thread::sleep(backoff);
+                    backoff *= 2;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        let conn = self.open_conn()?;
+        op(&conn)
     }
 
     fn create_records_table(&self, conn: &Connection) -> Result<()> {
@@ -173,7 +208,7 @@ impl RecordDB {
         let steam_id = self.get_steam_id();
         let is_max_combo_int = if is_max_combo { 1 } else { 0 };
 
-        if let Ok(conn) = Connection::open(&self.db_path) {
+        let res = self.with_retry(|conn| {
             let mut final_rate = rate;
             let mut final_max_combo = is_max_combo_int;
 
@@ -202,7 +237,7 @@ impl RecordDB {
                     existing_max_combo.is_none_or(|ext_mc| is_max_combo_int > ext_mc);
 
                 if !should_update_rate && !should_update_combo {
-                    return false;
+                    return Ok(false);
                 }
 
                 final_rate = existing_rate.map_or(rate, |ext_r| rate.max(ext_r));
@@ -210,7 +245,7 @@ impl RecordDB {
                     .map_or(is_max_combo_int, |ext_mc| is_max_combo_int.max(ext_mc));
             }
 
-            let result = conn.execute(
+            conn.execute(
                 "INSERT INTO records (
                     steam_id, song_id, button_mode, difficulty, rate, is_max_combo
                 )
@@ -227,10 +262,10 @@ impl RecordDB {
                     final_rate,
                     final_max_combo
                 ],
-            );
-            return result.is_ok();
-        }
-        false
+            )?;
+            Ok(true)
+        });
+        res.unwrap_or(false)
     }
 
     pub fn delete(&self, song_id: i32, button_mode: Mode, difficulty: Difficulty) -> bool {
@@ -243,14 +278,14 @@ impl RecordDB {
         let sid = song_id.to_string();
         let steam_id = self.get_steam_id();
 
-        if let Ok(conn) = Connection::open(&self.db_path) {
-            let result = conn.execute(
+        let res = self.with_retry(|conn| {
+            let rows = conn.execute(
                 "DELETE FROM records WHERE steam_id=?1 AND song_id=?2 AND button_mode=?3 AND difficulty=?4",
                 params![steam_id, sid, button_mode, difficulty],
-            );
-            return result.map(|n| n > 0).unwrap_or(false);
-        }
-        false
+            )?;
+            Ok(rows > 0)
+        });
+        res.unwrap_or(false)
     }
 
     pub fn get(
@@ -266,7 +301,7 @@ impl RecordDB {
         }
 
         let steam_id = self.get_steam_id();
-        if let Ok(conn) = Connection::open(&self.db_path) {
+        if let Ok(conn) = self.open_conn() {
             let mut stmt = conn
                 .prepare(
                     "SELECT rate, is_max_combo FROM records
@@ -297,7 +332,7 @@ impl RecordDB {
                 None => true,
             };
             if need_new {
-                let conn = Connection::open(&self.db_path).ok()?;
+                let conn = self.open_conn().ok()?;
                 *slot = Some((self.db_path.clone(), conn));
             }
             slot.as_ref().map(|(_, conn)| f(conn))
@@ -371,7 +406,7 @@ impl RecordDB {
         if !self.is_ready || steam_id.is_empty() || steam_id == Self::UNKNOWN_STEAM_ID {
             return map;
         }
-        let Ok(conn) = Connection::open(&self.db_path) else {
+        let Ok(conn) = self.open_conn() else {
             return map;
         };
         let mut stmt = match conn.prepare(
@@ -416,7 +451,7 @@ impl RecordDB {
         if !self.is_ready || steam_id.is_empty() || steam_id == Self::UNKNOWN_STEAM_ID {
             return Ok(map);
         }
-        let conn = Connection::open(&self.db_path)?;
+        let conn = self.open_conn()?;
         let mut stmt = conn.prepare(
             "SELECT song_id, button_mode, difficulty, score, max_combo 
              FROM varchive_records WHERE steam_id = ?1",
@@ -447,7 +482,7 @@ impl RecordDB {
         if !self.is_ready || steam_id.is_empty() || steam_id == Self::UNKNOWN_STEAM_ID {
             return list;
         }
-        let Ok(conn) = Connection::open(&self.db_path) else {
+        let Ok(conn) = self.open_conn() else {
             return list;
         };
         let mut stmt = match conn.prepare(
@@ -524,7 +559,7 @@ impl RecordDB {
         if !self.is_ready {
             return Err("DB is not ready".to_string());
         }
-        let mut conn = Connection::open(&self.db_path).map_err(|e| e.to_string())?;
+        let mut conn = self.open_conn().map_err(|e| e.to_string())?;
         let tx = conn.transaction().map_err(|e| e.to_string())?;
 
         let mode = match button {
@@ -593,7 +628,7 @@ impl RecordDB {
             _ => return None,
         };
         let button_mode = mode.as_str();
-        let conn = Connection::open(&self.db_path).ok()?;
+        let conn = self.open_conn().ok()?;
         let mut stmt = conn
             .prepare(
                 "SELECT updated_at 
@@ -650,7 +685,7 @@ impl RecordDB {
         if !self.is_ready {
             return Err("DB is not ready".to_string());
         }
-        let conn = Connection::open(&self.db_path).map_err(|e| e.to_string())?;
+        let conn = self.open_conn().map_err(|e| e.to_string())?;
         let mut stmt = conn
             .prepare(
                 "SELECT song_id, difficulty 
@@ -673,5 +708,64 @@ impl RecordDB {
             rank += 1;
         }
         Ok(None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::thread;
+
+    #[test]
+    fn test_concurrent_record_db_writes() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("concurrent_record.db");
+        let mut db = RecordDB::new(&db_path, Some("76561198000000001"));
+        assert!(db.initialize());
+        let db = Arc::new(db);
+
+        let mut handles = Vec::new();
+        // 8 concurrent writer threads
+        for t_idx in 0..8 {
+            let db_clone = db.clone();
+            handles.push(thread::spawn(move || {
+                for i in 0..20 {
+                    let song_id = t_idx * 100 + i;
+                    let success = db_clone.upsert(
+                        song_id,
+                        Mode::B4,
+                        Difficulty::MX,
+                        99.50 + (i as f64 * 0.01),
+                        true,
+                        false,
+                    );
+                    assert!(
+                        success,
+                        "Thread {} failed to upsert song {}",
+                        t_idx, song_id
+                    );
+                }
+            }));
+        }
+
+        // 4 concurrent reader threads
+        for _ in 0..4 {
+            let db_clone = db.clone();
+            handles.push(thread::spawn(move || {
+                for _ in 0..20 {
+                    let map = db_clone.get_rate_map(&[1, 2, 100, 200, 300]);
+                    let _ = map.len();
+                    thread::sleep(std::time::Duration::from_millis(1));
+                }
+            }));
+        }
+
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        let all_rows = db.all_records_for_steam("76561198000000001");
+        assert_eq!(all_rows.len(), 8 * 20);
     }
 }
