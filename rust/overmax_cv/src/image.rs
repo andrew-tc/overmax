@@ -297,28 +297,46 @@ pub struct CvTemplate<'a> {
     pub mask: &'a [u8],
 }
 
-pub fn resize_binary_nearest(src: &[u8], sw: usize, sh: usize, dw: usize, dh: usize) -> Vec<u8> {
-    if sw == dw && sh == dh {
-        return src.to_vec();
-    }
-    let mut dst = vec![0u8; dw * dh];
-    if sw == 0 || sh == 0 || dw == 0 || dh == 0 {
-        return dst;
+pub fn resize_binary_nearest_into(
+    src: &[u8],
+    sw: usize,
+    sh: usize,
+    dst: &mut [u8],
+    dw: usize,
+    dh: usize,
+) {
+    if sw == 0 || sh == 0 || dw == 0 || dh == 0 || dst.len() < dw * dh || src.len() < sw * sh {
+        return;
     }
     for dy in 0..dh {
         let sy = (dy * sh) / dh;
         let sy_clamped = sy.min(sh - 1);
+        let src_row = sy_clamped * sw;
+        let dst_row = dy * dw;
         for dx in 0..dw {
             let sx = (dx * sw) / dw;
             let sx_clamped = sx.min(sw - 1);
-            dst[dy * dw + dx] = src[sy_clamped * sw + sx_clamped];
+            dst[dst_row + dx] = src[src_row + sx_clamped];
         }
     }
-    dst
 }
 
 pub fn segment_characters(binary: &[u8], width: usize, height: usize) -> Vec<(usize, usize)> {
-    let mut col_proj = vec![0u32; width];
+    if width == 0 || height == 0 || binary.len() < width * height {
+        return Vec::new();
+    }
+
+    const MAX_STACK_WIDTH: usize = 512;
+    let mut stack_proj = [0u32; MAX_STACK_WIDTH];
+    let mut heap_proj;
+
+    let col_proj: &mut [u32] = if width <= MAX_STACK_WIDTH {
+        &mut stack_proj[..width]
+    } else {
+        heap_proj = vec![0u32; width];
+        &mut heap_proj[..]
+    };
+
     for x in 0..width {
         let mut sum = 0u32;
         for y in 0..height {
@@ -329,7 +347,7 @@ pub fn segment_characters(binary: &[u8], width: usize, height: usize) -> Vec<(us
         col_proj[x] = sum;
     }
 
-    let mut segments = Vec::new();
+    let mut segments = Vec::with_capacity(8);
     let mut in_char = false;
     let mut start_x = 0;
 
@@ -708,7 +726,8 @@ mod tests {
             mask: &mask,
         };
 
-        let input_8x16 = resize_binary_nearest(&mask, 16, 32, 8, 16);
+        let mut input_8x16 = [0u8; 8 * 16];
+        resize_binary_nearest_into(&mask, 16, 32, &mut input_8x16, 8, 16);
         let result = match_character(&input_8x16, 8, 16, &[template]);
         assert!(result.is_some());
         let (ch, score) = result.unwrap();
@@ -737,5 +756,43 @@ mod tests {
         // Unmatched character returns None if score < 0.65
         let zero_input = [0u8; 64];
         assert_eq!(match_character(&zero_input, 8, 8, &[template]), None);
+    }
+
+    #[test]
+    fn test_resize_binary_nearest_into() {
+        let src = [1, 0, 1, 0, 0, 1, 0, 1]; // 4x2
+        let mut dst = [0u8; 8 * 4];
+        resize_binary_nearest_into(&src, 4, 2, &mut dst, 8, 4);
+        assert_eq!(&dst[0..8], &[1, 1, 0, 0, 1, 1, 0, 0]);
+        assert_eq!(&dst[8..16], &[1, 1, 0, 0, 1, 1, 0, 0]);
+        assert_eq!(&dst[16..24], &[0, 0, 1, 1, 0, 0, 1, 1]);
+        assert_eq!(&dst[24..32], &[0, 0, 1, 1, 0, 0, 1, 1]);
+    }
+
+    #[test]
+    fn test_segment_characters_stack_and_large_inputs() {
+        // Small input (<= 512px stack path)
+        let mut binary_small = vec![0u8; 100 * 20];
+        // Paint 2 characters of width 10 each
+        for y in 0..20 {
+            for x in 10..20 {
+                binary_small[y * 100 + x] = 255;
+            }
+            for x in 40..50 {
+                binary_small[y * 100 + x] = 255;
+            }
+        }
+        let segs_small = segment_characters(&binary_small, 100, 20);
+        assert_eq!(segs_small, vec![(10, 20), (40, 50)]);
+
+        // Large input (> 512px heap fallback path)
+        let mut binary_large = vec![0u8; 600 * 10];
+        for y in 0..10 {
+            for x in 550..570 {
+                binary_large[y * 600 + x] = 255;
+            }
+        }
+        let segs_large = segment_characters(&binary_large, 600, 10);
+        assert_eq!(segs_large, vec![(550, 570)]);
     }
 }
