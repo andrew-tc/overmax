@@ -21,7 +21,11 @@ Overmax 프로젝트의 설계 문서, 아키텍처 다이어그램, 의사결�
 
 ### 1. Architecture (`docs/architecture/`)
 현재 시스템의 핵심 모듈 구조 및 데이터 파이프라인을 설명합니다.
-* [`detection_pipeline.md`](architecture/detection_pipeline.md): CV 디텍션 파이프라인의 레이어 구조, 씬 감지기, 템플릿 매칭 엔진 구조도.
+* [`system_overview.md`](architecture/system_overview.md): 전체 워크스페이스 구조, 크레이트 계층 의존성, 런타임 스레드 모델 및 메시지 버스.
+* [`capture_and_window.md`](architecture/capture_and_window.md): DXGI/GDI 적응형 캡처, Per-Monitor DPI V2 좌표 매핑, 윈도우 스냅 및 추적 아키텍처.
+* [`detection_pipeline.md`](architecture/detection_pipeline.md): CV 디텍션 파이프라인 레이어 구조, ROI 템플릿 매칭 & 1-Pass 엔진, 프레임 원자성 보장.
+* [`data_storage_and_sync.md`](architecture/data_storage_and_sync.md): StartupCacheManager 무중단 기동, SQLite DB 스키마, V-Archive 증분 동기화 및 추천 시스템.
+* [`ui_and_overlay_runtime.md`](architecture/ui_and_overlay_runtime.md): egui 멀티 뷰포트, 투명 오버레이 렌더링, 0-Cost i18n 및 Linux Layer Overlay.
 
 ### 2. Decisions (`docs/decisions/`) — ADR (Architectural Decision Records)
 각 도메인별 주요 설계 결정과 대안, 트레이드오프를 누적 기록합니다.
