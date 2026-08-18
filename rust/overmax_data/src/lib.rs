@@ -9,7 +9,6 @@ pub use community::sync::{
     build_candidates, matches_filter, pattern_level_index, SyncCandidate, LEVEL_LABELS,
 };
 pub use config::compatibility::DataCompatibility;
-pub use config::scene_config::{GlobalRoiConfig, RoiRect, SceneRoiConfig};
 pub use config::settings::{
     diff_settings, load_base_settings, load_merged_settings, merge_settings_layers,
     normalize_settings, save_user_settings, AppUpdateSettings, DebugWindowSettings,
