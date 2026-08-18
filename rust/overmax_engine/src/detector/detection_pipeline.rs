@@ -13,8 +13,6 @@ const JACKET_MATCH_INTERVAL: f64 = 0.25;
 const JACKET_CHANGE_THRESHOLD: f32 = 2.5;
 const JACKET_FORCE_RECHECK_SEC: f64 = 2.0;
 const JACKET_FORCE_RECHECK_LONG_SEC: f64 = 30.0;
-#[allow(dead_code)]
-const JACKET_EDGE_THRESHOLD: f32 = 15.0;
 const STRICT_EDGE_THRESHOLD: f32 = 25.0;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -704,27 +702,6 @@ pub fn detect_static_scene(
 fn detect_rect_edges(frame: &CapturedFrame, roi: crate::detector::roi::RoiRect) -> Option<f32> {
     let margin = 8;
     roi.with_margin(margin)
-        .and_then(frame, |ext_img| ext_img.detect_edges(margin as usize).ok())
-}
-
-#[allow(dead_code)]
-fn detect_jacket_edges(
-    frame: &CapturedFrame,
-    jacket_roi: crate::detector::roi::RoiRect,
-    _scale: f32,
-) -> Option<f32> {
-    let margin = 8;
-    detect_jacket_edges_with_margin(frame, jacket_roi, margin)
-}
-
-#[allow(dead_code)]
-fn detect_jacket_edges_with_margin(
-    frame: &CapturedFrame,
-    jacket_roi: crate::detector::roi::RoiRect,
-    margin: i32,
-) -> Option<f32> {
-    jacket_roi
-        .with_margin(margin)
         .and_then(frame, |ext_img| ext_img.detect_edges(margin as usize).ok())
 }
 
