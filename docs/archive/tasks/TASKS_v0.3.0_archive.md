@@ -62,7 +62,7 @@ Overmax v0.3.0 마일스톤까지 완료된 작업 목록 아카이브입니다.
 ## 9. HOG 피처 데이터베이스 갱신 및 재빌드 (진행 중)
 
 - [ ] `orphera/overmax-image-db` 리포지토리 재작업을 통한 전체 자켓 이미지의 HOG 피처 일괄 갱신 및 재빌드
-  - [x] 이미지 피처 연산 SSOT를 `overmax_cv`로 이전하기 위한 Rust CLI (`db-builder`) 및 파이썬 연동 설계 완료 ([image_db_redesign_plan.md](docs/2026-06-15-image_db_redesign_plan.md))
+  - [x] 이미지 피처 연산 SSOT를 `overmax_cv`로 이전하기 위한 Rust CLI (`db-builder`) 및 파이썬 연동 설계 완료 ([image_db_redesign_plan.md](../../plans/2026-06-15-image_db_redesign_plan.md))
   - [x] `overmax_data` 내에 `db-builder` CLI 바이너리 타겟 구현
   - [x] `overmax-image-db` 저장소 내 `build_image_db.py`가 임시 이미지 저장 후 Rust CLI를 호출하도록 수정
   - [x] GitHub Actions에 `cargo install --git` 방식 및 액션 캐싱(`actions/cache`)을 통한 자동화 워크플로우 적용

@@ -42,7 +42,7 @@ The app never reads process memory or modifies game files — it works purely by
 2. Run `./overmax` from that directory. Settings and cache are stored in the run directory.
 3. Launch DJMAX RESPECT V in the same session via Proton/XWayland.
 
-For supported environments, how to check compatibility, current implementation status, and unsupported features, see the [Linux support guide](docs/linux-support.en.md).
+For supported environments, how to check compatibility, current implementation status, and unsupported features, see the [Linux support guide](docs/guides/linux-support.en.md).
 
 ### Requirements
 

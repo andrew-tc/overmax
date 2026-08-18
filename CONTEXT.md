@@ -178,5 +178,5 @@ Overmax는 DJMAX RESPECT V의 화면을 실시간으로 분석하여, 현재 선
   - SQLite RecordDB, V-Archive 증분 동기화(`since`), StartupCacheManager 비동기 기동, Provider Protocol 등
 - 🎨 **UI 컴포넌트 & 다국어 (i18n)**: [docs/decisions/ui_and_i18n.md](docs/decisions/ui_and_i18n.md)
   - 0-Cost 단일 `t!` i18n 매크로, Auto-Fit 레이아웃, 오버레이 테마/투명도, 모듈형 컴포넌트 등
-- 🐧 **Linux 플랫폼 지원**: [docs/decisions/linux_support.md](docs/decisions/linux_support.md) ([사용자 가이드: docs/linux-support.md](docs/linux-support.md))
+- 🐧 **Linux 플랫폼 지원**: [docs/decisions/linux_support.md](docs/decisions/linux_support.md) ([사용자 가이드: docs/guides/linux-support.md](docs/guides/linux-support.md))
 

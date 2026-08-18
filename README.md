@@ -42,7 +42,7 @@ DJMAX RESPECT V 선곡 화면에서 V-Archive 기반 비공식 난이도 정보�
 2. 해당 디렉터리에서 `./overmax`를 실행합니다. 설정과 캐시는 실행 디렉터리에 저장됩니다.
 3. 같은 세션에서 Proton/XWayland로 DJMAX RESPECT V를 실행합니다.
 
-지원 범위, 환경 확인 방법, 현재 구현 상태와 미지원 기능은 [Linux 지원 안내](docs/linux-support.md)를 확인해 주세요.
+지원 범위, 환경 확인 방법, 현재 구현 상태와 미지원 기능은 [Linux 지원 안내](docs/guides/linux-support.md)를 확인해 주세요.
 
 ### 요구사항
 
