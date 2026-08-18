@@ -1,5 +1,7 @@
 # OpenCV to Rust Migration Plan
 
+**작성일**: 2026-05-11  
+
 이 문서는 Overmax에서 OpenCV 의존성을 제거하기 위한 단계별 작업 계획이다.
 목표는 빌드 결과물 크기를 줄이되, 기존 화면 캡처 기반 verified pipeline을 유지하는 것이다.
 

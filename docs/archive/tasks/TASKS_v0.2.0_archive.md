@@ -3,8 +3,8 @@
 Overmax의 현재 작업은 Python 기반 verified pipeline을 기준 구현으로 유지하면서,
 Rust 네이티브 앱으로 단계적으로 전환하는 것이다.
 
-OpenCV 제거 이력은 `docs/opencv-to-rust-plan.md`, 전체 Rust 전환 계획은
-`docs/rust-native-port-plan.md`를 따른다.
+OpenCV 제거 이력은 `docs/plans/2026-05-11-opencv-to-rust-plan.md`, 전체 Rust 전환 계획은
+`docs/plans/2026-05-13-rust-native-port-plan.md`를 따른다.
 
 ## 현재 단계: Rust 전체 포팅 준비
 

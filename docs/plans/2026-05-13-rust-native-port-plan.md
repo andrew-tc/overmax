@@ -1,5 +1,7 @@
 # Rust Native Port Plan
 
+**작성일**: 2026-05-13  
+
 이 문서는 Overmax를 Python/PyQt6 앱에서 Rust 네이티브 앱으로 전환하기 위한
 기준 계획이다. 기존 Python 앱은 포팅 완료 전까지 reference implementation으로
 유지한다.

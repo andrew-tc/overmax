@@ -59,7 +59,7 @@ OS별 구동 가이드 및 외부 연동 프로토콜 규격을 보관합니다.
   * [`2026-06-05-result-screen-and-ladder-ban-analysis.md`](plans/2026-06-05-result-screen-and-ladder-ban-analysis.md): 결과창 및 래더 밴픽 분석.
   * [`2026-06-01-discord-ipc-mitm-security-review.md`](plans/2026-06-01-discord-ipc-mitm-security-review.md): Discord IPC 보안 리뷰.
 * **포팅 & 초기 리팩토링**:
-  * [`opencv-to-rust-plan.md`](plans/opencv-to-rust-plan.md) / [`rust-native-port-plan.md`](plans/rust-native-port-plan.md): OpenCV 제거 및 Rust 네이티브 포팅 계획.
+  * [`2026-05-11-opencv-to-rust-plan.md`](plans/2026-05-11-opencv-to-rust-plan.md) / [`2026-05-13-rust-native-port-plan.md`](plans/2026-05-13-rust-native-port-plan.md): OpenCV 제거 및 Rust 네이티브 포팅 계획.
   * [`2026-05-20-atomic-play-context-plan.md`](plans/2026-05-20-atomic-play-context-plan.md): 원자적 플레이 컨텍스트 설계.
   * [`2026-05-19-play-state-refactoring.md`](plans/2026-05-19-play-state-refactoring.md): PlayState 상태 머신 리팩토링.
   * [`2026-05-19-settings-ux-porting.md`](plans/2026-05-19-settings-ux-porting.md) / [`design.md`](plans/2026-05-19-settings-ux-porting-design.md): 설정 UI 포팅 설계.
