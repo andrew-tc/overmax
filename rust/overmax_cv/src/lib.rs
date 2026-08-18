@@ -2,10 +2,8 @@ pub mod color;
 pub mod error;
 pub mod hog;
 pub mod image;
-pub mod ocr;
 
 pub use color::Bgr;
-pub use ocr::OcrPreprocessResult;
 
 pub fn compute_hashes_gray(
     data: &[u8],
@@ -109,66 +107,6 @@ pub fn make_thumbnail_bgra_32(
     Ok(image::resize_area_u8(&gray, width, height, 32, 32))
 }
 
-pub fn preprocess_ocr_bgra(
-    data: &[u8],
-    width: usize,
-    height: usize,
-    force_invert: bool,
-    binarize: bool,
-) -> Result<Vec<u8>, error::CvError> {
-    image::validate_image(data, width, height, 4, "preprocess_ocr_bgra")?;
-    Ok(ocr::preprocess_ocr_bgra_internal(
-        data,
-        width,
-        height,
-        force_invert,
-        binarize,
-    ))
-}
-
-pub fn preprocess_ocr_bgra_with_telemetry(
-    data: &[u8],
-    width: usize,
-    height: usize,
-    force_invert: bool,
-    binarize: bool,
-) -> Result<OcrPreprocessResult, error::CvError> {
-    image::validate_image(data, width, height, 4, "preprocess_ocr_bgra_with_telemetry")?;
-    Ok(ocr::preprocess_bgra_with_telemetry(
-        data,
-        width,
-        height,
-        force_invert,
-        binarize,
-    ))
-}
-
-pub fn preprocess_ocr_color_bgra(
-    data: &[u8],
-    width: usize,
-    height: usize,
-) -> Result<Vec<u8>, error::CvError> {
-    image::validate_image(data, width, height, 4, "preprocess_ocr_color_bgra")?;
-    Ok(ocr::preprocess_color_bgra(data, width, height))
-}
-
-pub fn preprocess_ocr_color_bgra_with_telemetry(
-    data: &[u8],
-    width: usize,
-    height: usize,
-) -> Result<OcrPreprocessResult, error::CvError> {
-    image::validate_image(
-        data,
-        width,
-        height,
-        4,
-        "preprocess_ocr_color_bgra_with_telemetry",
-    )?;
-    Ok(ocr::preprocess_color_bgra_with_telemetry(
-        data, width, height,
-    ))
-}
-
 pub fn detect_rect_edges(
     data: &[u8],
     width: usize,
@@ -216,8 +154,8 @@ pub fn binarize_by_global_contrast(
 }
 
 pub use image::{
-    adaptive_threshold_bradley_roth, binarize_by_luminance, diff_panel_threshold,
-    resize_binary_nearest_into, stretch_contrast, to_gray, LumaMethod,
+    adaptive_threshold_bradley_roth, binarize_by_luminance, resize_binary_nearest_into,
+    stretch_contrast, to_gray, LumaMethod,
 };
 
 /// 4x4 그리드 × RGB 3채널 × 8-bin 히스토그램 (총 384바이트).
