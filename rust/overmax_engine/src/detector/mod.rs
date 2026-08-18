@@ -7,4 +7,3 @@ pub mod telemetry;
 pub mod templates;
 
 pub use telemetry::{PipelineStatsCollector, PipelineTelemetrySnapshot, TimingAggregator};
-pub use templates::RateTelemetry;

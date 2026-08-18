@@ -1,60 +1,15 @@
 use crate::capture::frame_utils::ImageView;
 use overmax_core::{Difficulty, Mode};
-use std::fmt;
-
-#[derive(Clone, Default, PartialEq)]
-pub struct RateTelemetry {
-    pub rate_text: String,
-    pub threshold: u8,
-    pub bg_mean: f32,
-    pub use_invert: bool,
-    pub image_pixels: Vec<u8>,
-    pub image_width: usize,
-    pub image_height: usize,
-}
-
-impl fmt::Debug for RateTelemetry {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RateTelemetry")
-            .field("rate_text", &self.rate_text)
-            .field("threshold", &self.threshold)
-            .field("bg_mean", &self.bg_mean)
-            .field("use_invert", &self.use_invert)
-            .field("image_pixels_len", &self.image_pixels.len())
-            .field("image_width", &self.image_width)
-            .field("image_height", &self.image_height)
-            .finish()
-    }
-}
 
 /// Rate 영역을 Pure Rust CV 템플릿 매칭으로 감지합니다.
-pub fn detect_rate(rate: &ImageView) -> (Option<f32>, Option<RateTelemetry>) {
+pub fn detect_rate(rate: &ImageView) -> Option<f32> {
     let cv_templates = get_digit_templates(super::digit::DIGIT_TEMPLATES_RATE);
-    let matched = match match_digits_template(rate, &cv_templates) {
-        Ok(m) => m,
-        Err(_) => return (None, None),
-    };
-    let (matched_str, binary, threshold, max_y) = matched;
+    let (matched_str, _, _, _) = match_digits_template(rate, &cv_templates).ok()?;
 
     // 템플릿 매칭 결과에서 ?를 제거하고 파싱 시도
-    let rate_val = (!matched_str.is_empty())
+    (!matched_str.is_empty())
         .then(|| matched_str.replace('?', ""))
-        .and_then(|clean_str| parse_rate_text(&clean_str));
-
-    if let Some(val) = rate_val {
-        let telemetry = RateTelemetry {
-            rate_text: matched_str,
-            threshold,
-            bg_mean: max_y as f32,
-            use_invert: false,
-            image_pixels: binary,
-            image_width: rate.width,
-            image_height: rate.height,
-        };
-        (Some(val), Some(telemetry))
-    } else {
-        (None, None)
-    }
+        .and_then(|clean_str| parse_rate_text(&clean_str))
 }
 
 /// Score 영역을 템플릿 매칭을 통해 정수로 직접 누적하여 파싱합니다 (Zero String Allocation).
