@@ -229,11 +229,12 @@ fn match_digits_template(
 
     let segments = overmax_cv::segment_characters(&binary, w, h).map_err(|e| e.to_string())?;
 
-    let mut matched_str = String::new();
+    let mut matched_str = String::with_capacity(segments.len());
+    let mut char_bin = Vec::with_capacity(32 * h);
     for &(x1, x2) in &segments {
         let char_w = x2 - x1;
         let char_h = h;
-        let mut char_bin = vec![0u8; char_w * char_h];
+        char_bin.resize(char_w * char_h, 0);
         for y in 0..char_h {
             for x in 0..char_w {
                 char_bin[y * char_w + x] = binary[y * w + (x1 + x)];
@@ -399,5 +400,19 @@ mod tests {
         assert_eq!(parse_rate_text("99.289%"), Some(99.28));
         assert_eq!(parse_rate_text("99.281"), Some(99.28));
         assert_eq!(parse_rate_text("99.280"), Some(99.28));
+    }
+
+    #[test]
+    fn matches_digit_templates_accurately() {
+        let cv_templates = super::get_digit_templates(crate::detector::templates::digit::DIGIT_TEMPLATES_SCORE);
+        for t in &cv_templates {
+            let res = overmax_cv::match_character(t.mask, t.width, t.height, &cv_templates);
+            assert!(res.is_ok(), "Failed to call match_character: '{}'", t.char_val);
+            let matched = res.unwrap();
+            assert!(matched.is_some(), "Failed to match digit template: '{}'", t.char_val);
+            let (matched_char, score) = matched.unwrap();
+            assert_eq!(matched_char, t.char_val, "Mismatched char for template '{}'", t.char_val);
+            assert!((score - 1.0).abs() < 1e-4, "Score for perfect template should be 1.0");
+        }
     }
 }

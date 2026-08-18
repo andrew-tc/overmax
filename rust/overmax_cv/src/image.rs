@@ -289,6 +289,7 @@ pub fn detect_rect_edges(data: &[u8], width: usize, height: usize, margin: usize
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct CvTemplate<'a> {
     pub char_val: char,
     pub width: usize,
@@ -365,47 +366,63 @@ pub fn match_character(
     char_h: usize,
     templates: &[CvTemplate],
 ) -> Option<(char, f32)> {
-    if char_w == 0 || char_h == 0 || templates.is_empty() {
+    if char_w == 0 || char_h == 0 || templates.is_empty() || char_bin.len() < char_w * char_h {
         return None;
     }
 
     let target_h = 32usize;
     let target_w = ((char_w as f32 * target_h as f32 / char_h as f32).round()) as usize;
-    if target_w == 0 {
+    if target_w == 0 || target_w > 32 {
         return None;
     }
 
-    // 입력받은 세그먼트를 템플릿 비교 표준인 32px 높이로 리사이징
-    let resized_bin = resize_binary_nearest(char_bin, char_w, char_h, target_w, target_h);
+    // 세그먼트를 32px 높이 표준 크기로 리사이즈하여 행 단위 u32 비트마스크에 패킹 (Zero-allocation)
+    let mut resized_bin_bits = [0u32; 32];
+    for (dy, row_bits) in resized_bin_bits.iter_mut().enumerate() {
+        let sy = (dy * char_h) / target_h;
+        let sy_clamped = sy.min(char_h - 1);
+        let mut bits = 0u32;
+        for dx in 0..target_w {
+            let sx = (dx * char_w) / target_w;
+            let sx_clamped = sx.min(char_w - 1);
+            if char_bin[sy_clamped * char_w + sx_clamped] > 0 {
+                bits |= 1 << dx;
+            }
+        }
+        *row_bits = bits;
+    }
 
     let mut best_char = None;
     let mut best_score = 0.0f32;
 
     for t in templates {
-        // 폭이 너무 크게 차이나는 템플릿 배제 (오인식 억제 필터 - 자간 뭉개짐 편차를 고려하여 6px로 완화)
+        // 폭이 너무 크게 차이나는 템플릿 배제 (오인식 억제 필터)
         let diff_w = (t.width as isize - target_w as isize).abs();
-        if diff_w > 6 {
+        if diff_w > 6 || t.width == 0 || t.height == 0 || t.mask.len() < t.width * t.height {
             continue;
         }
 
-        // 템플릿의 가로 폭을 세그먼트 가로 폭(target_w)으로 1대1 일치화
-        let scaled_template = resize_binary_nearest(t.mask, t.width, t.height, target_w, target_h);
-
-        // 해밍 거리 (XOR 차이 픽셀 카운트 - 255와 1의 채널 스케일 불일치 규격화 해결)
+        // 템플릿의 가로 폭을 세그먼트 가로 폭(target_w)으로 실시간 샘플링하며 비트 XOR 해밍 거리 누적
         let mut diff_pixels = 0usize;
-        let total_pixels = target_w * target_h;
-        for i in 0..total_pixels {
-            let a = (resized_bin[i] > 0) as u8;
-            let b = (scaled_template[i] > 0) as u8;
-            diff_pixels += (a ^ b) as usize;
+        for (dy, &bin_row_bits) in resized_bin_bits.iter().enumerate() {
+            let sy = (dy * t.height) / target_h;
+            let sy_clamped = sy.min(t.height - 1);
+            let mut t_row_bits = 0u32;
+            for dx in 0..target_w {
+                let sx = (dx * t.width) / target_w;
+                let sx_clamped = sx.min(t.width - 1);
+                if t.mask[sy_clamped * t.width + sx_clamped] > 0 {
+                    t_row_bits |= 1 << dx;
+                }
+            }
+            diff_pixels += (bin_row_bits ^ t_row_bits).count_ones() as usize;
         }
 
+        let total_pixels = target_w * target_h;
         let match_rate = (total_pixels - diff_pixels) as f32 / total_pixels as f32;
 
-        let score = match_rate;
-
-        if score > best_score {
-            best_score = score;
+        if match_rate > best_score {
+            best_score = match_rate;
             best_char = Some(t.char_val);
         }
     }
@@ -645,5 +662,80 @@ pub fn apply_non_uniform_mask(gray: &mut [u8], width: usize, height: usize) {
             }
             // Zone 1 (dist < 20): 코어 존 -> 원본 픽셀 100% 보존
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_match_character_perfect_match() {
+        // 16x32 pattern: vertical bar
+        let mut mask = [0u8; 16 * 32];
+        for y in 0..32 {
+            for x in 6..10 {
+                mask[y * 16 + x] = 1;
+            }
+        }
+        let template = CvTemplate {
+            char_val: '1',
+            width: 16,
+            height: 32,
+            mask: &mask,
+        };
+
+        let result = match_character(&mask, 16, 32, &[template]);
+        assert!(result.is_some());
+        let (ch, score) = result.unwrap();
+        assert_eq!(ch, '1');
+        assert!((score - 1.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_match_character_rescaled() {
+        // 16x32 pattern scaled down to 8x16 input
+        let mut mask = [0u8; 16 * 32];
+        for y in 0..32 {
+            for x in 6..10 {
+                mask[y * 16 + x] = 1;
+            }
+        }
+        let template = CvTemplate {
+            char_val: '1',
+            width: 16,
+            height: 32,
+            mask: &mask,
+        };
+
+        let input_8x16 = resize_binary_nearest(&mask, 16, 32, 8, 16);
+        let result = match_character(&input_8x16, 8, 16, &[template]);
+        assert!(result.is_some());
+        let (ch, score) = result.unwrap();
+        assert_eq!(ch, '1');
+        assert!(score >= 0.95);
+    }
+
+    #[test]
+    fn test_match_character_edge_cases() {
+        let template = CvTemplate {
+            char_val: 'A',
+            width: 8,
+            height: 8,
+            mask: &[1u8; 64],
+        };
+
+        // Empty / zero dimension cases
+        assert_eq!(match_character(&[], 0, 0, &[template]), None);
+        assert_eq!(match_character(&[1], 1, 0, &[template]), None);
+        assert_eq!(match_character(&[1], 0, 1, &[template]), None);
+        assert_eq!(match_character(&[1; 64], 8, 8, &[]), None);
+
+        // Insufficient buffer length
+        assert_eq!(match_character(&[1; 10], 8, 8, &[template]), None);
+
+        // Unmatched character returns None if score < 0.65
+        let zero_input = [0u8; 64];
+        assert_eq!(match_character(&zero_input, 8, 8, &[template]), None);
     }
 }
