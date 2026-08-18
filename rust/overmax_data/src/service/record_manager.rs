@@ -1,5 +1,5 @@
 use crate::store::record_db::RecordDB;
-use overmax_core::{Difficulty, Mode, RecordKey, RecordValue};
+use overmax_core::{Difficulty, Mode, RecordKey, RecordValue, VerifiedPlayEvent};
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -26,6 +26,19 @@ impl RecordManager {
             dirty_record_keys: Mutex::new(HashSet::new()),
             full_dirty: AtomicBool::new(true),
         }
+    }
+
+    /// VerifiedPlayEvent를 수신하여 기록을 갱신하고, 신규/개선 여부를 반환합니다.
+    pub fn handle_verified_play(&self, event: &VerifiedPlayEvent) -> bool {
+        let key = event.record_key();
+        self.upsert(
+            key.0,
+            key.1,
+            key.2,
+            event.rate,
+            event.is_max_combo,
+            event.is_result_screen,
+        )
     }
 
     pub fn refresh(&self) {

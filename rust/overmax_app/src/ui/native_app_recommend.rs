@@ -17,9 +17,6 @@ impl NativeApp {
             }
             self.window_snapshot = output.window_snapshot;
             self.capture_fatal = output.capture_fatal.clone();
-            if !output.is_song_select {
-                self.recorded_states.clear();
-            }
 
             if output.state.scene.is_result() {
                 if let Some(ctx_val) = &output.state.context {
@@ -45,35 +42,16 @@ impl NativeApp {
             }
 
             if let Some(event) = output.event {
-                let key = event.record_key();
-                let should_upsert =
-                    if let Some(&(prev_rate, prev_mc)) = self.recorded_states.get(&key) {
-                        event.rate > prev_rate || (event.is_max_combo && !prev_mc)
-                    } else {
-                        true
-                    };
-
-                if should_upsert {
+                if self.record_manager.handle_verified_play(&event) {
                     debug_ui::push_log(
                         &self.debug_state.log_lines,
                         self.max_log_lines(),
                         format!(
-                            "[Main] 기록 저장: {}, {}, {}, {:.2}%, MaxCombo: {}",
-                            key.0, key.1, key.2, event.rate, event.is_max_combo
+                            "[Main] 기록 갱신: {}, {}, {}, {:.2}%, MaxCombo: {}",
+                            event.song_id, event.mode, event.diff, event.rate, event.is_max_combo
                         ),
                     );
-                    if self.record_manager.upsert(
-                        key.0,
-                        key.1,
-                        key.2,
-                        event.rate,
-                        event.is_max_combo,
-                        event.is_result_screen,
-                    ) {
-                        self.recorded_states
-                            .insert(key, (event.rate, event.is_max_combo));
-                        changed = true;
-                    }
+                    changed = true;
                 }
             }
         }

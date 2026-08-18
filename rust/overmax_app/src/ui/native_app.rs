@@ -241,8 +241,6 @@ pub struct NativeApp {
     pub(crate) capture_fatal: Option<String>,
     pub(crate) session: GameSessionState,
     pub(crate) confidence: f32,
-    pub(crate) recorded_states:
-        std::collections::HashMap<overmax_data::RecordKey, overmax_data::RecordValue>,
     pub(crate) sync_channels: SyncWorkerChannels,
     pub(crate) detection_rx: Receiver<DetectionOutput>,
     pub(crate) ui_cmd_rx: Receiver<UiCommand>,
@@ -436,7 +434,6 @@ impl NativeApp {
             capture_fatal: None,
             session: GameSessionState::detecting(),
             confidence: 0.0,
-            recorded_states: std::collections::HashMap::new(),
             sync_channels: SyncWorkerChannels {
                 sync_rx,
                 sync_tx,
