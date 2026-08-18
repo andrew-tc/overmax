@@ -369,7 +369,10 @@ fn sheet_csv_url(gid: &str) -> String {
 }
 
 fn merge_sheet_meta(
-    items: &mut HashMap<(String, overmax_core::Mode, overmax_core::Difficulty), PatternSheetMetaItem>,
+    items: &mut HashMap<
+        (String, overmax_core::Mode, overmax_core::Difficulty),
+        PatternSheetMetaItem,
+    >,
     mode: Mode,
     csv: &str,
     varchive_db: &VArchiveDB,
@@ -412,10 +415,7 @@ fn merge_sheet_meta(
     }
 }
 
-fn pattern_meta_value(
-    mode: Mode,
-    values: &HashMap<String, String>,
-) -> PatternSheetMetaItem {
+fn pattern_meta_value(mode: Mode, values: &HashMap<String, String>) -> PatternSheetMetaItem {
     let raw_gold = pick(values, &["황배 여부", "황배여부"]);
     let gold = if raw_gold.is_empty() {
         GoldMeta::None
@@ -554,11 +554,7 @@ mod tests {
             &db,
         );
 
-        let key = (
-            "1".to_string(),
-            Mode::B5,
-            Difficulty::SC,
-        );
+        let key = ("1".to_string(), Mode::B5, Difficulty::SC);
         assert_eq!(
             items.get(&key).unwrap(),
             &PatternSheetMetaItem {

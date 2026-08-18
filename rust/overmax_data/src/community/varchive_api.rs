@@ -1,7 +1,7 @@
 //! V-Archive score registration & API queries.
 
-use std::path::Path;
 use overmax_core::{Difficulty, Mode};
+use std::path::Path;
 
 const BASE_URL: &str = "https://v-archive.net/client/open/{user_no}/score";
 

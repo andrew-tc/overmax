@@ -29,9 +29,9 @@ Overmax v0.4.0 마일스톤 활성 작업 목록 및 백로그입니다.
 - [x] **2.2 [정리 2순위] V-Archive 네트워크 I/O(`reqwest`) 및 외부 API 통신을 `overmax_data`로 일원화**
   - [x] `overmax_app::system`의 `varchive_upload`, `cache_update`, `recommend_provider_fetch`를 `overmax_data::community` 및 `overmax_data::service`로 통합
   - [x] `overmax_app`이 비즈니스 HTTP I/O를 직접 다루지 않고 순수 UI 렌더링 및 OS 이벤트 핸들링에 집중하도록 격리
-- [ ] **2.3 [정리 3순위] `overmax_cv` 미사용 함수 정리 (`hog`는 DB Builder 레거시 DB 지원용으로 보존)**
-  - [ ] `overmax_cv`에서 완전히 미사용되는 `compute_image_features_v2`, `compute_hashes_gray` 등 데드코드 정리
-  - [ ] `hog.rs` 및 `compute_image_hog`는 `db_builder` 오프라인 DB 생성 및 레거시 호환을 위해 안전하게 유지
+- [x] **2.3 [정리 3순위] `overmax_cv` 미사용 함수 정리 (`hog`는 DB Builder 레거시 DB 지원용으로 보존)**
+  - [x] `overmax_cv`에서 완전히 미사용되는 `compute_image_features_v2`, `compute_hashes_gray` 등 데드코드 정리
+  - [x] `hog.rs` 및 `compute_image_hog`는 `db_builder` 오프라인 DB 생성 및 레거시 호환을 위해 안전하게 유지
 
 ---
 
