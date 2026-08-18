@@ -1,7 +1,7 @@
 use crate::capture::frame::CapturedFrame;
 use crate::capture::frame_utils::{compute_pixel_checksum, region_mean_bgr};
 use crate::detector::roi::RoiManager;
-use crate::detector::templates::{self, RateTelemetry};
+use crate::detector::templates;
 use overmax_core::{Changed, Difficulty, GameSessionState, Mode, PlayContext};
 use std::collections::VecDeque;
 
@@ -62,7 +62,7 @@ pub struct PlayStateDetector {
     history: VecDeque<Option<RawPlayState>>,
     last_stable_state: Option<GameSessionState>,
     last_rate_checksums: Option<RateInputChecksums>,
-    last_rate_result: (Option<f32>, String, Option<RateTelemetry>),
+    last_rate_result: Option<f32>,
     last_rate_detection_ts: f64,
     last_mode_diff_checksums: Option<ModeDiffChecksums>,
     last_mode_diff_result: Option<(Option<Mode>, Option<Difficulty>, bool)>,
@@ -102,7 +102,7 @@ impl PlayStateDetector {
         scene: overmax_core::SceneType,
         is_result: bool,
         now: f64,
-    ) -> (f32, Option<RateTelemetry>) {
+    ) -> f32 {
         if self.should_run_rate_detection(now) {
             let checksums = Self::rate_input_checksums(frame, rois);
             let inputs_changed = checksums
@@ -134,35 +134,26 @@ impl PlayStateDetector {
                             calc_rate
                         );
 
-                        self.apply_rate_detection_result(
-                            is_result,
-                            (Some(calc_rate), format!("{score_val}"), None),
-                        );
+                        self.apply_rate_detection_result(is_result, Some(calc_rate));
                     }
                 } else if let Some(rate_res) =
-                    rois.and_then_roi(frame, "rate", |img| Some(templates::detect_rate(img)))
+                    rois.and_then_roi(frame, "rate", |img| templates::detect_rate(img))
                 {
                     self.last_rate_detection_ts = now;
                     self.last_rate_checksums = checksums;
-                    self.apply_rate_detection_result(is_result, rate_res);
+                    self.apply_rate_detection_result(is_result, Some(rate_res));
                 }
             }
         }
 
-        let rate = self.last_rate_result.0.unwrap_or(0.0);
-        let telemetry = self.last_rate_result.2.clone();
-        (rate, telemetry)
+        self.last_rate_result.unwrap_or(0.0)
     }
 
-    fn apply_rate_detection_result(
-        &mut self,
-        is_result: bool,
-        mut res: (Option<f32>, String, Option<RateTelemetry>),
-    ) {
+    fn apply_rate_detection_result(&mut self, is_result: bool, mut res: Option<f32>) {
         if is_result {
-            if let Some(new_r) = res.0 {
+            if let Some(new_r) = res {
                 self.push_result_rate_sample(new_r);
-                res.0 = self.median_result_rate();
+                res = self.median_result_rate();
             }
         } else {
             self.result_rate_window.clear();
@@ -230,7 +221,7 @@ impl PlayStateDetector {
             history: VecDeque::new(),
             last_stable_state: None,
             last_rate_checksums: None,
-            last_rate_result: (None, String::new(), None),
+            last_rate_result: None,
             last_rate_detection_ts: 0.0,
             last_mode_diff_checksums: None,
             last_mode_diff_result: None,
@@ -245,7 +236,7 @@ impl PlayStateDetector {
         self.history.clear();
         self.last_stable_state = None;
         self.last_rate_checksums = None;
-        self.last_rate_result = (None, String::new(), None);
+        self.last_rate_result = None;
         self.last_rate_detection_ts = 0.0;
         self.last_mode_diff_checksums = None;
         self.last_mode_diff_result = None;
@@ -319,7 +310,7 @@ impl PlayStateDetector {
         rois: &RoiManager,
         song_id: Option<i32>,
         now: f64,
-    ) -> (GameSessionState, Option<RateTelemetry>) {
+    ) -> GameSessionState {
         let scene = rois.current_scene();
         let is_result = scene.is_result();
 
@@ -346,7 +337,6 @@ impl PlayStateDetector {
 
         self.last_song_id.update(song_id);
 
-        let mut telemetry = None;
         debug_println!(
             "    [detect] song_id={:?}, mode={:?}, diff={:?}, confident={}",
             song_id,
@@ -356,13 +346,11 @@ impl PlayStateDetector {
         );
         let context = if let (Some(sid), Some(m), Some(d)) = (song_id, mode, diff) {
             if confident {
-                let (rate, tel) = self.process_rate_detection(frame, rois, scene, is_result, now);
-                telemetry = tel;
+                let rate = self.process_rate_detection(frame, rois, scene, is_result, now);
 
                 let rate_valid = !is_result
                     || self
                         .last_rate_result
-                        .0
                         .map(|r| r >= MIN_VALID_RATE)
                         .unwrap_or(false);
 
@@ -397,18 +385,15 @@ impl PlayStateDetector {
                 is_fullscreen: false, // will be overwritten/updated by detection worker
             };
             self.last_stable_state = Some(state.clone());
-            return (state, telemetry);
+            return state;
         }
 
-        (
-            GameSessionState {
-                scene,
-                context,
-                is_stable: false,
-                is_fullscreen: false,
-            },
-            telemetry,
-        )
+        GameSessionState {
+            scene,
+            context,
+            is_stable: false,
+            is_fullscreen: false,
+        }
     }
 
     fn push_raw(&mut self, raw: RawPlayState) {
@@ -619,9 +604,9 @@ mod tests {
         let mut rois = RoiManager::new(1920, 1080);
         rois.set_scene(SceneType::Freestyle);
 
-        assert!(!detector.detect(&frame, &rois, Some(7), 1.0).0.is_stable);
-        assert!(!detector.detect(&frame, &rois, Some(7), 2.0).0.is_stable);
-        assert!(detector.detect(&frame, &rois, Some(7), 3.0).0.is_stable);
+        assert!(!detector.detect(&frame, &rois, Some(7), 1.0).is_stable);
+        assert!(!detector.detect(&frame, &rois, Some(7), 2.0).is_stable);
+        assert!(detector.detect(&frame, &rois, Some(7), 3.0).is_stable);
     }
 
     #[test]
@@ -634,7 +619,7 @@ mod tests {
         rois.set_scene(SceneType::ResultFreestyle);
 
         // 결과창에서 mode_digit/diff_panel ROI가 없어 인식에 실패하면 None이어야 함
-        let (state, _) = detector.detect(&frame, &rois, Some(7), 1.0);
+        let state = detector.detect(&frame, &rois, Some(7), 1.0);
         assert!(state.context.is_none());
     }
 
@@ -647,12 +632,12 @@ mod tests {
         let mut rois = RoiManager::new(1920, 1080);
         rois.set_scene(SceneType::Freestyle);
 
-        let (state1, _) = detector.detect(&frame, &rois, Some(1), 1.0);
+        let state1 = detector.detect(&frame, &rois, Some(1), 1.0);
         assert_eq!(detector.last_mode_diff_detection_ts, 1.0);
         assert!(detector.last_mode_diff_checksums.is_some());
 
         // 동일 프레임에서 시간만 지나도 체크섬이 안 바뀌면 timestamp가 1.0으로 유지됨 (재계산 스킵)
-        let (state2, _) = detector.detect(&frame, &rois, Some(1), 2.0);
+        let state2 = detector.detect(&frame, &rois, Some(1), 2.0);
         assert_eq!(detector.last_mode_diff_detection_ts, 1.0);
         assert_eq!(
             state1.context.as_ref().map(|c| c.mode),
@@ -661,7 +646,7 @@ mod tests {
 
         // 난이도 카드 하이라이트 변경 -> checksum 변경으로 3.0s 시점에 갱신됨
         paint_rect(&mut frame, 218, 488, 328, 516, Bgr::from_rgb_hex(0xFFFFFF));
-        let (_state3, _) = detector.detect(&frame, &rois, Some(1), 3.0);
+        let _state3 = detector.detect(&frame, &rois, Some(1), 3.0);
         assert_eq!(detector.last_mode_diff_detection_ts, 3.0);
     }
 

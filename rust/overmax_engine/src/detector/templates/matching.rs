@@ -1,85 +1,68 @@
 use crate::capture::frame_utils::ImageView;
 use overmax_core::{Difficulty, Mode};
-use std::fmt;
-
-#[derive(Clone, Default, PartialEq)]
-pub struct RateTelemetry {
-    pub rate_text: String,
-    pub threshold: u8,
-    pub bg_mean: f32,
-    pub use_invert: bool,
-    pub image_pixels: Vec<u8>,
-    pub image_width: usize,
-    pub image_height: usize,
-}
-
-impl fmt::Debug for RateTelemetry {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RateTelemetry")
-            .field("rate_text", &self.rate_text)
-            .field("threshold", &self.threshold)
-            .field("bg_mean", &self.bg_mean)
-            .field("use_invert", &self.use_invert)
-            .field("image_pixels_len", &self.image_pixels.len())
-            .field("image_width", &self.image_width)
-            .field("image_height", &self.image_height)
-            .finish()
-    }
-}
 
 /// Rate 영역을 Pure Rust CV 템플릿 매칭으로 감지합니다.
-pub fn detect_rate(rate: &ImageView) -> (Option<f32>, String, Option<RateTelemetry>) {
-    let cv_templates = get_digit_templates(super::digit::DIGIT_TEMPLATES_RATE);
-    let matched = match match_digits_template(rate, &cv_templates) {
-        Ok(m) => m,
-        Err(_) => return (None, String::new(), None),
-    };
-    let (matched_str, binary, threshold, max_y) = matched;
+pub fn detect_rate(rate: &ImageView) -> Option<f32> {
+    let (matched_str, _, _, _) =
+        match_digits_template(rate, super::digit::DIGIT_TEMPLATES_RATE).ok()?;
 
     // 템플릿 매칭 결과에서 ?를 제거하고 파싱 시도
-    let rate_val = (!matched_str.is_empty())
+    (!matched_str.is_empty())
         .then(|| matched_str.replace('?', ""))
-        .and_then(|clean_str| parse_rate_text(&clean_str));
-
-    if let Some(val) = rate_val {
-        let telemetry = RateTelemetry {
-            rate_text: matched_str.clone(),
-            threshold,
-            bg_mean: max_y as f32,
-            use_invert: false,
-            image_pixels: binary,
-            image_width: rate.width,
-            image_height: rate.height,
-        };
-        (Some(val), matched_str, Some(telemetry))
-    } else {
-        (None, String::new(), None)
-    }
+        .and_then(|clean_str| parse_rate_text(&clean_str))
 }
 
-/// Score 영역을 템플릿 매칭을 통해 정수로 파싱합니다.
+/// Score 영역을 템플릿 매칭을 통해 정수로 직접 누적하여 파싱합니다 (Zero String Allocation).
 pub fn detect_score(score: &ImageView) -> Option<u32> {
-    let cv_templates = get_digit_templates(super::digit::DIGIT_TEMPLATES_SCORE);
-    match match_digits_template(score, &cv_templates) {
-        Ok((matched_str, _, _, _)) => {
-            let parsed = parse_score_text(&matched_str);
-            if parsed.is_none() || matched_str.contains('?') {
-                println!(
-                    "      [Debug Score] Template matching failed/invalid. Matched String: '{}', Parsed: {:?}",
-                    matched_str, parsed
-                );
-                None
-            } else {
-                parsed
+    let w = score.width;
+    let h = score.height;
+    if w * h == 0 {
+        return None;
+    }
+
+    let region = score.to_image_region();
+    let (binary, _, _) = overmax_cv::binarize_by_global_contrast(
+        &region.bgra,
+        w,
+        h,
+        overmax_cv::LumaMethod::Average,
+        255,
+    )
+    .ok()?;
+
+    let segments = overmax_cv::segment_characters(&binary, w, h).ok()?;
+    if segments.len() != 6 && segments.len() != 7 {
+        return None;
+    }
+
+    let mut score_val = 0u32;
+    let mut char_bin = Vec::with_capacity(32 * h);
+
+    for &(x1, x2) in &segments {
+        let char_w = x2 - x1;
+        let char_h = h;
+        char_bin.resize(char_w * char_h, 0);
+        for y in 0..char_h {
+            for x in 0..char_w {
+                char_bin[y * char_w + x] = binary[y * w + (x1 + x)];
             }
         }
-        Err(e) => {
-            println!(
-                "      [Debug Score] match_digits_template failed with error: {}",
-                e
-            );
-            None
-        }
+
+        let matched = overmax_cv::match_character(
+            &char_bin,
+            char_w,
+            char_h,
+            super::digit::DIGIT_TEMPLATES_SCORE,
+        )
+        .ok()??;
+        let digit = matched.0.to_digit(10)?;
+        score_val = score_val * 10 + digit;
+    }
+
+    if score_val <= 1_000_000 {
+        Some(score_val)
+    } else {
+        None
     }
 }
 
@@ -92,35 +75,32 @@ pub fn detect_freestyle_mode(mode_img: &ImageView) -> Option<Mode> {
     }
 
     let region = mode_img.to_image_region();
-    let (binary, _, _) = match overmax_cv::binarize_by_global_contrast(
+    let (binary, _, _) = overmax_cv::binarize_by_global_contrast(
         &region.bgra,
         w,
         h,
         overmax_cv::LumaMethod::Average,
         1,
-    ) {
-        Ok(b) => b,
-        Err(_) => return None,
-    };
+    )
+    .ok()?;
     let fg_count = binary.iter().filter(|&&x| x == 1).count();
     if fg_count < 20 {
         return None;
     }
     let (target_w, target_h) = (50usize, 68usize);
-    let resized_binary = overmax_cv::resize_binary_nearest(&binary, w, h, target_w, target_h);
+    let mut resized_binary = [0u8; 50 * 68];
+    overmax_cv::resize_binary_nearest_into(&binary, w, h, &mut resized_binary, target_w, target_h);
 
-    let t_infos: Vec<MatchTemplateInfo<Mode>> =
+    match_best_template(
+        &resized_binary,
+        target_w,
+        target_h,
         super::result_mode::RESULT_MODE_TEMPLATES
             .iter()
-            .map(|t| MatchTemplateInfo {
-                width: t.width,
-                height: t.height,
-                mask: t.mask,
-                value: t.mode,
-            })
-            .collect();
-
-    match_best_template(&resized_binary, target_w, target_h, &t_infos, 0.75, |_| 0)
+            .map(|t| (t.width, t.height, t.mask, t.mode)),
+        0.75,
+        |_| 0,
+    )
 }
 
 /// 결과 화면 전용 난이도 패널 영역을 템플릿 매칭으로 감지합니다.
@@ -132,35 +112,32 @@ pub fn detect_result_difficulty(diff_img: &ImageView) -> Option<Difficulty> {
     }
 
     let region = diff_img.to_image_region();
-    let (binary, _, _) = match overmax_cv::binarize_by_global_contrast(
+    let (binary, _, _) = overmax_cv::binarize_by_global_contrast(
         &region.bgra,
         w,
         h,
         overmax_cv::LumaMethod::Average,
         1,
-    ) {
-        Ok(b) => b,
-        Err(_) => return None,
-    };
+    )
+    .ok()?;
     let fg_count = binary.iter().filter(|&&x| x == 1).count();
     if fg_count < 10 {
         return None;
     }
     let (target_w, target_h) = (90usize, 18usize);
-    let resized_binary = overmax_cv::resize_binary_nearest(&binary, w, h, target_w, target_h);
+    let mut resized_binary = [0u8; 90 * 18];
+    overmax_cv::resize_binary_nearest_into(&binary, w, h, &mut resized_binary, target_w, target_h);
 
-    let t_infos: Vec<MatchTemplateInfo<Difficulty>> =
+    match_best_template(
+        &resized_binary,
+        target_w,
+        target_h,
         super::result_diff::RESULT_DIFF_TEMPLATES
             .iter()
-            .map(|t| MatchTemplateInfo {
-                width: t.width,
-                height: t.height,
-                mask: t.mask,
-                value: t.diff,
-            })
-            .collect();
-
-    match_best_template(&resized_binary, target_w, target_h, &t_infos, 0.80, |_| 0)
+            .map(|t| (t.width, t.height, t.mask, t.diff)),
+        0.80,
+        |_| 0,
+    )
 }
 
 /// 오픈매치 결과 화면 전용 난이도 영역을 템플릿 매칭으로 감지합니다. (106x18 해상도 적용)
@@ -182,24 +159,16 @@ pub fn detect_openmatch_result_difficulty(diff_img: &ImageView) -> Option<Diffic
         1,
     );
     let (target_w, target_h) = (106usize, 18usize);
-    let resized_binary = overmax_cv::resize_binary_nearest(&binary, w, h, target_w, target_h);
-
-    let t_infos: Vec<MatchTemplateInfo<Difficulty>> =
-        super::result_diff::RESULT_DIFF_OPEN_TEMPLATES
-            .iter()
-            .map(|t| MatchTemplateInfo {
-                width: t.width,
-                height: t.height,
-                mask: t.mask,
-                value: t.diff,
-            })
-            .collect();
+    let mut resized_binary = [0u8; 106 * 18];
+    overmax_cv::resize_binary_nearest_into(&binary, w, h, &mut resized_binary, target_w, target_h);
 
     match_best_template(
         &resized_binary,
         target_w,
         target_h,
-        &t_infos,
+        super::result_diff::RESULT_DIFF_OPEN_TEMPLATES
+            .iter()
+            .map(|t| (t.width, t.height, t.mask, t.diff)),
         0.80,
         |val| match val {
             Difficulty::NM => 15,
@@ -229,11 +198,12 @@ fn match_digits_template(
 
     let segments = overmax_cv::segment_characters(&binary, w, h).map_err(|e| e.to_string())?;
 
-    let mut matched_str = String::new();
+    let mut matched_str = String::with_capacity(segments.len());
+    let mut char_bin = Vec::with_capacity(32 * h);
     for &(x1, x2) in &segments {
         let char_w = x2 - x1;
         let char_h = h;
-        let mut char_bin = vec![0u8; char_w * char_h];
+        char_bin.resize(char_w * char_h, 0);
         for y in 0..char_h {
             for x in 0..char_w {
                 char_bin[y * char_w + x] = binary[y * w + (x1 + x)];
@@ -254,104 +224,63 @@ fn match_digits_template(
     Ok((matched_str, binary, threshold, max_y))
 }
 
-fn get_digit_templates(templates: &[super::digit::FontTemplate]) -> Vec<overmax_cv::CvTemplate<'static>> {
-    templates
-        .iter()
-        .map(|t| overmax_cv::CvTemplate {
-            char_val: t.char_val,
-            width: t.width,
-            height: t.height,
-            mask: t.mask,
-        })
-        .collect()
-}
-
-struct MatchTemplateInfo<'a, T> {
-    width: usize,
-    height: usize,
-    mask: &'a [u8],
-    value: T,
-}
-
 fn match_best_template<T: Copy + std::fmt::Display>(
     resized_binary: &[u8],
     target_w: usize,
     target_h: usize,
-    templates: &[MatchTemplateInfo<'_, T>],
+    templates: impl IntoIterator<Item = (usize, usize, &'static [u8], T)>,
     min_score: f32,
     safe_x_calc: impl Fn(T) -> usize,
 ) -> Option<T> {
     let mut best_score = 0.0f32;
     let mut best_val: Option<T> = None;
+    let mut max_candidate_score = 0.0f32;
+    let mut max_candidate_val: Option<T> = None;
     let compare_total = target_w * target_h;
+    if compare_total == 0 {
+        return None;
+    }
 
-    for t in templates {
-        if t.width != target_w || t.height != target_h {
+    for (w, h, mask, val) in templates {
+        if w != target_w || h != target_h || mask.len() < compare_total {
             continue;
         }
-        let safe_x = safe_x_calc(t.value);
+        let safe_x = safe_x_calc(val);
         let mut matches = 0usize;
         for dy in 0..target_h {
+            let row_offset = dy * target_w;
             for dx in 0..target_w {
-                let i = dy * target_w + dx;
-                if dx < safe_x || resized_binary[i] == t.mask[i] {
+                let i = row_offset + dx;
+                if dx < safe_x || resized_binary[i] == mask[i] {
                     matches += 1;
                 }
             }
         }
         let score = matches as f32 / compare_total as f32;
+        if score > max_candidate_score {
+            max_candidate_score = score;
+            max_candidate_val = Some(val);
+        }
         if score > min_score && score > best_score {
             best_score = score;
-            best_val = Some(t.value);
+            best_val = Some(val);
         }
     }
+
     if best_val.is_none() {
-        let mut max_candidate_score = 0.0f32;
-        let mut max_candidate_val: Option<T> = None;
-        for t in templates {
-            if t.width != target_w || t.height != target_h {
-                continue;
-            }
-            let safe_x = safe_x_calc(t.value);
-            let mut matches = 0usize;
-            for dy in 0..target_h {
-                for dx in 0..target_w {
-                    let i = dy * target_w + dx;
-                    if dx < safe_x || resized_binary[i] == t.mask[i] {
-                        matches += 1;
-                    }
-                }
-            }
-            let score = matches as f32 / compare_total as f32;
-            if score > max_candidate_score {
-                max_candidate_score = score;
-                max_candidate_val = Some(t.value);
-            }
-        }
         if let Some(cand) = max_candidate_val {
-            println!(
+            debug_println!(
                 "      [Debug Result Mode/Diff] Match failed (min_score: {}). Best candidate was '{}' with score {:.3}",
                 min_score, cand, max_candidate_score
             );
         } else {
-            println!(
+            debug_println!(
                 "      [Debug Result Mode/Diff] Match failed (min_score: {}). No candidates matched size",
                 min_score
             );
         }
     }
     best_val
-}
-
-fn parse_score_text(text: &str) -> Option<u32> {
-    let clean = text
-        .chars()
-        .filter(|c| c.is_ascii_digit())
-        .collect::<String>();
-    if clean.len() != 6 && clean.len() != 7 {
-        return None;
-    }
-    clean.parse::<u32>().ok()
 }
 
 fn parse_rate_text(text: &str) -> Option<f32> {
@@ -380,14 +309,7 @@ fn parse_rate_text(text: &str) -> Option<f32> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_rate_text, parse_score_text};
-
-    #[test]
-    fn parses_score_text_correctly() {
-        assert_eq!(parse_score_text("999,800"), Some(999800));
-        assert_eq!(parse_score_text("1,000,000"), Some(1000000));
-        assert_eq!(parse_score_text("abc"), None);
-    }
+    use super::parse_rate_text;
 
     #[test]
     fn parses_rate_text_like_python_path() {
@@ -399,5 +321,19 @@ mod tests {
         assert_eq!(parse_rate_text("99.289%"), Some(99.28));
         assert_eq!(parse_rate_text("99.281"), Some(99.28));
         assert_eq!(parse_rate_text("99.280"), Some(99.28));
+    }
+
+    #[test]
+    fn matches_digit_templates_accurately() {
+        let cv_templates = crate::detector::templates::digit::DIGIT_TEMPLATES_SCORE;
+        for t in cv_templates {
+            let res = overmax_cv::match_character(t.mask, t.width, t.height, cv_templates);
+            assert!(res.is_ok(), "Failed to call match_character: '{}'", t.char_val);
+            let matched = res.unwrap();
+            assert!(matched.is_some(), "Failed to match digit template: '{}'", t.char_val);
+            let (matched_char, score) = matched.unwrap();
+            assert_eq!(matched_char, t.char_val, "Mismatched char for template '{}'", t.char_val);
+            assert!((score - 1.0).abs() < 1e-4, "Score for perfect template should be 1.0");
+        }
     }
 }

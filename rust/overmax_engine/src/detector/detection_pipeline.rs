@@ -5,7 +5,6 @@ use crate::detector::hysteresis::HysteresisBuffer;
 use crate::detector::play_state::PlayStateDetector;
 use crate::detector::roi::RoiManager;
 use crate::detector::telemetry::{PipelineStatsCollector, PipelineTelemetrySnapshot};
-use crate::detector::RateTelemetry;
 use overmax_core::{GameSessionState, SceneType};
 use overmax_data::ImageIndexDb;
 use std::time::Instant;
@@ -32,7 +31,6 @@ pub struct DetectionOutput {
     pub game_rect: Option<crate::capture::window_tracker::WindowRect>,
     pub window_snapshot: Option<WindowSnapshot>,
     pub capture_fatal: Option<String>,
-    pub rate_telemetry: Option<RateTelemetry>,
     pub top_jacket_similarity: Option<f32>,
     pub roi_scale: f32,
     pub roi_offset_y: i32,
@@ -178,7 +176,6 @@ impl DetectionPipeline {
                 confidence,
                 GameSessionState::detecting(),
                 JacketMatchStatus::NotSongSelect,
-                None,
             );
         }
 
@@ -191,7 +188,6 @@ impl DetectionPipeline {
                 confidence,
                 GameSessionState::detecting(),
                 JacketMatchStatus::Leaving,
-                None,
             );
         }
 
@@ -206,9 +202,9 @@ impl DetectionPipeline {
         self.stats.jacket.update(jacket_elapsed);
 
         let play_state_start = Instant::now();
-        let (state, telemetry) =
-            self.play_state
-                .detect(frame, &self.rois, self.current_song_id, now);
+        let state = self
+            .play_state
+            .detect(frame, &self.rois, self.current_song_id, now);
         let play_state_elapsed = play_state_start.elapsed().as_micros() as u64;
         self.stats.play_state.update(play_state_elapsed);
 
@@ -220,7 +216,6 @@ impl DetectionPipeline {
             confidence,
             state,
             jacket_status,
-            telemetry,
         )
     }
 
@@ -401,7 +396,6 @@ impl DetectionPipeline {
         confidence: f32,
         state: GameSessionState,
         jacket_status: JacketMatchStatus,
-        rate_telemetry: Option<RateTelemetry>,
     ) -> DetectionOutput {
         DetectionOutput {
             scene_detected,
@@ -416,7 +410,6 @@ impl DetectionPipeline {
             game_rect: None,
             window_snapshot: None,
             capture_fatal: None,
-            rate_telemetry,
             top_jacket_similarity: self.last_top_jacket_similarity,
             roi_scale: self.rois.scale(),
             roi_offset_y: self.rois.offset_y(),

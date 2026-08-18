@@ -289,6 +289,7 @@ pub fn detect_rect_edges(data: &[u8], width: usize, height: usize, margin: usize
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct CvTemplate<'a> {
     pub char_val: char,
     pub width: usize,
@@ -296,28 +297,46 @@ pub struct CvTemplate<'a> {
     pub mask: &'a [u8],
 }
 
-pub fn resize_binary_nearest(src: &[u8], sw: usize, sh: usize, dw: usize, dh: usize) -> Vec<u8> {
-    if sw == dw && sh == dh {
-        return src.to_vec();
-    }
-    let mut dst = vec![0u8; dw * dh];
-    if sw == 0 || sh == 0 || dw == 0 || dh == 0 {
-        return dst;
+pub fn resize_binary_nearest_into(
+    src: &[u8],
+    sw: usize,
+    sh: usize,
+    dst: &mut [u8],
+    dw: usize,
+    dh: usize,
+) {
+    if sw == 0 || sh == 0 || dw == 0 || dh == 0 || dst.len() < dw * dh || src.len() < sw * sh {
+        return;
     }
     for dy in 0..dh {
         let sy = (dy * sh) / dh;
         let sy_clamped = sy.min(sh - 1);
+        let src_row = sy_clamped * sw;
+        let dst_row = dy * dw;
         for dx in 0..dw {
             let sx = (dx * sw) / dw;
             let sx_clamped = sx.min(sw - 1);
-            dst[dy * dw + dx] = src[sy_clamped * sw + sx_clamped];
+            dst[dst_row + dx] = src[src_row + sx_clamped];
         }
     }
-    dst
 }
 
 pub fn segment_characters(binary: &[u8], width: usize, height: usize) -> Vec<(usize, usize)> {
-    let mut col_proj = vec![0u32; width];
+    if width == 0 || height == 0 || binary.len() < width * height {
+        return Vec::new();
+    }
+
+    const MAX_STACK_WIDTH: usize = 512;
+    let mut stack_proj = [0u32; MAX_STACK_WIDTH];
+    let mut heap_proj;
+
+    let col_proj: &mut [u32] = if width <= MAX_STACK_WIDTH {
+        &mut stack_proj[..width]
+    } else {
+        heap_proj = vec![0u32; width];
+        &mut heap_proj[..]
+    };
+
     for x in 0..width {
         let mut sum = 0u32;
         for y in 0..height {
@@ -328,7 +347,7 @@ pub fn segment_characters(binary: &[u8], width: usize, height: usize) -> Vec<(us
         col_proj[x] = sum;
     }
 
-    let mut segments = Vec::new();
+    let mut segments = Vec::with_capacity(8);
     let mut in_char = false;
     let mut start_x = 0;
 
@@ -365,47 +384,63 @@ pub fn match_character(
     char_h: usize,
     templates: &[CvTemplate],
 ) -> Option<(char, f32)> {
-    if char_w == 0 || char_h == 0 || templates.is_empty() {
+    if char_w == 0 || char_h == 0 || templates.is_empty() || char_bin.len() < char_w * char_h {
         return None;
     }
 
     let target_h = 32usize;
     let target_w = ((char_w as f32 * target_h as f32 / char_h as f32).round()) as usize;
-    if target_w == 0 {
+    if target_w == 0 || target_w > 32 {
         return None;
     }
 
-    // 입력받은 세그먼트를 템플릿 비교 표준인 32px 높이로 리사이징
-    let resized_bin = resize_binary_nearest(char_bin, char_w, char_h, target_w, target_h);
+    // 세그먼트를 32px 높이 표준 크기로 리사이즈하여 행 단위 u32 비트마스크에 패킹 (Zero-allocation)
+    let mut resized_bin_bits = [0u32; 32];
+    for (dy, row_bits) in resized_bin_bits.iter_mut().enumerate() {
+        let sy = (dy * char_h) / target_h;
+        let sy_clamped = sy.min(char_h - 1);
+        let mut bits = 0u32;
+        for dx in 0..target_w {
+            let sx = (dx * char_w) / target_w;
+            let sx_clamped = sx.min(char_w - 1);
+            if char_bin[sy_clamped * char_w + sx_clamped] > 0 {
+                bits |= 1 << dx;
+            }
+        }
+        *row_bits = bits;
+    }
 
     let mut best_char = None;
     let mut best_score = 0.0f32;
 
     for t in templates {
-        // 폭이 너무 크게 차이나는 템플릿 배제 (오인식 억제 필터 - 자간 뭉개짐 편차를 고려하여 6px로 완화)
+        // 폭이 너무 크게 차이나는 템플릿 배제 (오인식 억제 필터)
         let diff_w = (t.width as isize - target_w as isize).abs();
-        if diff_w > 6 {
+        if diff_w > 6 || t.width == 0 || t.height == 0 || t.mask.len() < t.width * t.height {
             continue;
         }
 
-        // 템플릿의 가로 폭을 세그먼트 가로 폭(target_w)으로 1대1 일치화
-        let scaled_template = resize_binary_nearest(t.mask, t.width, t.height, target_w, target_h);
-
-        // 해밍 거리 (XOR 차이 픽셀 카운트 - 255와 1의 채널 스케일 불일치 규격화 해결)
+        // 템플릿의 가로 폭을 세그먼트 가로 폭(target_w)으로 실시간 샘플링하며 비트 XOR 해밍 거리 누적
         let mut diff_pixels = 0usize;
-        let total_pixels = target_w * target_h;
-        for i in 0..total_pixels {
-            let a = (resized_bin[i] > 0) as u8;
-            let b = (scaled_template[i] > 0) as u8;
-            diff_pixels += (a ^ b) as usize;
+        for (dy, &bin_row_bits) in resized_bin_bits.iter().enumerate() {
+            let sy = (dy * t.height) / target_h;
+            let sy_clamped = sy.min(t.height - 1);
+            let mut t_row_bits = 0u32;
+            for dx in 0..target_w {
+                let sx = (dx * t.width) / target_w;
+                let sx_clamped = sx.min(t.width - 1);
+                if t.mask[sy_clamped * t.width + sx_clamped] > 0 {
+                    t_row_bits |= 1 << dx;
+                }
+            }
+            diff_pixels += (bin_row_bits ^ t_row_bits).count_ones() as usize;
         }
 
+        let total_pixels = target_w * target_h;
         let match_rate = (total_pixels - diff_pixels) as f32 / total_pixels as f32;
 
-        let score = match_rate;
-
-        if score > best_score {
-            best_score = score;
+        if match_rate > best_score {
+            best_score = match_rate;
             best_char = Some(t.char_val);
         }
     }
@@ -645,5 +680,119 @@ pub fn apply_non_uniform_mask(gray: &mut [u8], width: usize, height: usize) {
             }
             // Zone 1 (dist < 20): 코어 존 -> 원본 픽셀 100% 보존
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_match_character_perfect_match() {
+        // 16x32 pattern: vertical bar
+        let mut mask = [0u8; 16 * 32];
+        for y in 0..32 {
+            for x in 6..10 {
+                mask[y * 16 + x] = 1;
+            }
+        }
+        let template = CvTemplate {
+            char_val: '1',
+            width: 16,
+            height: 32,
+            mask: &mask,
+        };
+
+        let result = match_character(&mask, 16, 32, &[template]);
+        assert!(result.is_some());
+        let (ch, score) = result.unwrap();
+        assert_eq!(ch, '1');
+        assert!((score - 1.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_match_character_rescaled() {
+        // 16x32 pattern scaled down to 8x16 input
+        let mut mask = [0u8; 16 * 32];
+        for y in 0..32 {
+            for x in 6..10 {
+                mask[y * 16 + x] = 1;
+            }
+        }
+        let template = CvTemplate {
+            char_val: '1',
+            width: 16,
+            height: 32,
+            mask: &mask,
+        };
+
+        let mut input_8x16 = [0u8; 8 * 16];
+        resize_binary_nearest_into(&mask, 16, 32, &mut input_8x16, 8, 16);
+        let result = match_character(&input_8x16, 8, 16, &[template]);
+        assert!(result.is_some());
+        let (ch, score) = result.unwrap();
+        assert_eq!(ch, '1');
+        assert!(score >= 0.95);
+    }
+
+    #[test]
+    fn test_match_character_edge_cases() {
+        let template = CvTemplate {
+            char_val: 'A',
+            width: 8,
+            height: 8,
+            mask: &[1u8; 64],
+        };
+
+        // Empty / zero dimension cases
+        assert_eq!(match_character(&[], 0, 0, &[template]), None);
+        assert_eq!(match_character(&[1], 1, 0, &[template]), None);
+        assert_eq!(match_character(&[1], 0, 1, &[template]), None);
+        assert_eq!(match_character(&[1; 64], 8, 8, &[]), None);
+
+        // Insufficient buffer length
+        assert_eq!(match_character(&[1; 10], 8, 8, &[template]), None);
+
+        // Unmatched character returns None if score < 0.65
+        let zero_input = [0u8; 64];
+        assert_eq!(match_character(&zero_input, 8, 8, &[template]), None);
+    }
+
+    #[test]
+    fn test_resize_binary_nearest_into() {
+        let src = [1, 0, 1, 0, 0, 1, 0, 1]; // 4x2
+        let mut dst = [0u8; 8 * 4];
+        resize_binary_nearest_into(&src, 4, 2, &mut dst, 8, 4);
+        assert_eq!(&dst[0..8], &[1, 1, 0, 0, 1, 1, 0, 0]);
+        assert_eq!(&dst[8..16], &[1, 1, 0, 0, 1, 1, 0, 0]);
+        assert_eq!(&dst[16..24], &[0, 0, 1, 1, 0, 0, 1, 1]);
+        assert_eq!(&dst[24..32], &[0, 0, 1, 1, 0, 0, 1, 1]);
+    }
+
+    #[test]
+    fn test_segment_characters_stack_and_large_inputs() {
+        // Small input (<= 512px stack path)
+        let mut binary_small = vec![0u8; 100 * 20];
+        // Paint 2 characters of width 10 each
+        for y in 0..20 {
+            for x in 10..20 {
+                binary_small[y * 100 + x] = 255;
+            }
+            for x in 40..50 {
+                binary_small[y * 100 + x] = 255;
+            }
+        }
+        let segs_small = segment_characters(&binary_small, 100, 20);
+        assert_eq!(segs_small, vec![(10, 20), (40, 50)]);
+
+        // Large input (> 512px heap fallback path)
+        let mut binary_large = vec![0u8; 600 * 10];
+        for y in 0..10 {
+            for x in 550..570 {
+                binary_large[y * 600 + x] = 255;
+            }
+        }
+        let segs_large = segment_characters(&binary_large, 600, 10);
+        assert_eq!(segs_large, vec![(550, 570)]);
     }
 }
