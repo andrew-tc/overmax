@@ -35,25 +35,38 @@ Overmax v0.4.0 마일스톤 활성 작업 목록 및 백로그입니다.
 
 ---
 
-## 3. 감지 씬 다양화 및 인게임 확장
+## 3. 이벤트 기반 아키텍처 및 플레이 기록 파이프라인 디커플링 (Event-driven Architecture & Decoupling)
 
-- [ ] **3.1 래더매치(Ladder Match) 씬 감지 대응**
+- [ ] **3.1 [Step 1] `overmax_core`에 `VerifiedPlayEvent` 도메인 이벤트 정의**
+  - [ ] `song_id`, `mode`, `diff`, `rate`, `score`, `is_max_combo`, `is_result_screen`을 포함하는 무할당(Zero-Allocation) 이벤트 구조체 정의
+- [ ] **3.2 [Step 2] `PlayStateDetector` 및 `DetectionPipeline` Rising-Edge 1회 방출 로직 구현**
+  - [ ] 결과창 체류 중 중복 방출을 막는 세션 래치(`event_emitted_for_session`) 도입
+  * [ ] 결과창 진입 ➔ 안정화 완료 시점에 단 1회 `DetectionOutput.event: Option<VerifiedPlayEvent>` 방출 (Zero-Allocation)
+  - [ ] 선곡/인게임 전환 시 래치 자동 리셋
+- [ ] **3.3 [Step 3] `overmax_app` UI 레이어 이벤트 핸들러 전환**
+  - [ ] `native_app_recommend.rs`의 원시 상태 조건 검사(`is_valid`, `rate >= MIN_VALID_RATE`, `recorded_states`) 코드를 제거하고 `output.event` 수신 시 `record_manager.upsert` 호출로 간결화
+- [ ] **3.4 [Step 4] 다중 프레임 체류 및 상태 전환 시 중복/누락 방지 검증**
+  - [ ] 결과창 장시간 체류 시 이벤트 1회 방출 및 선곡 화면 복귀 시 안전성 단위 테스트 추가
+
+---
+
+## 4. 감지 씬 다양화 및 인게임 확장
+
+- [ ] **4.1 래더매치(Ladder Match) 씬 감지 대응**
   - [ ] 래더매치 밴픽/선곡 화면 및 대기실 감지 대응
   - [ ] 래더매치 결과창 인식 지원
 
 ---
 
-## 4. 다국어 (i18n) 지원 확장
+## 5. 다국어 (i18n) 지원 확장
 
-- [ ] **4.1 일본어(JA) 번역 및 폰트 지원 추가**
+- [ ] **5.1 일본어(JA) 번역 및 폰트 지원 추가**
   - [ ] UI 및 오버레이 텍스트 일본어 리소스 작성
   - [ ] 일본어 CJK 폰트 렌더링 검증
 
 ---
 
-## 5. 장기 백로그 (Long-term Backlog)
+## 6. 장기 백로그 (Long-term Backlog)
 
-- [ ] **5.1 `overmax_engine`과 `overmax_data` 계층 결합도 완화 (Event-driven Architecture)**
-  - [ ] `DetectionPipeline` 내부의 SQLite 직접 `upsert` 의존성을 제거하고, 엔진은 `VerifiedPlayEvent` 방출만 담당하도록 책임 분리
-- [ ] **5.2 공식 V-Archive 클라이언트 보완/대체 자동 업로드 파이프라인 (장기)**
+- [ ] **6.1 공식 V-Archive 클라이언트 보완/대체 자동 업로드 파이프라인 (장기)**
   - [ ] 게임 플레이 종료 시 감지된 플레이 기록을 V-Archive API로 안전하게 자동 백그라운드 업로드하는 파이프라인 설계
